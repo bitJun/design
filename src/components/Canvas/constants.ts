@@ -134,7 +134,18 @@ export const IMG2IMG_PROMPT_PLACEHOLDER =
 
 export const IMG2IMG_QUICK_TAGS = ['风格', '相似', '参考'] as const
 
-export const VIDEO_NODE_TOOLBAR = ['画质', '解析', '智能去字幕', '音频分离', '下载', '全屏']
+export const VIDEO_NODE_TOOLBAR = {
+  chat: { key: 'chat', label: '对话', icon: 'chat' as const },
+  actions: [
+    { key: 'clip', label: '视频剪辑', icon: 'video-edit' },
+    { key: 'parse', label: '解析', icon: 'wand' },
+    { key: 'hd', label: '高清', icon: 'video-hd' },
+    { key: 'frames', label: '抽帧', icon: 'frames' },
+    { key: 'replicate', label: '复刻', icon: 'replicate' },
+    { key: 'watermark', label: '去水印', icon: 'watermark' },
+    { key: 'subtitle', label: '去字幕', icon: 'subtitle' },
+  ] satisfies ImageToolbarAction[],
+} as const
 
 export type ImageToolbarIcon =
   | 'chat'
@@ -159,6 +170,13 @@ export type ImageToolbarIcon =
   | 'layers'
   | 'svg'
   | 'customize'
+  | 'video-edit'
+  | 'wand'
+  | 'video-hd'
+  | 'frames'
+  | 'replicate'
+  | 'watermark'
+  | 'subtitle'
 
 export type ImageToolbarAction = {
   key: string

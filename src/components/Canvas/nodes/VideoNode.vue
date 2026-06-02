@@ -58,28 +58,47 @@
         <span class="video-node__spinner" />
         <span>上传中 ({{ data.uploadProgress }}%) ...</span>
       </template>
-      <template v-else-if="data.previewUrl">
-        <video :src="data.previewUrl" muted playsinline />
-      </template>
-      <template v-else>
+      <div v-else-if="data.previewUrl" class="video-node__player">
+        <video
+          ref="videoRef"
+          :key="data.previewUrl"
+          class="video-node__video"
+          :src="data.previewUrl"
+          playsinline
+          controls
+          preload="metadata"
+          @loadedmetadata="onVideoMetadata"
+          @mousedown.stop
+          @click.stop
+        />
+      </div>
+      <button
+        v-else
+        type="button"
+        class="video-node__empty"
+        @mousedown.stop
+        @click.stop="triggerUpload"
+      >
         <span class="video-node__hero-play video-node__hero-play--lg">▶</span>
-        <span>上传中...</span>
-      </template>
+        <span>点击上传视频</span>
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onMounted, reactive } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import type { Node } from '@antv/x6'
 import { VIDEO_PICKER_ACTIONS, formatDimensions } from '../constants'
 import type { CanvasNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
+
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
 const { removeSelf } = useNodeDelete()
 const { onPlusClick } = useNodeConnect()
+const videoRef = ref<HTMLVideoElement | null>(null)
 
 const data = reactive<CanvasNodeData>({
   kind: 'video',
@@ -109,30 +128,19 @@ function triggerUpload() {
 function onPickerAction(key: string) {
   data.mode = 'editor'
   data.content = key
-  if (key === 'first' || key === 'frames') {
-    data.uploadState = 'uploading'
-    data.uploadProgress = 0
-    simulateGenerate()
-  }
   syncData()
+  if (key === 'first' || key === 'frames') {
+    triggerUpload()
+  }
 }
 
-function simulateGenerate() {
-  const duration = 2200
-  const start = Date.now()
-  const timer = window.setInterval(() => {
-    const p = Math.min(100, Math.round(((Date.now() - start) / duration) * 100))
-    data.uploadProgress = p
-    data.uploadState = 'uploading'
-    syncData()
-    if (p >= 100) {
-      window.clearInterval(timer)
-      data.uploadState = 'done'
-      data.mediaWidth = 2560
-      data.mediaHeight = 1440
-      syncData()
-    }
-  }, 60)
+function onVideoMetadata(event: Event) {
+  const video = event.target as HTMLVideoElement
+  if (!video.videoWidth || !video.videoHeight) return
+  if (data.mediaWidth === video.videoWidth && data.mediaHeight === video.videoHeight) return
+  data.mediaWidth = video.videoWidth
+  data.mediaHeight = video.videoHeight
+  syncData()
 }
 
 onMounted(() => {
@@ -143,6 +151,9 @@ onMounted(() => {
   })
 })
 
+onBeforeUnmount(() => {
+  videoRef.value?.pause()
+})
 </script>
 
 <style scoped lang="scss">
@@ -229,19 +240,49 @@ onMounted(() => {
 .video-node__body--media {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 12px;
+  height: calc(100% - 24px);
+  min-height: 180px;
+  padding: 0;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.video-node__player {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  background: #0a0a0c;
+}
+
+.video-node__video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #0a0a0c;
+}
+
+.video-node__empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
+  width: 100%;
   min-height: 180px;
+  padding: 24px 16px;
+  border: none;
+  background: transparent;
   color: #9ca3af;
   font-size: 14px;
+  cursor: pointer;
 
-  video {
-    width: 100%;
-    height: 100%;
-    max-height: 220px;
-    object-fit: contain;
-    background: #0a0a0c;
+  &:hover {
+    color: #e5e7eb;
   }
 }
 

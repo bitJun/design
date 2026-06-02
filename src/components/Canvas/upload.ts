@@ -47,6 +47,23 @@ function finishUpload(graphNode: Node, file: File) {
     return
   }
 
+  if (file.type.startsWith('video/')) {
+    const video = document.createElement('video')
+    video.preload = 'metadata'
+    video.onloadedmetadata = () => {
+      data.mediaWidth = video.videoWidth || 2560
+      data.mediaHeight = video.videoHeight || 1440
+      applyNodeMedia(graphNode, data)
+    }
+    video.onerror = () => {
+      data.mediaWidth = 2560
+      data.mediaHeight = 1440
+      applyNodeMedia(graphNode, data)
+    }
+    video.src = url
+    return
+  }
+
   data.mediaWidth = 2560
   data.mediaHeight = 1440
   applyNodeMedia(graphNode, data)

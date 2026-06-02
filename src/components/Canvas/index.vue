@@ -19,7 +19,7 @@
     <div
       v-if="showNodeToolbar"
       class="canvas__node-toolbar"
-      :class="{ 'canvas__node-toolbar--image': isImageNodeToolbar }"
+      :class="{ 'canvas__node-toolbar--image': isLightNodeToolbar }"
       :style="{ left: `${toolbarPos.left}px`, top: `${toolbarPos.top}px` }"
       @mousedown.stop
     >
@@ -207,21 +207,43 @@
             </button>
           </template>
         </template>
-        <template v-else>
-          <button
-            v-for="item in activeToolbarItems"
-            :key="item"
-            type="button"
-            class="canvas__node-toolbar-btn"
-          >
-            {{ item }}
+        <template v-else-if="selectedKind === 'video'">
+          <div class="canvas__node-toolbar-group">
+            <button
+              type="button"
+              class="canvas__node-toolbar-btn"
+              :class="{ 'canvas__node-toolbar-btn--active': showVideoDialogue }"
+              @click="toggleVideoDialogue"
+            >
+              <span class="canvas__node-toolbar-icon" data-icon="chat" aria-hidden="true" />
+              {{ VIDEO_NODE_TOOLBAR.chat.label }}
+            </button>
+          </div>
+          <span class="canvas__node-toolbar-divider" aria-hidden="true" />
+          <div class="canvas__node-toolbar-group">
+            <button
+              v-for="item in VIDEO_NODE_TOOLBAR.actions"
+              :key="item.key"
+              type="button"
+              class="canvas__node-toolbar-btn"
+            >
+              <span
+                v-if="item.icon"
+                class="canvas__node-toolbar-icon"
+                :data-icon="item.icon"
+                aria-hidden="true"
+              />
+              {{ item.label }}
+            </button>
+          </div>
+          <span class="canvas__node-toolbar-divider" aria-hidden="true" />
+          <button type="button" class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon" title="下载">
+            <span class="canvas__node-toolbar-icon" data-icon="download" aria-hidden="true" />
           </button>
-          <button type="button" class="canvas__node-toolbar-btn" title="下载">↓</button>
-          <button type="button" class="canvas__node-toolbar-btn" title="全屏">⤢</button>
         </template>
       </template>
       <button
-        v-if="selectedKind !== 'image'"
+        v-if="selectedKind !== 'image' && selectedKind !== 'video'"
         type="button"
         class="canvas__node-toolbar-btn canvas__node-toolbar-btn--danger"
         title="删除节点"
@@ -517,6 +539,7 @@ const showImageToolbarMore = ref(false)
 const showImageToolbarMoreMenu = ref(false)
 const showImageHdMenu = ref(false)
 const showImageDialogue = ref(false)
+const showVideoDialogue = ref(false)
 const imageDialogueText = ref('')
 
 const zoomPercent = computed(() => `${Math.round(zoomLevel.value * 100)}%`)
@@ -524,11 +547,6 @@ const canvasBgThemeLabel = computed(
   () => getCanvasBgThemeMeta(canvasBgTheme.value).label,
 )
 const showPromptBar = computed(() => Boolean(activePickerNodeId.value) && nodeCount.value > 0)
-
-const activeToolbarItems = computed(() => {
-  if (selectedKind.value === 'video') return VIDEO_NODE_TOOLBAR.slice(0, 4)
-  return []
-})
 
 const showNodeToolbar = computed(() => Boolean(selectedNodeId.value))
 const toolbarRevision = ref(0)
@@ -561,8 +579,10 @@ const showToolbarFeatureButtons = computed(() => {
   return data?.mode !== 'picker'
 })
 
-const isImageNodeToolbar = computed(
-  () => selectedKind.value === 'image' && showToolbarFeatureButtons.value,
+const isLightNodeToolbar = computed(
+  () =>
+    (selectedKind.value === 'image' || selectedKind.value === 'video') &&
+    showToolbarFeatureButtons.value,
 )
 
 function openImageToolbarMore() {
@@ -608,8 +628,16 @@ function toggleImageDialogue() {
   }
 }
 
+function toggleVideoDialogue() {
+  showVideoDialogue.value = !showVideoDialogue.value
+}
+
 function resetImageDialogue() {
   showImageDialogue.value = false
+}
+
+function resetVideoDialogue() {
+  showVideoDialogue.value = false
 }
 
 function requestCanvasUpload(nodeId: string) {
@@ -998,6 +1026,7 @@ function handleNodeClick({ node }: { node: Node }) {
   selectedKind.value = data.kind
   resetImageToolbarMore()
   resetImageDialogue()
+  resetVideoDialogue()
   bumpToolbarRevision()
   activePickerNodeId.value =
     data.mode === 'picker' && (data.kind === 'text' || data.kind === 'audio') ? node.id : ''
@@ -1016,6 +1045,7 @@ function handleBlankClick() {
   selectedKind.value = null
   resetImageToolbarMore()
   resetImageDialogue()
+  resetVideoDialogue()
   syncNodeSelectionHighlight('')
 }
 
