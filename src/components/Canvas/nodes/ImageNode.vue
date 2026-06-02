@@ -3,6 +3,15 @@
     class="image-node"
     :class="{ 'image-node--portrait': isPortraitLayout, 'image-node--selected': data.isSelected }"
   >
+    <button
+      type="button"
+      class="node-port-plus"
+      title="添加连线节点"
+      @mousedown.stop
+      @click.stop="onPlusClick"
+    >
+      +
+    </button>
     <div class="image-node__meta canvas-node__meta">
       <span class="image-node__title">
         <span class="image-node__title-icon">▣</span>
@@ -60,10 +69,12 @@ import { formatDimensions, isPortrait } from '../constants'
 import type { CanvasNodeData } from '../constants'
 import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
+import { useNodeConnect } from './useNodeConnect'
 
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
 const { removeSelf } = useNodeDelete()
+const { onPlusClick } = useNodeConnect()
 
 const data = reactive<CanvasNodeData>({ ...createEmptyNodeData(), kind: 'image', title: '图片节点', mode: 'editor' })
 
@@ -92,13 +103,16 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import './node-delete.scss';
+@import './node-port-plus.scss';
 .image-node {
+  position: relative;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
   font-family: system-ui, -apple-system, sans-serif;
   color: #f3f4f6;
   pointer-events: auto;
+  overflow: visible;
 }
 
 .image-node__meta {

@@ -61,6 +61,34 @@ export type MenuIcon =
   | 'script'
   | 'upload'
   | 'history'
+  | 'link'
+
+export type ConnectMenuKey =
+  | 'text'
+  | 'image'
+  | 'video'
+  | 'compose'
+  | 'director'
+  | 'audio'
+  | 'script'
+  | 'reference'
+
+export const CONNECT_GENERATE_MENU: Array<{
+  key: ConnectMenuKey
+  label: string
+  icon: MenuIcon
+  badge?: 'Beta' | 'NEW'
+  disabled?: boolean
+}> = [
+  { key: 'text', label: '文本', icon: 'text' },
+  { key: 'image', label: '图片', icon: 'image' },
+  { key: 'video', label: '视频', icon: 'video' },
+  { key: 'compose', label: '视频合成', icon: 'compose', badge: 'Beta' },
+  { key: 'director', label: '导演台', icon: 'director', badge: 'NEW' },
+  { key: 'audio', label: '音频', icon: 'audio', disabled: true },
+  { key: 'script', label: '脚本', icon: 'script', badge: 'Beta' },
+  { key: 'reference', label: '参考节点', icon: 'link', disabled: true },
+]
 
 export const ADD_NODE_GROUPS = [
   {

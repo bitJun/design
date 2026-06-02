@@ -3,6 +3,7 @@ import { Scroller } from '@antv/x6-plugin-scroller'
 import '@antv/x6-plugin-scroller/es/index.css'
 import { register } from '@antv/x6-vue-shape'
 import { getDefaultEdgeStroke } from './canvasTheme'
+import { canOpenConnectMenu, getConnectPreviewStroke } from './nodeConnect'
 import '@antv/x6-vue-shape'
 import TextNode from './nodes/TextNode.vue'
 import ImageNode from './nodes/ImageNode.vue'
@@ -82,18 +83,19 @@ export function getNodeSize(
   return NODE_SIZE.image.landscape
 }
 
-export function createPorts(stroke = '#6b7cff', fill = '#6b7cff') {
+export function createPorts(stroke = '#8b8b95') {
   return {
     groups: {
       left: {
         position: { name: 'left' },
         attrs: {
           circle: {
-            r: 10,
+            r: 12,
             magnet: true,
-            stroke: '#8b8b95',
+            stroke,
             strokeWidth: 1.5,
-            fill: '#1e1e22',
+            fill: '#2a2a30',
+            cursor: 'crosshair',
             style: { visibility: 'hidden' },
           },
           plus: {
@@ -115,17 +117,18 @@ export function createPorts(stroke = '#6b7cff', fill = '#6b7cff') {
         position: { name: 'right' },
         attrs: {
           circle: {
-            r: 10,
+            r: 12,
             magnet: true,
             stroke,
             strokeWidth: 1.5,
-            fill,
-            style: { visibility: 'hidden', cursor: 'crosshair' },
+            fill: '#2a2a30',
+            cursor: 'crosshair',
+            style: { visibility: 'hidden' },
           },
           plus: {
             text: '+',
             fontSize: 14,
-            fill: '#ffffff',
+            fill: '#d1d5db',
             textAnchor: 'middle',
             textVerticalAnchor: 'middle',
             pointerEvents: 'none',
@@ -154,16 +157,6 @@ export function setPortsVisible(node: Node, visible: boolean) {
   })
 }
 
-export function setImageAssetPortsVisible(node: Node, visible: boolean) {
-  node.getPorts().forEach((port) => {
-    if (!port.id) return
-    const show = port.id === 'right' ? visible : false
-    const state = show ? 'visible' : 'hidden'
-    node.setPortProp(port.id, 'attrs/circle/style/visibility', state)
-    node.setPortProp(port.id, 'attrs/plus/style/visibility', state)
-  })
-}
-
 export function getScroller(graph: Graph): Scroller | null {
   return graph.getPlugin<Scroller>('scroller') ?? null
 }
@@ -182,6 +175,7 @@ export function createGraph(container: HTMLElement): CanvasGraph {
       args: { color: '#2a2a30', thickness: 1.2 },
     },
     panning: false,
+    clickThreshold: 5,
     mousewheel: {
       enabled: true,
       modifiers: null,
@@ -197,17 +191,25 @@ export function createGraph(container: HTMLElement): CanvasGraph {
     },
     connecting: {
       snap: true,
-      allowBlank: false,
+      allowBlank: (args) => {
+        const source = args.sourceCell
+        if (!source?.isNode()) return false
+        return canOpenConnectMenu(source)
+      },
       allowLoop: false,
       highlight: true,
       connector: { name: 'smooth' },
       connectionPoint: 'boundary',
       router: { name: 'normal' },
-      createEdge() {
+      createEdge(this: Graph, args) {
+        const source = args?.sourceCell
+        const previewStroke = source?.isNode() ? getConnectPreviewStroke(source) : null
+        const stroke = previewStroke ?? getDefaultEdgeStroke()
+
         return new Shape.Edge({
           attrs: {
             line: {
-              stroke: getDefaultEdgeStroke(),
+              stroke,
               strokeWidth: 2,
               targetMarker: { name: 'block', width: 10, height: 8 },
             },
@@ -259,28 +261,14 @@ export function addCanvasNode(
     y: point.y - size.height / 2,
     width: size.width,
     height: size.height,
-    ports: createPorts(),
+    ports: createPorts('#6b7280'),
     data,
   })
 }
 
 export function bindGraphInteraction(graph: Graph) {
-  graph.on('node:mouseenter', ({ node }) => {
-    const data = node.getData() as CanvasNodeData
-    if (data.kind === 'image' && !data.imageGenTask) {
-      setImageAssetPortsVisible(node, true)
-      return
-    }
-    setPortsVisible(node, true)
-  })
-  graph.on('node:mouseleave', ({ node }) => {
-    const data = node.getData() as CanvasNodeData
-    if (data.kind === 'image' && !data.imageGenTask) {
-      setImageAssetPortsVisible(node, false)
-      return
-    }
-    setPortsVisible(node, false)
-  })
+  graph.on('node:mouseenter', ({ node }) => setPortsVisible(node, true))
+  graph.on('node:mouseleave', ({ node }) => setPortsVisible(node, false))
 
   graph.on('node:change:data', ({ node }) => {
     const data = node.getData() as CanvasNodeData

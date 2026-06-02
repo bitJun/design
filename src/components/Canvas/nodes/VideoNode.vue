@@ -1,5 +1,15 @@
 <template>
   <div class="video-node" :class="{ 'video-node--selected': data.isSelected }">
+    <button
+      v-if="data.mode === 'editor'"
+      type="button"
+      class="node-port-plus"
+      title="添加连线节点"
+      @mousedown.stop
+      @click.stop="onPlusClick"
+    >
+      +
+    </button>
     <div class="video-node__meta canvas-node__meta">
       <span class="video-node__title">
         <span class="video-node__play">▶</span>
@@ -65,9 +75,11 @@ import type { Node } from '@antv/x6'
 import { VIDEO_PICKER_ACTIONS, formatDimensions } from '../constants'
 import type { CanvasNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
+import { useNodeConnect } from './useNodeConnect'
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
 const { removeSelf } = useNodeDelete()
+const { onPlusClick } = useNodeConnect()
 
 const data = reactive<CanvasNodeData>({
   kind: 'video',
@@ -135,13 +147,16 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import './node-delete.scss';
+@import './node-port-plus.scss';
 .video-node {
+  position: relative;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
   font-family: system-ui, -apple-system, sans-serif;
   color: #f3f4f6;
   pointer-events: auto;
+  overflow: visible;
 }
 
 .video-node__meta {

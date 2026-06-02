@@ -17,17 +17,6 @@
 
     <div ref="graphRef" class="canvas__graph" />
 
-    <div
-      v-if="connectGhost.visible"
-      class="canvas__connect-ghost"
-      :style="{
-        left: `${connectGhost.left}px`,
-        top: `${connectGhost.top}px`,
-        width: `${connectGhost.width}px`,
-        height: `${connectGhost.height}px`,
-      }"
-    />
-
     <div v-if="isEmpty" class="canvas__empty">
       <p class="canvas__hint">
         <span class="canvas__hint-icon" aria-hidden="true" />
@@ -163,10 +152,41 @@
     </div>
 
     <div
+      v-if="showConnectMenu"
+      class="canvas__connect-menu"
+      :style="{ left: `${connectMenuPos.left}px`, top: `${connectMenuPos.top}px` }"
+      @mousedown.stop
+    >
+      <h4 class="canvas__connect-title">引用该节点生成</h4>
+      <button
+        v-for="item in CONNECT_GENERATE_MENU"
+        :key="item.key"
+        type="button"
+        class="canvas__connect-item"
+        :class="{ 'canvas__connect-item--disabled': item.disabled }"
+        :disabled="item.disabled"
+        @click="onConnectMenuItem(item)"
+      >
+        <span class="canvas__connect-icon" :data-icon="item.icon" />
+        <span class="canvas__connect-label">
+          {{ item.label }}
+          <em
+            v-if="item.badge"
+            class="canvas__connect-badge"
+            :class="{
+              'canvas__connect-badge--new': item.badge === 'NEW',
+              'canvas__connect-badge--beta': item.badge === 'Beta',
+            }"
+          >
+            {{ item.badge }}
+          </em>
+        </span>
+      </button>
+    </div>
+
+    <div
       v-if="showAddMenu"
       class="canvas__add-menu"
-      :class="{ 'canvas__add-menu--dock': !addMenuAtCursor }"
-      :style="addMenuStyle"
       @mousedown.stop
     >
       <section v-for="group in ADD_NODE_GROUPS" :key="group.title" class="canvas__add-group">
@@ -179,15 +199,12 @@
           @click="onMenuItem(item)"
         >
           <span class="canvas__add-icon" :data-icon="item.icon" />
-          <span class="canvas__add-item-label">
-            {{ item.label }}
-            <em
-              v-if="'badge' in item && item.badge"
-              class="canvas__add-badge"
-              :class="{ 'canvas__add-badge--new': item.badge === 'NEW' }"
-            >
-              {{ item.badge }}
-            </em>
+          <span class="canvas__add-item-main">
+            <span class="canvas__add-item-label">
+              {{ item.label }}
+              <em v-if="'badge' in item && item.badge" class="canvas__add-badge">{{ item.badge }}</em>
+            </span>
+            <span class="canvas__add-item-desc">{{ item.desc }}</span>
           </span>
         </button>
       </section>
@@ -257,10 +274,10 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
-import type { Graph } from '@antv/x6'
-import type { Node } from '@antv/x6'
+import type { Edge, Graph, Node } from '@antv/x6'
 import {
   ADD_NODE_GROUPS,
+  CONNECT_GENERATE_MENU,
   EMPTY_HINT,
   IMAGE_NODE_TOOLBAR,
   NODE_TEMPLATES,
@@ -270,14 +287,13 @@ import {
   type ImageGenTask,
   type NodeKind,
 } from './constants'
+import { applyImageGenTask as applyImageGenTaskToNode } from './imageGen'
 import {
-  bindPortConnectDrag,
-  type ConnectGhostState,
-} from './connectDrag'
-import {
-  applyImageGenTask as applyImageGenTaskToNode,
-  spawnImageGenNode,
-} from './imageGen'
+  canOpenConnectMenu,
+  createNodeFromConnectMenu,
+  getDefaultConnectPoint,
+} from './nodeConnect'
+import type { ConnectMenuKey } from './constants'
 import {
   addCanvasNode,
   bindGraphInteraction,
@@ -305,19 +321,10 @@ const canvasBgTheme = ref<CanvasBgTheme>('dark')
 const panMode = ref(true)
 const showMinimap = ref(true)
 const showAddMenu = ref(false)
-const addMenuAtCursor = ref(false)
-const addMenuPosition = ref({ left: 0, top: 0 })
-const pendingAddPoint = ref<{ x: number; y: number } | null>(null)
-
-const ADD_MENU_SIZE = { width: 248, height: 400 }
-
-const addMenuStyle = computed(() => {
-  if (!addMenuAtCursor.value) return undefined
-  return {
-    left: `${addMenuPosition.value.left}px`,
-    top: `${addMenuPosition.value.top}px`,
-  }
-})
+const showConnectMenu = ref(false)
+const connectMenuPos = ref({ left: 0, top: 0 })
+const connectSourceNodeId = ref('')
+const connectDropPoint = ref<{ x: number; y: number } | null>(null)
 const showAssetsPanel = ref(false)
 const assetsTab = ref<'all' | 'mine'>('mine')
 const assetsLoading = ref(false)
@@ -327,15 +334,6 @@ const selectedNodeId = ref('')
 const pendingUploadNodeId = ref('')
 const toolbarPos = ref({ left: 0, top: 0 })
 const selectedKind = ref<NodeKind | null>(null)
-const connectGhost = ref<ConnectGhostState>({
-  visible: false,
-  left: 0,
-  top: 0,
-  width: 0,
-  height: 0,
-})
-let teardownConnectDrag: (() => void) | null = null
-let ignoreNextBlankClick = false
 
 const isEmpty = computed(() => nodeCount.value === 0)
 const zoomPercent = computed(() => `${Math.round(zoomLevel.value * 100)}%`)
@@ -384,15 +382,106 @@ function handleApplyImageGenTask(nodeId: string, task: ImageGenTask) {
 
 provide('applyImageGenTask', handleApplyImageGenTask)
 
-function handleConnectDrop(source: Node, point: { x: number; y: number }) {
+function closeConnectMenu() {
+  showConnectMenu.value = false
+  connectSourceNodeId.value = ''
+  connectDropPoint.value = null
+}
+
+function openConnectMenu(source: Node, graphPoint: { x: number; y: number }) {
+  const g = graph.value
+  if (!g || !graphRef.value) return
+
+  showAddMenu.value = false
+  connectSourceNodeId.value = source.id
+  connectDropPoint.value = graphPoint
+
+  const client = g.localToClient(graphPoint.x, graphPoint.y)
+  const rect = graphRef.value.getBoundingClientRect()
+  const menuWidth = 220
+  const menuHeight = 360
+  connectMenuPos.value = {
+    left: Math.max(12, Math.min(client.x - rect.left + 10, rect.width - menuWidth - 12)),
+    top: Math.max(60, Math.min(client.y - rect.top - 24, rect.height - menuHeight - 12)),
+  }
+  showConnectMenu.value = true
+}
+
+function finishConnectSpawn(node: Node) {
+  selectedNodeId.value = node.id
+  syncNodeSelectionHighlight(node.id)
+  updateNodeToolbar()
+  syncNodeCount()
+  closeConnectMenu()
+}
+
+function onConnectMenuItem(item: (typeof CONNECT_GENERATE_MENU)[number]) {
+  if (item.disabled) return
+
+  const g = graph.value
+  const sourceId = connectSourceNodeId.value
+  const point = connectDropPoint.value
+  if (!g || !sourceId || !point) return
+
+  const source = g.getCellById(sourceId)
+  if (!source?.isNode()) return
+
+  const spawned = createNodeFromConnectMenu(
+    g,
+    source as Node,
+    point,
+    item.key as ConnectMenuKey,
+  )
+  if (!spawned) return
+
+  const data = spawned.getData() as CanvasNodeData
+  if (data.mode === 'picker' && (data.kind === 'text' || data.kind === 'audio')) {
+    activePickerNodeId.value = spawned.id
+  }
+
+  finishConnectSpawn(spawned)
+}
+
+function connectFromNode(nodeId: string) {
   const g = graph.value
   if (!g) return
 
-  const spawned = spawnImageGenNode(g, source, 'picker', point)
-  selectedNodeId.value = spawned.id
-  syncNodeSelectionHighlight(spawned.id)
-  updateNodeToolbar()
-  syncNodeCount()
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode() || !canOpenConnectMenu(cell as Node)) return
+
+  openConnectMenu(cell as Node, getDefaultConnectPoint(cell as Node))
+}
+
+provide('connectFromNode', connectFromNode)
+
+function handlePortClick({ node, port }: { node: Node; port?: string }) {
+  if (port !== 'right') return
+  connectFromNode(node.id)
+}
+
+function handleEdgeConnected({ edge, isNew }: { edge: Edge; isNew?: boolean }) {
+  if (!isNew) return
+  const g = graph.value
+  if (!g) return
+
+  if (edge.getTargetCell()) return
+
+  const target = edge.getTarget()
+  if (!target || typeof target !== 'object' || !('x' in target) || !('y' in target)) {
+    return
+  }
+
+  const source = edge.getSourceCell()
+  if (!source?.isNode() || !canOpenConnectMenu(source as Node)) {
+    g.removeEdge(edge)
+    return
+  }
+
+  g.removeEdge(edge)
+  openConnectMenu(source as Node, {
+    x: Number(target.x),
+    y: Number(target.y),
+  })
 }
 
 function removeNodeById(nodeId: string) {
@@ -479,7 +568,7 @@ function addNode(kind: NodeKind, point?: { x: number; y: number }) {
 
   selectedNodeId.value = node.id
   updateNodeToolbar()
-  closeAddMenu()
+  showAddMenu.value = false
   syncNodeCount()
   return node
 }
@@ -496,75 +585,19 @@ function addFromMenu(kind: NodeKind) {
   })
 }
 
-function clampAddMenuPosition(left: number, top: number) {
-  const host = graphRef.value?.parentElement
-  if (!host) return { left, top }
-  const maxLeft = host.clientWidth - ADD_MENU_SIZE.width - 12
-  const maxTop = host.clientHeight - ADD_MENU_SIZE.height - 12
-  return {
-    left: Math.min(Math.max(12, left), Math.max(12, maxLeft)),
-    top: Math.min(Math.max(12, top), Math.max(12, maxTop)),
-  }
-}
-
-function openAddMenuAtGraphPoint(point: { x: number; y: number }) {
-  const g = graph.value
-  const container = graphRef.value
-  if (!g || !container) return
-
-  pendingAddPoint.value = point
-  addMenuAtCursor.value = true
-  const client = g.localToClient(point.x, point.y)
-  const rect = container.getBoundingClientRect()
-  const pos = clampAddMenuPosition(
-    client.x - rect.left + 12,
-    client.y - rect.top + 12,
-  )
-  addMenuPosition.value = pos
-  showAddMenu.value = true
-  showAssetsPanel.value = false
-}
-
-function openAddMenuFromToolbar() {
-  pendingAddPoint.value = null
-  addMenuAtCursor.value = false
-  showAddMenu.value = true
-  showAssetsPanel.value = false
-}
-
-function closeAddMenu() {
-  showAddMenu.value = false
-  pendingAddPoint.value = null
-  addMenuAtCursor.value = false
-}
-
 function onMenuItem(item: (typeof ADD_NODE_GROUPS)[number]['items'][number]) {
-  const point = pendingAddPoint.value
-
   if ('action' in item && item.action === 'upload') {
-    if (point) {
-      const created = addNode('image', point)
-      if (created) pendingUploadNodeId.value = created.id
-    } else {
-      pendingUploadNodeId.value = ''
-    }
+    pendingUploadNodeId.value = ''
     fileInputRef.value?.click()
-    closeAddMenu()
+    showAddMenu.value = false
     return
   }
   if ('action' in item && item.action === 'history') {
-    closeAddMenu()
+    showAddMenu.value = false
     openAssetsPanel()
     return
   }
-
-  if (point) {
-    addNode(item.kind, point)
-    pendingAddPoint.value = null
-  } else {
-    addFromMenu(item.kind)
-  }
-  closeAddMenu()
+  addFromMenu(item.kind)
 }
 
 function onFileSelected(event: Event) {
@@ -599,16 +632,16 @@ function onFileSelected(event: Event) {
 }
 
 function toggleAddMenu() {
+  showAddMenu.value = !showAddMenu.value
   if (showAddMenu.value) {
-    closeAddMenu()
-    return
+    showAssetsPanel.value = false
+    closeConnectMenu()
   }
-  openAddMenuFromToolbar()
 }
 
 function openAssetsPanel() {
   showAssetsPanel.value = true
-  closeAddMenu()
+  showAddMenu.value = false
   assetsLoading.value = true
   window.setTimeout(() => {
     assetsLoading.value = false
@@ -706,11 +739,7 @@ function removeSelectedNode() {
 }
 
 function handleBlankDblClick(event: { x: number; y: number }) {
-  ignoreNextBlankClick = true
-  openAddMenuAtGraphPoint({ x: event.x, y: event.y })
-  window.setTimeout(() => {
-    ignoreNextBlankClick = false
-  }, 0)
+  addNode('video', { x: event.x, y: event.y })
 }
 
 function handleNodeClick({ node }: { node: Node }) {
@@ -728,8 +757,8 @@ function handleNodeUnselected() {
 }
 
 function handleBlankClick() {
-  if (ignoreNextBlankClick) return
-  closeAddMenu()
+  showAddMenu.value = false
+  closeConnectMenu()
   selectedNodeId.value = ''
   selectedKind.value = null
   syncNodeSelectionHighlight('')
@@ -777,15 +806,8 @@ onMounted(() => {
     handleNodeUnselected()
   })
   instance.on('node:change:data', handleNodeDataChange)
-
-  teardownConnectDrag = bindPortConnectDrag(
-    instance,
-    graphRef.value,
-    (state) => {
-      connectGhost.value = state
-    },
-    handleConnectDrop,
-  )
+  instance.on('node:port:click', handlePortClick)
+  instance.on('edge:connected', handleEdgeConnected)
 
   window.addEventListener('keydown', handleKeydown)
 
@@ -802,8 +824,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
-  teardownConnectDrag?.()
-  teardownConnectDrag = null
   teardownMinimap()
   graph.value?.dispose()
   graph.value = null

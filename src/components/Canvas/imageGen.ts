@@ -59,7 +59,6 @@ export function spawnImageGenNode(
   graph: Graph,
   sourceNode: Node,
   task: ImageGenTask | 'picker' = 'picker',
-  dropPoint?: { x: number; y: number },
 ) {
   const existing = findOutgoingGenNode(graph, sourceNode.id)
   if (existing) {
@@ -86,9 +85,35 @@ export function spawnImageGenNode(
 
   const size = getNodeSize('image', overrides.mode, overrides)
   const centerY = bbox.y + bbox.height / 2
-  const point = dropPoint ?? {
+  const point = {
     x: bbox.x + bbox.width + GEN_GAP + size.width / 2,
     y: centerY,
+  }
+
+  const node = addCanvasNode(graph, 'image', point, overrides)
+  connectGenEdge(graph, sourceNode.id, node.id)
+  return node
+}
+
+export function spawnImageGenNodeAtPoint(
+  graph: Graph,
+  sourceNode: Node,
+  point: { x: number; y: number },
+) {
+  const existing = findOutgoingGenNode(graph, sourceNode.id)
+  if (existing) return existing
+
+  const sourceData = sourceNode.getData() as CanvasNodeData
+  const overrides: Partial<CanvasNodeData> = {
+    kind: 'image',
+    mode: 'picker',
+    imageGenTask: 'picker',
+    title: '图片节点',
+    sourceNodeId: sourceNode.id,
+    sourcePreviewUrl: sourceData.previewUrl ?? '',
+    sourceFileName: sourceData.fileName ?? '',
+    inputUpdated: Boolean(sourceData.previewUrl),
+    genSeed: 58,
   }
 
   const node = addCanvasNode(graph, 'image', point, overrides)
