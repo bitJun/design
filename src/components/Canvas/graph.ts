@@ -1,0 +1,308 @@
+import { Graph, Shape, type Node } from '@antv/x6'
+import { Scroller } from '@antv/x6-plugin-scroller'
+import '@antv/x6-plugin-scroller/es/index.css'
+import { register } from '@antv/x6-vue-shape'
+import { getDefaultEdgeStroke } from './canvasTheme'
+import '@antv/x6-vue-shape'
+import TextNode from './nodes/TextNode.vue'
+import ImageNode from './nodes/ImageNode.vue'
+import ImageGenNode from './nodes/ImageGenNode.vue'
+import VideoNode from './nodes/VideoNode.vue'
+import {
+  createEmptyNodeData,
+  KIND_LABEL,
+  NODE_SIZE,
+  type CanvasNodeData,
+  type NodeKind,
+  type NodeMode,
+  isPortrait,
+} from './constants'
+
+export type CanvasGraph = Graph & { __scroller?: Scroller }
+
+let shapesRegistered = false
+
+const counters: Record<NodeKind, number> = {
+  text: 0,
+  image: 0,
+  video: 0,
+  audio: 0,
+}
+
+export function registerShapes() {
+  if (shapesRegistered) return
+  shapesRegistered = true
+
+  register({ shape: 'text-node', width: 280, height: 300, component: TextNode })
+  register({ shape: 'image-node', width: 300, height: 360, component: ImageNode })
+  register({ shape: 'image-gen-node', width: 300, height: 340, component: ImageGenNode })
+  register({ shape: 'video-node', width: 300, height: 340, component: VideoNode })
+}
+
+export function createDefaultNodeData(kind: NodeKind): CanvasNodeData {
+  counters[kind] += 1
+  const base = createEmptyNodeData()
+  return {
+    ...base,
+    kind,
+    title: `${KIND_LABEL[kind]} ${counters[kind]}`,
+    mode: kind === 'text' || kind === 'audio' || kind === 'video' ? 'picker' : 'editor',
+  }
+}
+
+export function getNodeShape(kind: NodeKind, data?: Partial<CanvasNodeData>) {
+  if (kind === 'text' || kind === 'audio') return 'text-node'
+  if (kind === 'video') return 'video-node'
+  if (kind === 'image' && data?.imageGenTask) return 'image-gen-node'
+  return 'image-node'
+}
+
+export function getNodeSize(
+  kind: NodeKind,
+  mode: NodeMode = 'picker',
+  data?: Partial<CanvasNodeData>,
+) {
+  const w = data?.mediaWidth ?? 0
+  const h = data?.mediaHeight ?? 0
+
+  if (kind === 'text' || kind === 'audio') {
+    return mode === 'editor' ? NODE_SIZE.text.editor : NODE_SIZE.text.picker
+  }
+  if (kind === 'video') {
+    if (mode === 'picker') return NODE_SIZE.video.picker
+    return NODE_SIZE.video.landscape
+  }
+  if (kind === 'image') {
+    if (data?.imageGenTask === 'picker') return NODE_SIZE.image.genPicker
+    if (data?.imageGenTask === 'img2img') return NODE_SIZE.image.img2img
+    if (data?.imageGenTask === 'hd') return NODE_SIZE.image.hd
+    if (w && h && isPortrait(w, h)) return NODE_SIZE.image.portrait
+    return NODE_SIZE.image.landscape
+  }
+  return NODE_SIZE.image.landscape
+}
+
+export function createPorts(stroke = '#6b7cff', fill = '#6b7cff') {
+  return {
+    groups: {
+      left: {
+        position: { name: 'left' },
+        attrs: {
+          circle: {
+            r: 10,
+            magnet: true,
+            stroke: '#8b8b95',
+            strokeWidth: 1.5,
+            fill: '#1e1e22',
+            style: { visibility: 'hidden' },
+          },
+          plus: {
+            text: '+',
+            fontSize: 14,
+            fill: '#d1d5db',
+            textAnchor: 'middle',
+            textVerticalAnchor: 'middle',
+            pointerEvents: 'none',
+            style: { visibility: 'hidden' },
+          },
+        },
+        markup: [
+          { tagName: 'circle', selector: 'circle' },
+          { tagName: 'text', selector: 'plus' },
+        ],
+      },
+      right: {
+        position: { name: 'right' },
+        attrs: {
+          circle: {
+            r: 10,
+            magnet: true,
+            stroke,
+            strokeWidth: 1.5,
+            fill,
+            style: { visibility: 'hidden', cursor: 'crosshair' },
+          },
+          plus: {
+            text: '+',
+            fontSize: 14,
+            fill: '#ffffff',
+            textAnchor: 'middle',
+            textVerticalAnchor: 'middle',
+            pointerEvents: 'none',
+            style: { visibility: 'hidden' },
+          },
+        },
+        markup: [
+          { tagName: 'circle', selector: 'circle' },
+          { tagName: 'text', selector: 'plus' },
+        ],
+      },
+    },
+    items: [
+      { id: 'left', group: 'left' },
+      { id: 'right', group: 'right' },
+    ],
+  }
+}
+
+export function setPortsVisible(node: Node, visible: boolean) {
+  const visibility = visible ? 'visible' : 'hidden'
+  node.getPorts().forEach((port) => {
+    if (!port.id) return
+    node.setPortProp(port.id, 'attrs/circle/style/visibility', visibility)
+    node.setPortProp(port.id, 'attrs/plus/style/visibility', visibility)
+  })
+}
+
+export function setImageAssetPortsVisible(node: Node, visible: boolean) {
+  node.getPorts().forEach((port) => {
+    if (!port.id) return
+    const show = port.id === 'right' ? visible : false
+    const state = show ? 'visible' : 'hidden'
+    node.setPortProp(port.id, 'attrs/circle/style/visibility', state)
+    node.setPortProp(port.id, 'attrs/plus/style/visibility', state)
+  })
+}
+
+export function getScroller(graph: Graph): Scroller | null {
+  return graph.getPlugin<Scroller>('scroller') ?? null
+}
+
+export function createGraph(container: HTMLElement): CanvasGraph {
+  registerShapes()
+
+  const graph = new Graph({
+    container,
+    autoResize: true,
+    background: { color: '#141416' },
+    grid: {
+      visible: true,
+      size: 16,
+      type: 'dot',
+      args: { color: '#2a2a30', thickness: 1.2 },
+    },
+    panning: false,
+    mousewheel: {
+      enabled: true,
+      modifiers: null,
+      factor: 1.08,
+      minScale: 0.35,
+      maxScale: 2.5,
+      zoomAtMousePosition: true,
+    },
+    interacting: {
+      nodeMovable: true,
+      edgeMovable: true,
+      magnetConnectable: true,
+    },
+    connecting: {
+      snap: true,
+      allowBlank: false,
+      allowLoop: false,
+      highlight: true,
+      connector: { name: 'smooth' },
+      connectionPoint: 'boundary',
+      router: { name: 'normal' },
+      createEdge() {
+        return new Shape.Edge({
+          attrs: {
+            line: {
+              stroke: getDefaultEdgeStroke(),
+              strokeWidth: 2,
+              targetMarker: { name: 'block', width: 10, height: 8 },
+            },
+          },
+          zIndex: 0,
+        })
+      },
+      validateConnection({ sourceCell, targetCell }) {
+        if (!sourceCell || !targetCell) return false
+        return sourceCell.id !== targetCell.id
+      },
+    },
+    highlighting: {
+      magnetAdsorbed: {
+        name: 'stroke',
+        args: { attrs: { fill: '#6b7cff', stroke: '#6b7cff' } },
+      },
+    },
+  }) as CanvasGraph
+
+  const scroller = new Scroller({
+    enabled: true,
+    pannable: true,
+    pageVisible: false,
+    pageBreak: false,
+    autoResize: true,
+    padding: { top: 80, bottom: 80, left: 120, right: 120 },
+  })
+
+  graph.use(scroller)
+  graph.__scroller = scroller
+
+  return graph
+}
+
+export function addCanvasNode(
+  graph: Graph,
+  kind: NodeKind,
+  point: { x: number; y: number },
+  overrides: Partial<CanvasNodeData> = {},
+) {
+  const data = { ...createDefaultNodeData(kind), ...overrides }
+  const size = getNodeSize(kind, data.mode, data)
+  const shape = getNodeShape(kind, data)
+
+  return graph.addNode({
+    shape,
+    x: point.x - size.width / 2,
+    y: point.y - size.height / 2,
+    width: size.width,
+    height: size.height,
+    ports: createPorts(),
+    data,
+  })
+}
+
+export function bindGraphInteraction(graph: Graph) {
+  graph.on('node:mouseenter', ({ node }) => {
+    const data = node.getData() as CanvasNodeData
+    if (data.kind === 'image' && !data.imageGenTask) {
+      setImageAssetPortsVisible(node, true)
+      return
+    }
+    setPortsVisible(node, true)
+  })
+  graph.on('node:mouseleave', ({ node }) => {
+    const data = node.getData() as CanvasNodeData
+    if (data.kind === 'image' && !data.imageGenTask) {
+      setImageAssetPortsVisible(node, false)
+      return
+    }
+    setPortsVisible(node, false)
+  })
+
+  graph.on('node:change:data', ({ node }) => {
+    const data = node.getData() as CanvasNodeData
+    const size = getNodeSize(data.kind, data.mode, data)
+    node.resize(size.width, size.height)
+  })
+
+  graph.on('node:added', () => {
+    getScroller(graph)?.resize()
+  })
+
+  graph.on('node:removed', () => {
+    getScroller(graph)?.resize()
+  })
+}
+
+export function getNodeToolbarPosition(graph: Graph, node: Node, container: HTMLElement) {
+  const bbox = node.getBBox()
+  const topCenter = graph.localToClient(bbox.x + bbox.width / 2, bbox.y)
+  const rect = container.getBoundingClientRect()
+  return {
+    left: topCenter.x - rect.left,
+    top: topCenter.y - rect.top - 8,
+  }
+}
