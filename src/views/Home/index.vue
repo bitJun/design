@@ -6,10 +6,10 @@
           <span class="home__hero-logo" aria-hidden="true" />
           <h1 class="home__hero-title">Daone 电商视觉 AI 生产平台</h1>
           <p class="home__hero-subtitle">生产真正懂审美、能卖货的视觉内容</p>
-          <div>
-            <button type="button" class="home__hero-btn" title="登录" @click="openNewProject">开始创作</button>
-            <button type="button" class="home__hero-btn" title="教程">教程</button>
-          </div>
+          <a-flex justify="center" align="center" gap="10px">
+            <a-button type="primary" @click="openNewProject">开始创作</a-button>
+            <a-button type="default" @click="openNewProject">教程</a-button>
+          </a-flex>
         </div>
       </section>
 
@@ -94,10 +94,8 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  HOME_HERO_PLACEHOLDER,
   HOME_INSPIRATION_CATEGORIES,
   HOME_INSPIRATION_ITEMS,
-  HOME_QUICK_ACTIONS,
   HOME_RECENT_PROJECTS,
   type HomeInspirationCategory,
 } from './homeData'
@@ -105,7 +103,6 @@ import {
 const router = useRouter()
 const recentProjects = HOME_RECENT_PROJECTS
 const activeCategory = ref<HomeInspirationCategory>('all')
-const promptText = ref('')
 
 const filteredInspiration = computed(() => {
   if (activeCategory.value === 'all') {
@@ -120,14 +117,6 @@ function formatCount(value: number) {
 
 function openNewProject() {
   router.push({ name: 'createOrEdit' })
-}
-
-function submitPrompt() {
-  openNewProject()
-}
-
-function applyQuickAction(label: string) {
-  promptText.value = `让星流 ${label}`
 }
 
 function openProject(id: string) {
