@@ -382,6 +382,8 @@
     <div
       v-if="showAddMenu"
       class="canvas__add-menu"
+      :class="{ 'canvas__add-menu--floating': Boolean(addMenuDropPoint) }"
+      :style="addMenuDropPoint ? { left: `${addMenuPos.left}px`, top: `${addMenuPos.top}px` } : undefined"
       @mousedown.stop
     >
       <section v-for="group in ADD_NODE_GROUPS" :key="group.title" class="canvas__add-group">
@@ -394,12 +396,18 @@
           @click="onMenuItem(item)"
         >
           <span class="canvas__add-icon" :data-icon="item.icon" />
-          <span class="canvas__add-item-main">
-            <span class="canvas__add-item-label">
-              {{ item.label }}
-              <em v-if="'badge' in item && item.badge" class="canvas__add-badge">{{ item.badge }}</em>
-            </span>
-            <span class="canvas__add-item-desc">{{ item.desc }}</span>
+          <span class="canvas__add-item-label">
+            {{ item.label }}
+            <em
+              v-if="'badge' in item && item.badge"
+              class="canvas__add-badge"
+              :class="{
+                'canvas__add-badge--new': item.badge === 'NEW',
+                'canvas__add-badge--beta': item.badge === 'Beta',
+              }"
+            >
+              {{ item.badge }}
+            </em>
           </span>
         </button>
       </section>
@@ -523,6 +531,8 @@ const showMinimap = ref(true)
 const showAddMenu = ref(false)
 const showConnectMenu = ref(false)
 const connectMenuPos = ref({ left: 0, top: 0 })
+const addMenuPos = ref({ left: 0, top: 0 })
+const addMenuDropPoint = ref<{ x: number; y: number } | null>(null)
 const connectSourceNodeId = ref('')
 const connectDropPoint = ref<{ x: number; y: number } | null>(null)
 const showAssetsPanel = ref(false)
@@ -665,11 +675,34 @@ function closeConnectMenu() {
   connectDropPoint.value = null
 }
 
+function closeAddMenu() {
+  showAddMenu.value = false
+  addMenuDropPoint.value = null
+}
+
+function openAddMenuAtGraphPoint(graphPoint: { x: number; y: number }) {
+  const g = graph.value
+  if (!g || !graphRef.value) return
+
+  closeConnectMenu()
+  addMenuDropPoint.value = graphPoint
+
+  const client = g.localToClient(graphPoint.x, graphPoint.y)
+  const rect = graphRef.value.getBoundingClientRect()
+  const menuWidth = 220
+  const menuHeight = 420
+  addMenuPos.value = {
+    left: Math.max(12, Math.min(client.x - rect.left, rect.width - menuWidth - 12)),
+    top: Math.max(60, Math.min(client.y - rect.top, rect.height - menuHeight - 12)),
+  }
+  showAddMenu.value = true
+}
+
 function openConnectMenu(source: Node, graphPoint: { x: number; y: number }) {
   const g = graph.value
   if (!g || !graphRef.value) return
 
-  showAddMenu.value = false
+  closeAddMenu()
   connectSourceNodeId.value = source.id
   connectDropPoint.value = graphPoint
 
@@ -836,7 +869,7 @@ function addNode(kind: NodeKind, point?: { x: number; y: number }) {
   const g = graph.value
   if (!g) return
 
-  const position = point ?? getGraphCenter()
+  const position = point ?? addMenuDropPoint.value ?? getGraphCenter()
   const node = addCanvasNode(g, kind, position)
   const data = node.getData() as CanvasNodeData
 
@@ -846,16 +879,18 @@ function addNode(kind: NodeKind, point?: { x: number; y: number }) {
 
   selectedNodeId.value = node.id
   updateNodeToolbar()
-  showAddMenu.value = false
+  closeAddMenu()
   syncNodeCount()
   return node
 }
 
-function addFromTemplate(kind: NodeKind) {
-  addNode(kind)
-}
-
 function addFromMenu(kind: NodeKind) {
+  const drop = addMenuDropPoint.value
+  if (drop) {
+    addNode(kind, drop)
+    return
+  }
+
   const center = getGraphCenter()
   addNode(kind, {
     x: center.x + (Math.random() - 0.5) * 100,
@@ -871,7 +906,7 @@ function onMenuItem(item: (typeof ADD_NODE_GROUPS)[number]['items'][number]) {
     return
   }
   if ('action' in item && item.action === 'history') {
-    showAddMenu.value = false
+    closeAddMenu()
     openAssetsPanel()
     return
   }
@@ -894,7 +929,7 @@ function onFileSelected(event: Event) {
   }
 
   if (!node) {
-    const created = addNode(kind)
+    const created = addNode(kind, addMenuDropPoint.value ?? undefined)
     if (!created) return
     node = created
   } else {
@@ -904,22 +939,27 @@ function onFileSelected(event: Event) {
   }
 
   pendingUploadNodeId.value = ''
+  addMenuDropPoint.value = null
   selectedNodeId.value = node.id
   runUploadSimulation(node, file)
   updateNodeToolbar()
 }
 
 function toggleAddMenu() {
-  showAddMenu.value = !showAddMenu.value
   if (showAddMenu.value) {
-    showAssetsPanel.value = false
-    closeConnectMenu()
+    closeAddMenu()
+    return
   }
+
+  addMenuDropPoint.value = null
+  showAddMenu.value = true
+  showAssetsPanel.value = false
+  closeConnectMenu()
 }
 
 function openAssetsPanel() {
   showAssetsPanel.value = true
-  showAddMenu.value = false
+  closeAddMenu()
   assetsLoading.value = true
   window.setTimeout(() => {
     assetsLoading.value = false
@@ -1017,7 +1057,7 @@ function removeSelectedNode() {
 }
 
 function handleBlankDblClick(event: { x: number; y: number }) {
-  addNode('video', { x: event.x, y: event.y })
+  openAddMenuAtGraphPoint({ x: event.x, y: event.y })
 }
 
 function handleNodeClick({ node }: { node: Node }) {
@@ -1039,7 +1079,7 @@ function handleNodeUnselected() {
 }
 
 function handleBlankClick() {
-  showAddMenu.value = false
+  closeAddMenu()
   closeConnectMenu()
   selectedNodeId.value = ''
   selectedKind.value = null
