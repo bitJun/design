@@ -221,20 +221,45 @@
           </div>
           <span class="canvas__node-toolbar-divider" aria-hidden="true" />
           <div class="canvas__node-toolbar-group">
-            <button
-              v-for="item in VIDEO_NODE_TOOLBAR.actions"
-              :key="item.key"
-              type="button"
-              class="canvas__node-toolbar-btn"
-            >
-              <span
-                v-if="item.icon"
-                class="canvas__node-toolbar-icon"
-                :data-icon="item.icon"
-                aria-hidden="true"
-              />
-              {{ item.label }}
-            </button>
+            <template v-for="item in VIDEO_NODE_TOOLBAR.actions" :key="item.key">
+              <button
+                v-if="item.key === 'hd'"
+                type="button"
+                class="canvas__node-toolbar-btn"
+                :class="{ 'canvas__node-toolbar-btn--active': showVideoHdPanel }"
+                @click="toggleVideoHdPanel"
+              >
+                <span
+                  class="canvas__node-toolbar-icon"
+                  data-icon="video-hd"
+                  aria-hidden="true"
+                />
+                {{ item.label }}
+              </button>
+              <button
+                v-else-if="item.key === 'frames'"
+                type="button"
+                class="canvas__node-toolbar-btn"
+                :class="{ 'canvas__node-toolbar-btn--active': showVideoFramesPanel }"
+                @click="toggleVideoFramesPanel"
+              >
+                <span
+                  class="canvas__node-toolbar-icon"
+                  data-icon="frames"
+                  aria-hidden="true"
+                />
+                {{ item.label }}
+              </button>
+              <button v-else type="button" class="canvas__node-toolbar-btn">
+                <span
+                  v-if="item.icon"
+                  class="canvas__node-toolbar-icon"
+                  :data-icon="item.icon"
+                  aria-hidden="true"
+                />
+                {{ item.label }}
+              </button>
+            </template>
           </div>
           <span class="canvas__node-toolbar-divider" aria-hidden="true" />
           <button type="button" class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon" title="下载">
@@ -282,7 +307,7 @@
 
     <div
       v-if="showImageDialogue && selectedKind === 'image'"
-      class="canvas__image-dialogue"
+      class="canvas__node-dialogue"
       :style="{
         left: `${dialoguePos.left}px`,
         top: `${dialoguePos.top}px`,
@@ -291,6 +316,50 @@
       @mousedown.stop
     >
       <ImageDialoguePanel v-model="imageDialogueText" />
+    </div>
+
+    <div
+      v-if="showVideoDialogue && selectedKind === 'video'"
+      class="canvas__node-dialogue"
+      :style="{
+        left: `${dialoguePos.left}px`,
+        top: `${dialoguePos.top}px`,
+        width: `${dialoguePos.width}px`,
+      }"
+      @mousedown.stop
+    >
+      <VideoDialoguePanel v-model="videoDialogueText" />
+    </div>
+
+    <div
+      v-if="showVideoHdPanel && selectedKind === 'video'"
+      class="canvas__node-side-panel"
+      :style="{
+        left: `${videoHdPos.left}px`,
+        top: `${videoHdPos.top}px`,
+        width: `${videoHdPos.width}px`,
+      }"
+      @mousedown.stop
+    >
+      <VideoHdPanel
+        v-model="videoHdMagnification"
+        @close="resetVideoHdPanel"
+        @cancel="resetVideoHdPanel"
+        @start="onVideoHdStart"
+      />
+    </div>
+
+    <div
+      v-if="showVideoFramesPanel && selectedKind === 'video'"
+      class="canvas__node-dialogue"
+      :style="{
+        left: `${dialoguePos.left}px`,
+        top: `${dialoguePos.top}px`,
+        width: `${dialoguePos.width}px`,
+      }"
+      @mousedown.stop
+    >
+      <VideoFramesPanel />
     </div>
 
     <div
@@ -479,6 +548,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
 import ImageDialoguePanel from './ImageDialoguePanel.vue'
+import VideoDialoguePanel from './VideoDialoguePanel.vue'
+import VideoHdPanel from './VideoHdPanel.vue'
+import VideoFramesPanel from './VideoFramesPanel.vue'
 import {
   ADD_NODE_GROUPS,
   CONNECT_GENERATE_MENU,
@@ -493,6 +565,7 @@ import {
   type CanvasNodeData,
   type ImageGenTask,
   type NodeKind,
+  type VideoHdMagnification,
 } from './constants'
 import { applyImageGenTask as applyImageGenTaskToNode } from './imageGen'
 import {
@@ -506,6 +579,7 @@ import {
   bindGraphInteraction,
   createGraph,
   getNodeDialoguePosition,
+  getNodeSidePanelPosition,
   getNodeToolbarPosition,
   getScroller,
 } from './graph'
@@ -544,13 +618,18 @@ const selectedNodeId = ref('')
 const pendingUploadNodeId = ref('')
 const toolbarPos = ref({ left: 0, top: 0 })
 const dialoguePos = ref({ left: 0, top: 0, width: 360 })
+const videoHdPos = ref({ left: 0, top: 0, width: 320 })
 const selectedKind = ref<NodeKind | null>(null)
 const showImageToolbarMore = ref(false)
 const showImageToolbarMoreMenu = ref(false)
 const showImageHdMenu = ref(false)
 const showImageDialogue = ref(false)
 const showVideoDialogue = ref(false)
+const showVideoHdPanel = ref(false)
+const showVideoFramesPanel = ref(false)
 const imageDialogueText = ref('')
+const videoDialogueText = ref('')
+const videoHdMagnification = ref<VideoHdMagnification>('2')
 
 const zoomPercent = computed(() => `${Math.round(zoomLevel.value * 100)}%`)
 const canvasBgThemeLabel = computed(
@@ -630,6 +709,12 @@ function resetImageToolbarMore() {
   showImageHdMenu.value = false
 }
 
+function closeVideoSubPanels(except?: 'dialogue' | 'hd' | 'frames') {
+  if (except !== 'dialogue') showVideoDialogue.value = false
+  if (except !== 'hd') showVideoHdPanel.value = false
+  if (except !== 'frames') showVideoFramesPanel.value = false
+}
+
 function toggleImageDialogue() {
   showImageDialogue.value = !showImageDialogue.value
   showImageHdMenu.value = false
@@ -640,6 +725,38 @@ function toggleImageDialogue() {
 
 function toggleVideoDialogue() {
   showVideoDialogue.value = !showVideoDialogue.value
+  if (showVideoDialogue.value) {
+    closeVideoSubPanels('dialogue')
+    updateNodeToolbar()
+  }
+}
+
+function toggleVideoHdPanel() {
+  showVideoHdPanel.value = !showVideoHdPanel.value
+  if (showVideoHdPanel.value) {
+    closeVideoSubPanels('hd')
+    updateNodeToolbar()
+  }
+}
+
+function toggleVideoFramesPanel() {
+  showVideoFramesPanel.value = !showVideoFramesPanel.value
+  if (showVideoFramesPanel.value) {
+    closeVideoSubPanels('frames')
+    updateNodeToolbar()
+  }
+}
+
+function resetVideoHdPanel() {
+  showVideoHdPanel.value = false
+}
+
+function resetVideoFramesPanel() {
+  showVideoFramesPanel.value = false
+}
+
+function onVideoHdStart() {
+  resetVideoHdPanel()
 }
 
 function resetImageDialogue() {
@@ -863,6 +980,9 @@ function updateNodeToolbar() {
   const node = cell as Node
   toolbarPos.value = getNodeToolbarPosition(g, node, graphRef.value)
   dialoguePos.value = getNodeDialoguePosition(g, node, graphRef.value)
+  if (data.kind === 'video' && showVideoHdPanel.value) {
+    videoHdPos.value = getNodeSidePanelPosition(g, node, graphRef.value)
+  }
 }
 
 function addNode(kind: NodeKind, point?: { x: number; y: number }) {
@@ -1067,6 +1187,8 @@ function handleNodeClick({ node }: { node: Node }) {
   resetImageToolbarMore()
   resetImageDialogue()
   resetVideoDialogue()
+  resetVideoHdPanel()
+  resetVideoFramesPanel()
   bumpToolbarRevision()
   activePickerNodeId.value =
     data.mode === 'picker' && (data.kind === 'text' || data.kind === 'audio') ? node.id : ''
@@ -1086,6 +1208,8 @@ function handleBlankClick() {
   resetImageToolbarMore()
   resetImageDialogue()
   resetVideoDialogue()
+  resetVideoHdPanel()
+  resetVideoFramesPanel()
   syncNodeSelectionHighlight('')
 }
 

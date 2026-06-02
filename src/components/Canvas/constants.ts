@@ -139,7 +139,7 @@ export const VIDEO_NODE_TOOLBAR = {
   actions: [
     { key: 'clip', label: '视频剪辑', icon: 'video-edit' },
     { key: 'parse', label: '解析', icon: 'wand' },
-    { key: 'hd', label: '高清', icon: 'video-hd' },
+    { key: 'hd', label: 'HD 高清', icon: 'video-hd' },
     { key: 'frames', label: '抽帧', icon: 'frames' },
     { key: 'replicate', label: '复刻', icon: 'replicate' },
     { key: 'watermark', label: '去水印', icon: 'watermark' },
@@ -228,6 +228,58 @@ export const IMAGE_NODE_TOOLBAR_MORE_MENU = [
 
 export const IMAGE_DIALOGUE_GREETING = 'Hi, 我是你的AI设计助理'
 export const IMAGE_DIALOGUE_PLACEHOLDER = '让我们开始创作吧...'
+
+export const VIDEO_DIALOGUE_GREETING = 'Hi, 我是你的AI设计助理'
+export const VIDEO_DIALOGUE_PLACEHOLDER = '让我们开始创作吧...'
+export const VIDEO_DIALOGUE_VIDEO_SETTINGS = '5s · 16:9 · 720P'
+export const VIDEO_DIALOGUE_CREDITS = '135'
+
+export const VIDEO_ADVISOR_MENU = [
+  {
+    key: 'dynamic',
+    label: '动态呈现',
+    children: [
+      { key: 'product', label: '产品细节' },
+      { key: 'tvc', label: 'TVC展示' },
+      { key: 'fpv', label: 'FPV运镜' },
+      { key: 'clothing', label: '服装展示' },
+    ],
+  },
+  {
+    key: 'voiceover',
+    label: '口播配音',
+    children: [
+      { key: 'intro', label: '产品介绍' },
+      { key: 'promo', label: '促销口播' },
+      { key: 'story', label: '故事叙述' },
+    ],
+  },
+  {
+    key: 'camera',
+    label: '运镜方式',
+    children: [
+      { key: 'push', label: '推镜头' },
+      { key: 'orbit', label: '环绕运镜' },
+      { key: 'follow', label: '跟随运镜' },
+    ],
+  },
+] as const
+
+export const VIDEO_STORYBOARD_TITLE = '生成分镜版图'
+export const VIDEO_STORYBOARD_DURATION_LABEL = '视频时长'
+export const VIDEO_STORYBOARD_DURATIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const
+export type VideoStoryboardDuration = (typeof VIDEO_STORYBOARD_DURATIONS)[number]
+export const VIDEO_STORYBOARD_DESC_LABEL = '补充描述（选填）'
+export const VIDEO_STORYBOARD_DESC_PLACEHOLDER = '请输入分镜板视频补充要求...'
+export const VIDEO_STORYBOARD_RATIOS = ['16:9', '9:16', '1:1'] as const
+export type VideoStoryboardRatio = (typeof VIDEO_STORYBOARD_RATIOS)[number]
+
+export const VIDEO_HD_TITLE = '视频高清'
+export const VIDEO_HD_MAGNIFICATION_LABEL = '放大倍数'
+export const VIDEO_HD_MAGNIFICATIONS = ['1', '2', '4'] as const
+export type VideoHdMagnification = (typeof VIDEO_HD_MAGNIFICATIONS)[number]
+export const VIDEO_HD_HINT =
+  '预计消费较多积分(20积分每秒，约1元每秒)，10秒视频约请求耗时5分钟。'
 
 export const IMAGE_HD_RESOLUTIONS = ['2K', '4K', '8K'] as const
 

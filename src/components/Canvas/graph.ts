@@ -309,3 +309,21 @@ export function getNodeDialoguePosition(graph: Graph, node: Node, container: HTM
     width: Math.max(width, 360),
   }
 }
+
+export function getNodeSidePanelPosition(
+  graph: Graph,
+  node: Node,
+  container: HTMLElement,
+  panelWidth = 320,
+  panelHeight = 260,
+) {
+  const bbox = node.getBBox()
+  const topRight = graph.localToClient(bbox.x + bbox.width, bbox.y)
+  const rect = container.getBoundingClientRect()
+
+  return {
+    left: Math.max(12, Math.min(topRight.x - rect.left + 16, rect.width - panelWidth - 12)),
+    top: Math.max(60, Math.min(topRight.y - rect.top, rect.height - panelHeight - 12)),
+    width: panelWidth,
+  }
+}

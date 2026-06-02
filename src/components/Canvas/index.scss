@@ -225,10 +225,17 @@
   border-radius: 10px;
 }
 
-.canvas__image-dialogue {
+.canvas__node-dialogue {
   position: absolute;
   z-index: 4;
   transform: translateX(-50%);
+  pointer-events: auto;
+  overflow: visible;
+}
+
+.canvas__node-side-panel {
+  position: absolute;
+  z-index: 4;
   pointer-events: auto;
 }
 
