@@ -16,52 +16,212 @@
     </header>
 
     <div ref="graphRef" class="canvas__graph" />
-
-    <div v-if="isEmpty" class="canvas__empty">
-      <p class="canvas__hint">
-        <span class="canvas__hint-icon" aria-hidden="true" />
-        {{ EMPTY_HINT }}
-      </p>
-      <div class="canvas__templates">
-        <button
-          v-for="item in NODE_TEMPLATES"
-          :key="item.label"
-          type="button"
-          class="canvas__template"
-          @click="addFromTemplate(item.kind)"
-        >
-          <span class="canvas__template-text">
-            <span class="canvas__template-label">{{ item.label }}</span>
-            <span class="canvas__template-desc">{{ item.desc }}</span>
-          </span>
-          <span
-            class="canvas__template-badge"
-            :style="{ background: `${item.accent}33`, border: `1px solid ${item.accent}66` }"
-          />
-        </button>
-      </div>
-    </div>
-
     <div
       v-if="showNodeToolbar"
       class="canvas__node-toolbar"
+      :class="{ 'canvas__node-toolbar--image': isImageNodeToolbar }"
       :style="{ left: `${toolbarPos.left}px`, top: `${toolbarPos.top}px` }"
       @mousedown.stop
     >
       <template v-if="showToolbarFeatureButtons">
-        <button
-          v-for="item in activeToolbarItems"
-          :key="item"
-          type="button"
-          class="canvas__node-toolbar-btn"
-        >
-          {{ item }}
-          <em v-if="item === '全景'" class="canvas__toolbar-tag">NEW</em>
-        </button>
-        <button type="button" class="canvas__node-toolbar-btn" title="下载">↓</button>
-        <button type="button" class="canvas__node-toolbar-btn" title="全屏">⤢</button>
+        <template v-if="selectedKind === 'image'">
+          <template v-if="showImageToolbarMore">
+            <button
+              type="button"
+              class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon"
+              title="返回"
+              @click="closeImageToolbarMore"
+            >
+              <span class="canvas__node-toolbar-icon" data-icon="back" aria-hidden="true" />
+            </button>
+            <span class="canvas__node-toolbar-divider" aria-hidden="true" />
+            <div class="canvas__node-toolbar-group">
+              <template v-for="item in IMAGE_NODE_TOOLBAR_MORE.actions" :key="item.key">
+                <div v-if="item.key === 'more'" class="canvas__node-toolbar-more">
+                  <button
+                    type="button"
+                    class="canvas__node-toolbar-btn"
+                    :class="{ 'canvas__node-toolbar-btn--active': showImageToolbarMoreMenu }"
+                    @click="toggleImageToolbarMoreMenu"
+                  >
+                    <span
+                      v-if="item.icon"
+                      class="canvas__node-toolbar-icon"
+                      :data-icon="item.icon"
+                      aria-hidden="true"
+                    />
+                    {{ item.label }}
+                  </button>
+                  <div
+                    v-if="showImageToolbarMoreMenu"
+                    class="canvas__node-toolbar-menu"
+                    @mousedown.stop
+                  >
+                    <button
+                      v-for="menuItem in IMAGE_NODE_TOOLBAR_MORE_MENU"
+                      :key="menuItem.key"
+                      type="button"
+                      class="canvas__node-toolbar-menu-item"
+                    >
+                      <span
+                        class="canvas__node-toolbar-icon"
+                        :data-icon="menuItem.icon"
+                        aria-hidden="true"
+                      />
+                      <span class="canvas__node-toolbar-menu-label">{{ menuItem.label }}</span>
+                      <span
+                        v-if="menuItem.hasSubmenu"
+                        class="canvas__node-toolbar-menu-arrow"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </div>
+                </div>
+                <div v-else class="canvas__node-toolbar-hover">
+                  <button type="button" class="canvas__node-toolbar-btn">
+                    <span
+                      v-if="item.icon"
+                      class="canvas__node-toolbar-icon"
+                      :data-icon="item.icon"
+                      aria-hidden="true"
+                    />
+                    {{ item.label }}
+                  </button>
+                  <span
+                    v-if="getImageToolbarMoreHover(item.key)?.tooltip"
+                    class="canvas__node-toolbar-tooltip-label"
+                  >
+                    {{ getImageToolbarMoreHover(item.key)?.tooltip }}
+                  </span>
+                  <div
+                    v-if="getImageToolbarMoreHover(item.key)?.menu?.length"
+                    class="canvas__node-toolbar-dropdown-menu"
+                    @mousedown.stop
+                  >
+                    <button
+                      v-for="menuLabel in getImageToolbarMoreHover(item.key)?.menu"
+                      :key="menuLabel"
+                      type="button"
+                      class="canvas__node-toolbar-dropdown-item"
+                    >
+                      {{ menuLabel }}
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <span class="canvas__node-toolbar-divider" aria-hidden="true" />
+            <button type="button" class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon" title="下载">
+              <span class="canvas__node-toolbar-icon" data-icon="download" aria-hidden="true" />
+            </button>
+          </template>
+          <template v-else>
+            <div class="canvas__node-toolbar-group">
+              <button
+                type="button"
+                class="canvas__node-toolbar-btn"
+                :class="{ 'canvas__node-toolbar-btn--active': showImageDialogue }"
+                @click="toggleImageDialogue"
+              >
+                <span class="canvas__node-toolbar-icon" data-icon="chat" aria-hidden="true" />
+                {{ IMAGE_NODE_TOOLBAR.chat.label }}
+              </button>
+            </div>
+            <span class="canvas__node-toolbar-divider" aria-hidden="true" />
+            <div class="canvas__node-toolbar-group">
+              <template v-for="item in IMAGE_NODE_TOOLBAR.actions" :key="item.key">
+                <div v-if="item.key === 'cutout'" class="canvas__node-toolbar-dropdown">
+                  <button type="button" class="canvas__node-toolbar-btn">
+                    <span
+                      class="canvas__node-toolbar-icon"
+                      data-icon="cutout"
+                      aria-hidden="true"
+                    />
+                    {{ item.label }}
+                  </button>
+                  <div class="canvas__node-toolbar-dropdown-menu" @mousedown.stop>
+                    <button
+                      v-for="mode in IMAGE_CUTOUT_MODES"
+                      :key="mode"
+                      type="button"
+                      class="canvas__node-toolbar-dropdown-item"
+                    >
+                      {{ mode }}
+                    </button>
+                  </div>
+                </div>
+                <div v-else-if="item.key === 'hd'" class="canvas__node-toolbar-hd">
+                  <button
+                    type="button"
+                    class="canvas__node-toolbar-btn"
+                    :class="{ 'canvas__node-toolbar-btn--active': showImageHdMenu }"
+                    @click="toggleImageHdMenu"
+                  >
+                    {{ item.label }}
+                  </button>
+                  <div
+                    v-if="showImageHdMenu"
+                    class="canvas__node-toolbar-hd-menu"
+                    @mousedown.stop
+                  >
+                    <button
+                      v-for="resolution in IMAGE_HD_RESOLUTIONS"
+                      :key="resolution"
+                      type="button"
+                      class="canvas__node-toolbar-hd-item"
+                    >
+                      {{ resolution }}
+                    </button>
+                  </div>
+                </div>
+                <div v-else-if="item.key === 'inpaint'" class="canvas__node-toolbar-tooltip">
+                  <button type="button" class="canvas__node-toolbar-btn">
+                    <span
+                      class="canvas__node-toolbar-icon"
+                      data-icon="edit"
+                      aria-hidden="true"
+                    />
+                    {{ item.label }}
+                  </button>
+                  <span class="canvas__node-toolbar-tooltip-label">{{ item.label }}</span>
+                </div>
+                <button
+                  v-else
+                  type="button"
+                  class="canvas__node-toolbar-btn"
+                  @click="onImageToolbarAction(item.key)"
+                >
+                  <span
+                    v-if="item.icon"
+                    class="canvas__node-toolbar-icon"
+                    :data-icon="item.icon"
+                    aria-hidden="true"
+                  />
+                  {{ item.label }}
+                </button>
+              </template>
+            </div>
+            <span class="canvas__node-toolbar-divider" aria-hidden="true" />
+            <button type="button" class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon" title="下载">
+              <span class="canvas__node-toolbar-icon" data-icon="download" aria-hidden="true" />
+            </button>
+          </template>
+        </template>
+        <template v-else>
+          <button
+            v-for="item in activeToolbarItems"
+            :key="item"
+            type="button"
+            class="canvas__node-toolbar-btn"
+          >
+            {{ item }}
+          </button>
+          <button type="button" class="canvas__node-toolbar-btn" title="下载">↓</button>
+          <button type="button" class="canvas__node-toolbar-btn" title="全屏">⤢</button>
+        </template>
       </template>
       <button
+        v-if="selectedKind !== 'image'"
         type="button"
         class="canvas__node-toolbar-btn canvas__node-toolbar-btn--danger"
         title="删除节点"
@@ -97,6 +257,19 @@
         <p v-else class="canvas__assets-empty">暂无素材，上传后将显示在这里</p>
       </div>
     </aside>
+
+    <div
+      v-if="showImageDialogue && selectedKind === 'image'"
+      class="canvas__image-dialogue"
+      :style="{
+        left: `${dialoguePos.left}px`,
+        top: `${dialoguePos.top}px`,
+        width: `${dialoguePos.width}px`,
+      }"
+      @mousedown.stop
+    >
+      <ImageDialoguePanel v-model="imageDialogueText" />
+    </div>
 
     <div
       v-if="showPromptBar"
@@ -275,12 +448,16 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
+import ImageDialoguePanel from './ImageDialoguePanel.vue'
 import {
   ADD_NODE_GROUPS,
   CONNECT_GENERATE_MENU,
-  EMPTY_HINT,
   IMAGE_NODE_TOOLBAR,
-  NODE_TEMPLATES,
+  IMAGE_NODE_TOOLBAR_MORE,
+  IMAGE_NODE_TOOLBAR_MORE_MENU,
+  IMAGE_HD_RESOLUTIONS,
+  IMAGE_CUTOUT_MODES,
+  getImageToolbarMoreHover,
   PROMPT_PLACEHOLDER,
   VIDEO_NODE_TOOLBAR,
   type CanvasNodeData,
@@ -298,6 +475,7 @@ import {
   addCanvasNode,
   bindGraphInteraction,
   createGraph,
+  getNodeDialoguePosition,
   getNodeToolbarPosition,
   getScroller,
 } from './graph'
@@ -333,9 +511,14 @@ const activePickerNodeId = ref('')
 const selectedNodeId = ref('')
 const pendingUploadNodeId = ref('')
 const toolbarPos = ref({ left: 0, top: 0 })
+const dialoguePos = ref({ left: 0, top: 0, width: 360 })
 const selectedKind = ref<NodeKind | null>(null)
+const showImageToolbarMore = ref(false)
+const showImageToolbarMoreMenu = ref(false)
+const showImageHdMenu = ref(false)
+const showImageDialogue = ref(false)
+const imageDialogueText = ref('')
 
-const isEmpty = computed(() => nodeCount.value === 0)
 const zoomPercent = computed(() => `${Math.round(zoomLevel.value * 100)}%`)
 const canvasBgThemeLabel = computed(
   () => getCanvasBgThemeMeta(canvasBgTheme.value).label,
@@ -344,24 +527,90 @@ const showPromptBar = computed(() => Boolean(activePickerNodeId.value) && nodeCo
 
 const activeToolbarItems = computed(() => {
   if (selectedKind.value === 'video') return VIDEO_NODE_TOOLBAR.slice(0, 4)
-  if (selectedKind.value === 'image') return IMAGE_NODE_TOOLBAR
   return []
 })
 
 const showNodeToolbar = computed(() => Boolean(selectedNodeId.value))
+const toolbarRevision = ref(0)
+
+function getSelectedNodeData(): CanvasNodeData | undefined {
+  const id = selectedNodeId.value
+  if (!id) return undefined
+  return graph.value?.getCellById(id)?.getData() as CanvasNodeData | undefined
+}
+
+function canShowImageToolbar(data: CanvasNodeData | undefined) {
+  if (!data || data.kind !== 'image') return false
+  if (data.imageGenTask === 'picker') return false
+  if (data.imageGenTask === 'img2img' || data.imageGenTask === 'hd') return true
+  return data.mode === 'editor'
+}
+
+function bumpToolbarRevision() {
+  toolbarRevision.value += 1
+}
 
 const showToolbarFeatureButtons = computed(() => {
+  void toolbarRevision.value
+
   if (selectedKind.value === 'image' && selectedNodeId.value) {
-    const cell = graph.value?.getCellById(selectedNodeId.value)
-    const data = cell?.getData() as CanvasNodeData | undefined
-    if (!data?.imageGenTask) return Boolean(data?.previewUrl)
-    return data.imageGenTask === 'img2img'
+    return canShowImageToolbar(getSelectedNodeData())
   }
   if (selectedKind.value !== 'video' || !selectedNodeId.value) return false
-  const cell = graph.value?.getCellById(selectedNodeId.value)
-  const data = cell?.getData() as CanvasNodeData | undefined
+  const data = getSelectedNodeData()
   return data?.mode !== 'picker'
 })
+
+const isImageNodeToolbar = computed(
+  () => selectedKind.value === 'image' && showToolbarFeatureButtons.value,
+)
+
+function openImageToolbarMore() {
+  showImageToolbarMore.value = true
+  showImageToolbarMoreMenu.value = false
+  showImageHdMenu.value = false
+}
+
+function closeImageToolbarMore() {
+  showImageToolbarMore.value = false
+  showImageToolbarMoreMenu.value = false
+}
+
+function toggleImageToolbarMoreMenu() {
+  showImageToolbarMoreMenu.value = !showImageToolbarMoreMenu.value
+}
+
+function toggleImageHdMenu() {
+  showImageHdMenu.value = !showImageHdMenu.value
+  if (showImageHdMenu.value) {
+    showImageToolbarMoreMenu.value = false
+  }
+}
+
+function onImageToolbarAction(key: string) {
+  showImageHdMenu.value = false
+  if (key === 'more') {
+    openImageToolbarMore()
+  }
+}
+
+function resetImageToolbarMore() {
+  showImageToolbarMore.value = false
+  showImageToolbarMoreMenu.value = false
+  showImageHdMenu.value = false
+}
+
+function toggleImageDialogue() {
+  showImageDialogue.value = !showImageDialogue.value
+  showImageHdMenu.value = false
+  if (showImageDialogue.value) {
+    updateNodeToolbar()
+  }
+}
+
+function resetImageDialogue() {
+  showImageDialogue.value = false
+}
 
 function requestCanvasUpload(nodeId: string) {
   pendingUploadNodeId.value = nodeId
@@ -550,8 +799,9 @@ function updateNodeToolbar() {
 
   const data = cell.getData() as CanvasNodeData
   selectedKind.value = data.kind
-  const pos = getNodeToolbarPosition(g, cell as Node, graphRef.value)
-  toolbarPos.value = pos
+  const node = cell as Node
+  toolbarPos.value = getNodeToolbarPosition(g, node, graphRef.value)
+  dialoguePos.value = getNodeDialoguePosition(g, node, graphRef.value)
 }
 
 function addNode(kind: NodeKind, point?: { x: number; y: number }) {
@@ -746,6 +996,9 @@ function handleNodeClick({ node }: { node: Node }) {
   const data = node.getData() as CanvasNodeData
   selectedNodeId.value = node.id
   selectedKind.value = data.kind
+  resetImageToolbarMore()
+  resetImageDialogue()
+  bumpToolbarRevision()
   activePickerNodeId.value =
     data.mode === 'picker' && (data.kind === 'text' || data.kind === 'audio') ? node.id : ''
   syncNodeSelectionHighlight(node.id)
@@ -761,6 +1014,8 @@ function handleBlankClick() {
   closeConnectMenu()
   selectedNodeId.value = ''
   selectedKind.value = null
+  resetImageToolbarMore()
+  resetImageDialogue()
   syncNodeSelectionHighlight('')
 }
 
@@ -770,6 +1025,8 @@ function handleNodeDataChange({ node }: { node: Node }) {
     activePickerNodeId.value = ''
   }
   if (selectedNodeId.value === node.id) {
+    selectedKind.value = data.kind
+    bumpToolbarRevision()
     updateNodeToolbar()
   }
 }

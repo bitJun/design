@@ -294,3 +294,18 @@ export function getNodeToolbarPosition(graph: Graph, node: Node, container: HTML
     top: topCenter.y - rect.top - 8,
   }
 }
+
+export function getNodeDialoguePosition(graph: Graph, node: Node, container: HTMLElement) {
+  const bbox = node.getBBox()
+  const bottomCenter = graph.localToClient(bbox.x + bbox.width / 2, bbox.y + bbox.height)
+  const bottomLeft = graph.localToClient(bbox.x, bbox.y + bbox.height)
+  const bottomRight = graph.localToClient(bbox.x + bbox.width, bbox.y + bbox.height)
+  const rect = container.getBoundingClientRect()
+  const width = Math.abs(bottomRight.x - bottomLeft.x)
+
+  return {
+    left: bottomCenter.x - rect.left,
+    top: bottomCenter.y - rect.top + 12,
+    width: Math.max(width, 360),
+  }
+}

@@ -135,7 +135,103 @@ export const IMG2IMG_PROMPT_PLACEHOLDER =
 export const IMG2IMG_QUICK_TAGS = ['风格', '相似', '参考'] as const
 
 export const VIDEO_NODE_TOOLBAR = ['画质', '解析', '智能去字幕', '音频分离', '下载', '全屏']
-export const IMAGE_NODE_TOOLBAR = ['全景', '多角度', '打光', '九宫格', '高清', '宽高比']
+
+export type ImageToolbarIcon =
+  | 'chat'
+  | 'cutout'
+  | 'crop'
+  | 'edit'
+  | 'preview'
+  | 'more'
+  | 'back'
+  | 'split'
+  | 'annotate'
+  | 'decompose'
+  | 'erase'
+  | 'search'
+  | 'parse'
+  | 'download'
+  | 'expand'
+  | 'restore'
+  | 'perspective'
+  | 'text-edit'
+  | 'adjust'
+  | 'layers'
+  | 'svg'
+  | 'customize'
+
+export type ImageToolbarAction = {
+  key: string
+  label: string
+  icon?: ImageToolbarIcon
+}
+
+export type ImageToolbarMenuItem = {
+  key: string
+  label: string
+  icon: ImageToolbarIcon
+  hasSubmenu?: boolean
+}
+
+export const IMAGE_NODE_TOOLBAR = {
+  chat: { key: 'chat', label: '对话', icon: 'chat' as const },
+  actions: [
+    { key: 'cutout', label: '抠图', icon: 'cutout' },
+    { key: 'hd', label: 'HD 高清' },
+    { key: 'crop', label: '裁剪', icon: 'crop' },
+    { key: 'inpaint', label: '局部修改', icon: 'edit' },
+    { key: 'preview', label: '预览', icon: 'preview' },
+    { key: 'more', label: '更多', icon: 'more' },
+  ] satisfies ImageToolbarAction[],
+} as const
+
+export const IMAGE_NODE_TOOLBAR_MORE = {
+  actions: [
+    { key: 'split', label: '拆图', icon: 'split' },
+    { key: 'annotate', label: '标注', icon: 'annotate' },
+    { key: 'decompose', label: '元素拆解', icon: 'decompose' },
+    { key: 'erase', label: '消除', icon: 'erase' },
+    { key: 'search', label: '搜同款', icon: 'search' },
+    { key: 'parse', label: '解析', icon: 'parse' },
+    { key: 'more', label: '更多', icon: 'more' },
+  ] satisfies ImageToolbarAction[],
+} as const
+
+export const IMAGE_NODE_TOOLBAR_MORE_MENU = [
+  { key: 'expand', label: '扩图', icon: 'expand' },
+  { key: 'restore', label: '细节还原', icon: 'restore' },
+  { key: 'perspective', label: '多视角', icon: 'perspective' },
+  { key: 'text-edit', label: '编辑文字', icon: 'text-edit' },
+  { key: 'adjust', label: '调节', icon: 'adjust', hasSubmenu: true },
+  { key: 'layers', label: '图层分离', icon: 'layers' },
+  { key: 'svg', label: '矢量SVG', icon: 'svg', hasSubmenu: true },
+  { key: 'customize', label: '自定义', icon: 'customize' },
+] satisfies ImageToolbarMenuItem[]
+
+export const IMAGE_DIALOGUE_GREETING = 'Hi, 我是你的AI设计助理'
+export const IMAGE_DIALOGUE_PLACEHOLDER = '让我们开始创作吧...'
+
+export const IMAGE_HD_RESOLUTIONS = ['2K', '4K', '8K'] as const
+
+export const IMAGE_CUTOUT_MODES = ['快速', '精准', '擦除'] as const
+
+export type ImageToolbarHoverConfig = {
+  tooltip?: string
+  menu?: readonly string[]
+}
+
+export const IMAGE_TOOLBAR_MORE_HOVER: Record<string, ImageToolbarHoverConfig> = {
+  split: { menu: ['4宫格', '9宫格', '自由'] },
+  annotate: { tooltip: '标注' },
+  decompose: { tooltip: '图层分离', menu: ['全部', '单个'] },
+  erase: { tooltip: '消除', menu: ['智能', '快速'] },
+  search: { tooltip: '搜同款', menu: ['同款', '类似'] },
+  parse: { tooltip: '解析' },
+}
+
+export function getImageToolbarMoreHover(key: string) {
+  return IMAGE_TOOLBAR_MORE_HOVER[key]
+}
 
 export const PROMPT_PLACEHOLDER =
   '写下你想讲的故事、场景或角色设定，例如：一个来自未来的机器人，在城市屋顶看星星。'
