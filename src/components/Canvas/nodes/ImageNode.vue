@@ -7,8 +7,7 @@
       type="button"
       class="node-port-plus"
       title="添加连线节点"
-      @mousedown.stop
-      @click.stop="onPlusClick"
+      @mousedown.stop="onPlusPointerDown"
     >
       +
     </button>
@@ -33,9 +32,10 @@
       <button
         v-if="data.previewUrl"
         type="button"
-        class="image-node__export-btn"
-        title="导出"
-        @mousedown.stop
+        class="image-node__scale-btn"
+        :class="{ 'image-node__scale-btn--active': isResizing }"
+        title="缩放视图"
+        @mousedown.stop="startResize"
       >
         ↗
       </button>
@@ -70,15 +70,22 @@ import type { CanvasNodeData } from '../constants'
 import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
+import { useNodeViewScale } from './useNodeViewScale'
 
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
 const { removeSelf } = useNodeDelete()
-const { onPlusClick } = useNodeConnect()
+const { onPlusPointerDown } = useNodeConnect()
+const { startResize, previewScale, isResizing } = useNodeViewScale()
 
 const data = reactive<CanvasNodeData>({ ...createEmptyNodeData(), kind: 'image', title: '图片节点', mode: 'editor' })
 
-const dimensionLabel = computed(() => formatDimensions(data.mediaWidth, data.mediaHeight))
+const dimensionLabel = computed(() => {
+  const scale = previewScale.value ?? data.viewScale ?? 1
+  const width = Math.round(data.mediaWidth * scale)
+  const height = Math.round(data.mediaHeight * scale)
+  return formatDimensions(width, height)
+})
 const isPortraitLayout = computed(() =>
   data.mediaWidth && data.mediaHeight
     ? isPortrait(data.mediaWidth, data.mediaHeight)
@@ -161,7 +168,7 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-.image-node__export-btn {
+.image-node__scale-btn {
   position: absolute;
   top: 16px;
   right: 16px;
@@ -177,10 +184,14 @@ onMounted(() => {
   background: rgba(30, 30, 34, 0.85);
   color: #e5e7eb;
   font-size: 12px;
-  cursor: pointer;
+  cursor: nwse-resize;
+  touch-action: none;
 
-  &:hover {
+  &:hover,
+  &--active {
     background: #2a2a30;
+    border-color: #6b7cff;
+    color: #fff;
   }
 }
 

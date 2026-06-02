@@ -142,3 +142,32 @@ export function createStandaloneGenEdge(graph: Graph, source: Node, target: Node
   if (exists) return
   connectGenEdge(graph, source.id, target.id)
 }
+
+export function spawnCroppedImageNode(
+  graph: Graph,
+  sourceNode: Node,
+  payload: { dataUrl: string; width: number; height: number },
+) {
+  const sourceData = sourceNode.getData() as CanvasNodeData
+  const bbox = sourceNode.getBBox()
+  const outgoingCount = graph.getEdges().filter((edge) => edge.getSourceCellId() === sourceNode.id).length
+  const overrides: Partial<CanvasNodeData> = {
+    kind: 'image',
+    mode: 'editor',
+    title: '裁剪结果',
+    previewUrl: payload.dataUrl,
+    mediaWidth: payload.width,
+    mediaHeight: payload.height,
+    uploadState: 'done',
+    fileName: sourceData.fileName ? `裁剪-${sourceData.fileName}` : '裁剪结果.png',
+  }
+  const size = getNodeSize('image', 'editor', overrides)
+  const point = {
+    x: bbox.x + bbox.width + GEN_GAP + outgoingCount * (size.width + GEN_GAP) + size.width / 2,
+    y: bbox.y + bbox.height / 2,
+  }
+
+  const node = addCanvasNode(graph, 'image', point, overrides)
+  connectGenEdge(graph, sourceNode.id, node.id)
+  return node
+}

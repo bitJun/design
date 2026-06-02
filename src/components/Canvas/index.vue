@@ -2,22 +2,100 @@
   <div class="canvas" :class="`canvas--bg-${canvasBgTheme}`">
     <header class="canvas__header">
       <div class="canvas__brand">
-        <span class="canvas__logo">LibTV</span>
-        <span class="canvas__project">未命名</span>
-        <button type="button" class="canvas__cloud" title="保存">☁</button>
+        <button type="button" class="canvas__brand-magic" title="AI 创作">
+          <span class="canvas__brand-magic-icon" aria-hidden="true" />
+        </button>
+        <div class="canvas__brand-project-wrap">
+          <button
+            type="button"
+            class="canvas__brand-project"
+            :class="{ 'canvas__brand-project--active': showProjectMenu }"
+            @click="toggleProjectMenu"
+          >
+            <span class="canvas__brand-project-name">{{ currentProjectName }}</span>
+            <span class="canvas__brand-project-arrow" aria-hidden="true" />
+          </button>
+          <div
+            v-if="showProjectMenu"
+            class="canvas__project-menu"
+            @mousedown.stop
+          >
+            <div class="canvas__project-menu-head">
+              <span class="canvas__project-menu-title">我的创作</span>
+              <div class="canvas__project-menu-legend">
+                <span class="canvas__project-menu-legend-item">
+                  <i class="canvas__project-status canvas__project-status--saved" aria-hidden="true" />
+                  已存
+                </span>
+                <span class="canvas__project-menu-legend-item">
+                  <i class="canvas__project-status canvas__project-status--unsaved" aria-hidden="true" />
+                  未存
+                </span>
+              </div>
+            </div>
+            <button
+              v-for="project in canvasProjects"
+              :key="project.id"
+              type="button"
+              class="canvas__project-item"
+              :class="{ 'canvas__project-item--active': project.id === activeProjectId }"
+              @click="selectProject(project.id)"
+            >
+              <span
+                class="canvas__project-doc"
+                :class="{ 'canvas__project-doc--active': project.id === activeProjectId }"
+                aria-hidden="true"
+              />
+              <i
+                class="canvas__project-status"
+                :class="project.saved ? 'canvas__project-status--saved' : 'canvas__project-status--unsaved'"
+                aria-hidden="true"
+              />
+              <span class="canvas__project-name">{{ project.name }}</span>
+              <span
+                v-if="project.id === activeProjectId"
+                class="canvas__project-check"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        </div>
+        <button type="button" class="canvas__brand-add" title="新建">+</button>
+        <span class="canvas__brand-divider" aria-hidden="true" />
+        <div class="canvas__brand-group">
+          <button type="button" class="canvas__brand-icon-btn" title="撤销">
+            <span class="canvas__brand-icon canvas__brand-icon--undo" aria-hidden="true" />
+          </button>
+          <button type="button" class="canvas__brand-icon-btn" title="重做" disabled>
+            <span class="canvas__brand-icon canvas__brand-icon--redo" aria-hidden="true" />
+          </button>
+        </div>
+        <span class="canvas__brand-divider" aria-hidden="true" />
+        <div class="canvas__brand-group">
+          <button type="button" class="canvas__brand-icon-btn" title="保存" @click="handleSaveCanvas">
+            <span class="canvas__brand-icon canvas__brand-icon--save" aria-hidden="true" />
+          </button>
+          <button type="button" class="canvas__brand-icon-btn" title="打开文件夹">
+            <span class="canvas__brand-icon canvas__brand-icon--folder" aria-hidden="true" />
+          </button>
+        </div>
       </div>
       <div class="canvas__header-actions">
-        <button type="button" class="canvas__header-btn" title="协作">👥</button>
-        <button type="button" class="canvas__header-btn" title="分享">↗</button>
-        <button type="button" class="canvas__header-btn" title="通知">🔔</button>
-        <button type="button" class="canvas__header-btn canvas__header-btn--primary">会员特惠</button>
-        <span class="canvas__credits">20</span>
+        <button type="button" class="canvas__header-pill" @click="handleExportCanvas">
+          <span class="canvas__header-pill-icon canvas__header-pill-icon--share" aria-hidden="true" />
+          导出
+        </button>
+        <div class="canvas__header-pill canvas__header-pill--credits">
+          <span class="canvas__header-pill-icon canvas__header-pill-icon--star" aria-hidden="true" />
+          <span class="canvas__header-credits-value">{{ canvasCredits }}</span>
+          <span class="canvas__header-avatar" aria-hidden="true" />
+        </div>
       </div>
     </header>
 
     <div ref="graphRef" class="canvas__graph" />
     <div
-      v-if="showNodeToolbar"
+      v-if="showNodeToolbar && !showImageCrop"
       class="canvas__node-toolbar"
       :class="{ 'canvas__node-toolbar--image': isLightNodeToolbar }"
       :style="{ left: `${toolbarPos.left}px`, top: `${toolbarPos.top}px` }"
@@ -189,6 +267,7 @@
                   v-else
                   type="button"
                   class="canvas__node-toolbar-btn"
+                  :class="{ 'canvas__node-toolbar-btn--active': item.key === 'crop' && showImageCrop }"
                   @click="onImageToolbarAction(item.key)"
                 >
                   <span
@@ -304,6 +383,27 @@
         <p v-else class="canvas__assets-empty">暂无素材，上传后将显示在这里</p>
       </div>
     </aside>
+
+    <div
+      v-if="showImageCrop && selectedKind === 'image'"
+      class="canvas__image-crop"
+      :style="{
+        left: `${imageCropPos.left}px`,
+        top: `${imageCropPos.top}px`,
+        width: `${imageCropPos.width}px`,
+        height: `${imageCropPos.height}px`,
+      }"
+      @mousedown.stop
+    >
+      <ImageCropOverlay
+        v-if="imageCropSource"
+        :image-url="imageCropSource.previewUrl"
+        :natural-width="imageCropSource.mediaWidth"
+        :natural-height="imageCropSource.mediaHeight"
+        @cancel="closeImageCrop"
+        @complete="onImageCropComplete"
+      />
+    </div>
 
     <div
       v-if="showImageDialogue && selectedKind === 'image'"
@@ -548,11 +648,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
 import ImageDialoguePanel from './ImageDialoguePanel.vue'
+import ImageCropOverlay from './ImageCropOverlay.vue'
 import VideoDialoguePanel from './VideoDialoguePanel.vue'
 import VideoHdPanel from './VideoHdPanel.vue'
 import VideoFramesPanel from './VideoFramesPanel.vue'
 import {
   ADD_NODE_GROUPS,
+  CANVAS_PROJECTS,
   CONNECT_GENERATE_MENU,
   IMAGE_NODE_TOOLBAR,
   IMAGE_NODE_TOOLBAR_MORE,
@@ -567,7 +669,7 @@ import {
   type NodeKind,
   type VideoHdMagnification,
 } from './constants'
-import { applyImageGenTask as applyImageGenTaskToNode } from './imageGen'
+import { applyImageGenTask as applyImageGenTaskToNode, spawnCroppedImageNode } from './imageGen'
 import {
   canOpenConnectMenu,
   createNodeFromConnectMenu,
@@ -578,10 +680,12 @@ import {
   addCanvasNode,
   bindGraphInteraction,
   createGraph,
+  getNodeCropOverlayPosition,
   getNodeDialoguePosition,
   getNodeSidePanelPosition,
   getNodeToolbarPosition,
   getScroller,
+  type CanvasGraph,
 } from './graph'
 import {
   applyCanvasBgTheme,
@@ -591,6 +695,11 @@ import {
 import { tidyCanvas } from './layout'
 import { createMinimap, destroyMinimap } from './minimap'
 import { runUploadSimulation } from './upload'
+import {
+  getCanvasSnapshot,
+  saveCanvasSnapshotToStorage,
+  type CanvasSnapshot,
+} from './canvasSnapshot'
 
 const graphRef = ref<HTMLElement | null>(null)
 const minimapContainerRef = ref<HTMLElement | null>(null)
@@ -602,6 +711,9 @@ const gridVisible = ref(true)
 const canvasBgTheme = ref<CanvasBgTheme>('dark')
 const panMode = ref(true)
 const showMinimap = ref(true)
+const showProjectMenu = ref(false)
+const canvasProjects = ref([...CANVAS_PROJECTS])
+const activeProjectId = ref('draft-2')
 const showAddMenu = ref(false)
 const showConnectMenu = ref(false)
 const connectMenuPos = ref({ left: 0, top: 0 })
@@ -618,24 +730,41 @@ const selectedNodeId = ref('')
 const pendingUploadNodeId = ref('')
 const toolbarPos = ref({ left: 0, top: 0 })
 const dialoguePos = ref({ left: 0, top: 0, width: 360 })
+const imageCropPos = ref({ left: 0, top: 0, width: 360, height: 420 })
 const videoHdPos = ref({ left: 0, top: 0, width: 320 })
 const selectedKind = ref<NodeKind | null>(null)
 const showImageToolbarMore = ref(false)
 const showImageToolbarMoreMenu = ref(false)
 const showImageHdMenu = ref(false)
 const showImageDialogue = ref(false)
+const showImageCrop = ref(false)
+const cropSourceNodeId = ref('')
 const showVideoDialogue = ref(false)
 const showVideoHdPanel = ref(false)
 const showVideoFramesPanel = ref(false)
 const imageDialogueText = ref('')
 const videoDialogueText = ref('')
 const videoHdMagnification = ref<VideoHdMagnification>('2')
+const canvasCredits = ref(12003)
 
 const zoomPercent = computed(() => `${Math.round(zoomLevel.value * 100)}%`)
+const currentProjectName = computed(
+  () => canvasProjects.value.find((project) => project.id === activeProjectId.value)?.name ?? '未命名创作',
+)
 const canvasBgThemeLabel = computed(
   () => getCanvasBgThemeMeta(canvasBgTheme.value).label,
 )
-const showPromptBar = computed(() => Boolean(activePickerNodeId.value) && nodeCount.value > 0)
+const showPromptBar = computed(() => Boolean(activePickerNodeId.value) && nodeCount.value > 0 && !showImageCrop.value)
+
+const imageCropSource = computed(() => {
+  const data = getSelectedNodeData()
+  if (!data?.previewUrl || !data.mediaWidth || !data.mediaHeight) return null
+  return {
+    previewUrl: data.previewUrl,
+    mediaWidth: data.mediaWidth,
+    mediaHeight: data.mediaHeight,
+  }
+})
 
 const showNodeToolbar = computed(() => Boolean(selectedNodeId.value))
 const toolbarRevision = ref(0)
@@ -700,7 +829,67 @@ function onImageToolbarAction(key: string) {
   showImageHdMenu.value = false
   if (key === 'more') {
     openImageToolbarMore()
+    return
   }
+  if (key === 'crop') {
+    openImageCrop()
+  }
+}
+
+function openImageCrop() {
+  const data = getSelectedNodeData()
+  if (!data?.previewUrl || !data.mediaWidth || !data.mediaHeight) return
+
+  showImageHdMenu.value = false
+  showImageDialogue.value = false
+  showImageToolbarMore.value = false
+  showImageToolbarMoreMenu.value = false
+  cropSourceNodeId.value = selectedNodeId.value
+  showImageCrop.value = true
+  updateNodeToolbar()
+}
+
+function closeImageCrop() {
+  showImageCrop.value = false
+  cropSourceNodeId.value = ''
+  updateNodeToolbar()
+}
+
+function resetImageCrop() {
+  showImageCrop.value = false
+  cropSourceNodeId.value = ''
+}
+
+function onImageCropComplete(payload: { dataUrl: string; width: number; height: number }) {
+  const g = graph.value
+  const id = cropSourceNodeId.value || selectedNodeId.value
+  if (!g || !id) {
+    closeImageCrop()
+    return
+  }
+
+  const cell = g.getCellById(id)
+  if (!cell?.isNode()) {
+    closeImageCrop()
+    return
+  }
+
+  const sourceNode = cell as Node
+  const croppedNode = spawnCroppedImageNode(g, sourceNode, payload)
+  selectedNodeId.value = croppedNode.id
+  selectedKind.value = 'image'
+  syncNodeSelectionHighlight(croppedNode.id)
+  syncNodeCount()
+  closeImageCrop()
+
+  nextTick(() => {
+    const scroller = getScroller(g)
+    const bbox = croppedNode.getBBox()
+    scroller?.transitionToPoint(bbox.x + bbox.width / 2, bbox.y + bbox.height / 2, {
+      duration: '280ms',
+    })
+    updateNodeToolbar()
+  })
 }
 
 function resetImageToolbarMore() {
@@ -786,7 +975,29 @@ function handleApplyImageGenTask(nodeId: string, task: ImageGenTask) {
 
 provide('applyImageGenTask', handleApplyImageGenTask)
 
+function removeConnectPreviewEdge() {
+  const g = graph.value as CanvasGraph | null
+  if (!g?.__connectPreviewEdgeId) return
+  const edge = g.getCellById(g.__connectPreviewEdgeId)
+  if (edge?.isEdge()) g.removeEdge(edge)
+  g.__connectPreviewEdgeId = ''
+}
+
+function syncConnectPreviewEdgeTarget() {
+  const g = graph.value as CanvasGraph | null
+  if (!g?.__connectPreviewEdgeId || !graphRef.value) return
+  const edge = g.getCellById(g.__connectPreviewEdgeId)
+  if (!edge?.isEdge()) return
+
+  const menuHeight = 360
+  const rect = graphRef.value.getBoundingClientRect()
+  const clientX = rect.left + connectMenuPos.value.left
+  const clientY = rect.top + connectMenuPos.value.top + menuHeight / 2
+  edge.setTarget(g.clientToLocal(clientX, clientY))
+}
+
 function closeConnectMenu() {
+  removeConnectPreviewEdge()
   showConnectMenu.value = false
   connectSourceNodeId.value = ''
   connectDropPoint.value = null
@@ -795,6 +1006,64 @@ function closeConnectMenu() {
 function closeAddMenu() {
   showAddMenu.value = false
   addMenuDropPoint.value = null
+}
+
+function toggleProjectMenu() {
+  showProjectMenu.value = !showProjectMenu.value
+}
+
+function closeProjectMenu() {
+  showProjectMenu.value = false
+}
+
+function selectProject(projectId: string) {
+  activeProjectId.value = projectId
+  closeProjectMenu()
+}
+
+function handleSaveCanvas() {
+  const g = graph.value
+  if (!g) return
+
+  const snapshot: CanvasSnapshot = getCanvasSnapshot(g, {
+    projectId: activeProjectId.value,
+    projectName: currentProjectName.value,
+    canvasBgTheme: canvasBgTheme.value,
+    gridVisible: gridVisible.value,
+    panMode: panMode.value,
+    showMinimap: showMinimap.value,
+  })
+
+  saveCanvasSnapshotToStorage(snapshot)
+
+  const project = canvasProjects.value.find((item) => item.id === activeProjectId.value)
+  if (project) {
+    project.saved = true
+  }
+
+  console.info('[Canvas] saved snapshot', snapshot)
+}
+
+function handleExportCanvas() {
+  const g = graph.value
+  if (!g) return
+
+  const snapshot = getCanvasSnapshot(g, {
+    projectId: activeProjectId.value,
+    projectName: currentProjectName.value,
+    canvasBgTheme: canvasBgTheme.value,
+    gridVisible: gridVisible.value,
+    panMode: panMode.value,
+    showMinimap: showMinimap.value,
+  })
+
+  const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `${activeProjectId.value || 'canvas'}.json`
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 function openAddMenuAtGraphPoint(graphPoint: { x: number; y: number }) {
@@ -832,6 +1101,8 @@ function openConnectMenu(source: Node, graphPoint: { x: number; y: number }) {
     top: Math.max(60, Math.min(client.y - rect.top - 24, rect.height - menuHeight - 12)),
   }
   showConnectMenu.value = true
+  ;(g as CanvasGraph).__suppressBlankCloseForConnect = true
+  nextTick(() => syncConnectPreviewEdgeTarget())
 }
 
 function finishConnectSpawn(node: Node) {
@@ -869,46 +1140,52 @@ function onConnectMenuItem(item: (typeof CONNECT_GENERATE_MENU)[number]) {
   finishConnectSpawn(spawned)
 }
 
-function connectFromNode(nodeId: string) {
+function openConnectMenuByNodeId(nodeId: string, point: { x: number; y: number }) {
   const g = graph.value
   if (!g) return
-
   const cell = g.getCellById(nodeId)
-  if (!cell?.isNode() || !canOpenConnectMenu(cell as Node)) return
-
-  openConnectMenu(cell as Node, getDefaultConnectPoint(cell as Node))
+  if (!cell?.isNode()) return
+  openConnectMenu(cell as Node, point)
 }
 
-provide('connectFromNode', connectFromNode)
+provide('openConnectMenuByNodeId', openConnectMenuByNodeId)
 
-function handlePortClick({ node, port }: { node: Node; port?: string }) {
-  if (port !== 'right') return
-  connectFromNode(node.id)
-}
-
-function handleEdgeConnected({ edge, isNew }: { edge: Edge; isNew?: boolean }) {
+function handleEdgeConnected({
+  edge,
+  isNew,
+  currentCell,
+  currentPoint,
+}: {
+  edge: Edge
+  isNew?: boolean
+  currentCell?: { isNode?: () => boolean } | null
+  currentPoint?: { x: number; y: number } | null
+}) {
   if (!isNew) return
+
+  if (currentCell?.isNode?.()) return
+
   const g = graph.value
   if (!g) return
-
-  if (edge.getTargetCell()) return
-
-  const target = edge.getTarget()
-  if (!target || typeof target !== 'object' || !('x' in target) || !('y' in target)) {
-    return
-  }
 
   const source = edge.getSourceCell()
   if (!source?.isNode() || !canOpenConnectMenu(source as Node)) {
-    g.removeEdge(edge)
+    g.removeEdge(edge.id)
     return
   }
 
-  g.removeEdge(edge)
-  openConnectMenu(source as Node, {
-    x: Number(target.x),
-    y: Number(target.y),
-  })
+  const point =
+    currentPoint ??
+    (() => {
+      const target = edge.getTarget()
+      if (target && typeof target === 'object' && 'x' in target && 'y' in target) {
+        return { x: Number(target.x), y: Number(target.y) }
+      }
+      return getDefaultConnectPoint(source as Node)
+    })()
+
+  ;(g as CanvasGraph).__connectPreviewEdgeId = edge.id
+  openConnectMenu(source as Node, point)
 }
 
 function removeNodeById(nodeId: string) {
@@ -980,6 +1257,9 @@ function updateNodeToolbar() {
   const node = cell as Node
   toolbarPos.value = getNodeToolbarPosition(g, node, graphRef.value)
   dialoguePos.value = getNodeDialoguePosition(g, node, graphRef.value)
+  if (showImageCrop.value) {
+    imageCropPos.value = getNodeCropOverlayPosition(g, node, graphRef.value)
+  }
   if (data.kind === 'video' && showVideoHdPanel.value) {
     videoHdPos.value = getNodeSidePanelPosition(g, node, graphRef.value)
   }
@@ -1186,6 +1466,7 @@ function handleNodeClick({ node }: { node: Node }) {
   selectedKind.value = data.kind
   resetImageToolbarMore()
   resetImageDialogue()
+  resetImageCrop()
   resetVideoDialogue()
   resetVideoHdPanel()
   resetVideoFramesPanel()
@@ -1202,11 +1483,18 @@ function handleNodeUnselected() {
 
 function handleBlankClick() {
   closeAddMenu()
-  closeConnectMenu()
+  closeProjectMenu()
+  const g = graph.value as CanvasGraph | null
+  if (g?.__suppressBlankCloseForConnect) {
+    g.__suppressBlankCloseForConnect = false
+  } else {
+    closeConnectMenu()
+  }
   selectedNodeId.value = ''
   selectedKind.value = null
   resetImageToolbarMore()
   resetImageDialogue()
+  resetImageCrop()
   resetVideoDialogue()
   resetVideoHdPanel()
   resetVideoFramesPanel()
@@ -1237,7 +1525,8 @@ function handleKeydown(event: KeyboardEvent) {
 onMounted(() => {
   if (!graphRef.value) return
 
-  const instance = createGraph(graphRef.value)
+  const instance = createGraph(graphRef.value) as CanvasGraph
+  instance.__openConnectMenu = openConnectMenuByNodeId
   graph.value = instance
   bindGraphInteraction(instance)
 
@@ -1257,7 +1546,6 @@ onMounted(() => {
     handleNodeUnselected()
   })
   instance.on('node:change:data', handleNodeDataChange)
-  instance.on('node:port:click', handlePortClick)
   instance.on('edge:connected', handleEdgeConnected)
 
   window.addEventListener('keydown', handleKeydown)

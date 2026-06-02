@@ -19,7 +19,14 @@ import {
   isPortrait,
 } from './constants'
 
-export type CanvasGraph = Graph & { __scroller?: Scroller }
+export type ConnectMenuOpener = (nodeId: string, point: { x: number; y: number }) => void
+
+export type CanvasGraph = Graph & {
+  __scroller?: Scroller
+  __openConnectMenu?: ConnectMenuOpener
+  __suppressBlankCloseForConnect?: boolean
+  __connectPreviewEdgeId?: string
+}
 
 let shapesRegistered = false
 
@@ -58,7 +65,7 @@ export function getNodeShape(kind: NodeKind, data?: Partial<CanvasNodeData>) {
   return 'image-node'
 }
 
-export function getNodeSize(
+export function getBaseNodeSize(
   kind: NodeKind,
   mode: NodeMode = 'picker',
   data?: Partial<CanvasNodeData>,
@@ -83,6 +90,21 @@ export function getNodeSize(
   return NODE_SIZE.image.landscape
 }
 
+export function getNodeSize(
+  kind: NodeKind,
+  mode: NodeMode = 'picker',
+  data?: Partial<CanvasNodeData>,
+) {
+  const base = getBaseNodeSize(kind, mode, data)
+  const scale = data?.viewScale ?? 1
+  if (scale === 1) return base
+
+  return {
+    width: Math.max(120, Math.round(base.width * scale)),
+    height: Math.max(120, Math.round(base.height * scale)),
+  }
+}
+
 export function createPorts(stroke = '#8b8b95') {
   return {
     groups: {
@@ -91,7 +113,7 @@ export function createPorts(stroke = '#8b8b95') {
         attrs: {
           circle: {
             r: 12,
-            magnet: true,
+            magnet: false,
             stroke,
             strokeWidth: 1.5,
             fill: '#2a2a30',
@@ -118,7 +140,7 @@ export function createPorts(stroke = '#8b8b95') {
         attrs: {
           circle: {
             r: 12,
-            magnet: true,
+            magnet: false,
             stroke,
             strokeWidth: 1.5,
             fill: '#2a2a30',
@@ -197,6 +219,7 @@ export function createGraph(container: HTMLElement): CanvasGraph {
         return canOpenConnectMenu(source)
       },
       allowLoop: false,
+      allowMulti: false,
       highlight: true,
       connector: { name: 'smooth' },
       connectionPoint: 'boundary',
@@ -267,9 +290,6 @@ export function addCanvasNode(
 }
 
 export function bindGraphInteraction(graph: Graph) {
-  graph.on('node:mouseenter', ({ node }) => setPortsVisible(node, true))
-  graph.on('node:mouseleave', ({ node }) => setPortsVisible(node, false))
-
   graph.on('node:change:data', ({ node }) => {
     const data = node.getData() as CanvasNodeData
     const size = getNodeSize(data.kind, data.mode, data)
@@ -325,5 +345,32 @@ export function getNodeSidePanelPosition(
     left: Math.max(12, Math.min(topRight.x - rect.left + 16, rect.width - panelWidth - 12)),
     top: Math.max(60, Math.min(topRight.y - rect.top, rect.height - panelHeight - 12)),
     width: panelWidth,
+  }
+}
+
+export function getNodeCropOverlayPosition(
+  graph: Graph,
+  node: Node,
+  container: HTMLElement,
+  minWidth = 520,
+  minHeight = 420,
+) {
+  const bbox = node.getBBox()
+  const topLeft = graph.localToClient(bbox.x, bbox.y)
+  const bottomRight = graph.localToClient(bbox.x + bbox.width, bbox.y + bbox.height)
+  const rect = container.getBoundingClientRect()
+  const nodeWidth = Math.abs(bottomRight.x - topLeft.x)
+  const nodeHeight = Math.abs(bottomRight.y - topLeft.y)
+  const width = Math.max(nodeWidth, minWidth)
+  const height = Math.max(nodeHeight + 48, minHeight)
+
+  return {
+    left: Math.max(
+      12,
+      Math.min(topLeft.x - rect.left - (width - nodeWidth) / 2, rect.width - width - 12),
+    ),
+    top: Math.max(60, Math.min(topLeft.y - rect.top, rect.height - height - 12)),
+    width,
+    height,
   }
 }

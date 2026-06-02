@@ -25,6 +25,7 @@ export interface CanvasNodeData {
   inputUpdated?: boolean
   genPrompt?: string
   genSeed?: number
+  viewScale?: number
 }
 
 export function createEmptyNodeData(): CanvasNodeData {
@@ -229,10 +230,96 @@ export const IMAGE_NODE_TOOLBAR_MORE_MENU = [
 export const IMAGE_DIALOGUE_GREETING = 'Hi, 我是你的AI设计助理'
 export const IMAGE_DIALOGUE_PLACEHOLDER = '让我们开始创作吧...'
 
+export const IMAGE_COLOR_DEFAULT = '#0E316A'
+export const IMAGE_COLOR_SWATCHES = [
+  '#9CA3AF',
+  '#6B7280',
+  '#374151',
+  '#F97316',
+  '#FBBF24',
+  '#FDE047',
+  '#3B82F6',
+  '#0E316A',
+  '#7C3AED',
+  '#A855F7',
+  '#22C55E',
+  '#EF4444',
+] as const
+export const IMAGE_COLOR_PALETTE_PRESETS = [
+  { key: 'default', label: '默认' },
+  { key: 'warm', label: '暖色' },
+  { key: 'cool', label: '冷色' },
+  { key: 'mono', label: '单色' },
+] as const
+
+export const IMAGE_GEN_ASPECT_RATIO_LABEL = '宽高比'
+export const IMAGE_GEN_COUNT_LABEL = '张数'
+export const IMAGE_GEN_ASPECT_RATIOS = [
+  { key: 'auto', label: 'auto', preview: { width: 14, height: 10 } },
+  { key: '3:4', label: '3:4', preview: { width: 10, height: 14 } },
+  { key: '1:1', label: '1:1', preview: { width: 12, height: 12 } },
+  { key: '16:9', label: '16:9', preview: { width: 16, height: 9 } },
+  { key: '9:16', label: '9:16', preview: { width: 9, height: 16 } },
+  { key: '4:3', label: '4:3', preview: { width: 14, height: 10 } },
+  { key: '3:2', label: '3:2', preview: { width: 15, height: 10 } },
+  { key: '2:3', label: '2:3', preview: { width: 10, height: 15 } },
+  { key: '4:5', label: '4:5', preview: { width: 10, height: 12 } },
+  { key: '5:4', label: '5:4', preview: { width: 12, height: 10 } },
+  { key: '21:9', label: '21:9', preview: { width: 18, height: 8 } },
+] as const
+export type ImageGenAspectRatio = (typeof IMAGE_GEN_ASPECT_RATIOS)[number]['key']
+export const IMAGE_GEN_COUNTS = [1, 2, 3] as const
+export type ImageGenCount = (typeof IMAGE_GEN_COUNTS)[number]
+
+export const IMAGE_DESIGN_ADVISOR_TITLE = '设计灵感'
+export const IMAGE_DESIGN_ADVISOR_MENU = [
+  { key: 'idea', label: '设计思路' },
+  { key: 'product-shot', label: '商品实拍' },
+  { key: 'product-match', label: '商品搭配' },
+  { key: 'model-pose', label: '模特姿态' },
+  { key: 'model-tryon', label: '模特试穿' },
+  { key: 'digital-model', label: '数字人模特' },
+] as const
+
+export type CanvasProjectItem = {
+  id: string
+  name: string
+  saved: boolean
+}
+
+export const CANVAS_PROJECTS: CanvasProjectItem[] = [
+  { id: 'draft-1', name: '未命名创作', saved: true },
+  { id: 'draft-2', name: '未命名创作1', saved: false },
+]
+
 export const VIDEO_DIALOGUE_GREETING = 'Hi, 我是你的AI设计助理'
 export const VIDEO_DIALOGUE_PLACEHOLDER = '让我们开始创作吧...'
 export const VIDEO_DIALOGUE_VIDEO_SETTINGS = '5s · 16:9 · 720P'
 export const VIDEO_DIALOGUE_CREDITS = '135'
+
+export const VIDEO_GEN_DURATION_LABEL = '时长'
+export const VIDEO_GEN_ASPECT_RATIO_LABEL = '宽高比'
+export const VIDEO_GEN_RESOLUTION_LABEL = '分辨率'
+export const VIDEO_GEN_DURATIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const
+export type VideoGenDuration = (typeof VIDEO_GEN_DURATIONS)[number]
+export const VIDEO_GEN_ASPECT_RATIOS = [
+  { key: '16:9', label: '16:9', preview: { width: 16, height: 9 } },
+  { key: '9:16', label: '9:16', preview: { width: 9, height: 16 } },
+  { key: '1:1', label: '1:1', preview: { width: 12, height: 12 } },
+  { key: '4:3', label: '4:3', preview: { width: 14, height: 10 } },
+  { key: '3:4', label: '3:4', preview: { width: 10, height: 14 } },
+] as const
+export type VideoGenAspectRatio = (typeof VIDEO_GEN_ASPECT_RATIOS)[number]['key']
+export const VIDEO_GEN_RESOLUTIONS = ['720P', '1080P'] as const
+export type VideoGenResolution = (typeof VIDEO_GEN_RESOLUTIONS)[number]
+
+export function formatVideoGenSettings(
+  duration: VideoGenDuration,
+  aspectRatio: VideoGenAspectRatio,
+  resolution: VideoGenResolution,
+) {
+  return `${duration}s · ${aspectRatio} · ${resolution}`
+}
 
 export const VIDEO_ADVISOR_MENU = [
   {
@@ -284,6 +371,20 @@ export const VIDEO_HD_HINT =
 export const IMAGE_HD_RESOLUTIONS = ['2K', '4K', '8K'] as const
 
 export const IMAGE_CUTOUT_MODES = ['快速', '精准', '擦除'] as const
+
+export const IMAGE_CROP_ASPECT_RATIOS = [
+  { key: 'free', label: '自由裁剪', ratio: null },
+  { key: 'original', label: '原图比例', ratio: 'original' as const },
+  { key: '1:1', label: '1:1', ratio: 1 },
+  { key: '4:3', label: '4:3', ratio: 4 / 3 },
+  { key: '3:4', label: '3:4', ratio: 3 / 4 },
+  { key: '16:9', label: '16:9', ratio: 16 / 9 },
+  { key: '9:16', label: '9:16', ratio: 9 / 16 },
+  { key: '3:2', label: '3:2', ratio: 3 / 2 },
+  { key: '2:3', label: '2:3', ratio: 2 / 3 },
+] as const
+
+export type ImageCropAspectKey = (typeof IMAGE_CROP_ASPECT_RATIOS)[number]['key']
 
 export type ImageToolbarHoverConfig = {
   tooltip?: string

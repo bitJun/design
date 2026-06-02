@@ -1,5 +1,13 @@
 <template>
   <div class="text-node" :class="{ 'text-node--selected': data.isSelected }">
+    <button
+      type="button"
+      class="node-port-plus"
+      title="添加连线节点"
+      @mousedown.stop="onPlusPointerDown"
+    >
+      +
+    </button>
     <div class="text-node__title canvas-node__meta">
       <span class="text-node__title-icon">T</span>
       <span class="text-node__title-text">{{ data.title }}</span>
@@ -64,9 +72,11 @@ import { TEXT_PICKER_ACTIONS } from '../constants'
 import type { CanvasNodeData } from '../constants'
 import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
+import { useNodeConnect } from './useNodeConnect'
 
 const getNode = inject<() => Node>('getNode')!
 const { removeSelf } = useNodeDelete()
+const { onPlusPointerDown } = useNodeConnect()
 
 const data = reactive<CanvasNodeData>({
   ...createEmptyNodeData(),
@@ -100,7 +110,9 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import './node-delete.scss';
+@import './node-port-plus.scss';
 .text-node {
+  position: relative;
   width: 100%;
   height: 100%;
   box-sizing: border-box;

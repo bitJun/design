@@ -5,8 +5,7 @@
       type="button"
       class="node-port-plus"
       title="添加连线节点"
-      @mousedown.stop
-      @click.stop="onPlusClick"
+      @mousedown.stop="onPlusPointerDown"
     >
       +
     </button>
@@ -97,7 +96,7 @@ import { useNodeConnect } from './useNodeConnect'
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
 const { removeSelf } = useNodeDelete()
-const { onPlusClick } = useNodeConnect()
+const { onPlusPointerDown } = useNodeConnect()
 const videoRef = ref<HTMLVideoElement | null>(null)
 
 const data = reactive<CanvasNodeData>({

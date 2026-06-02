@@ -28,7 +28,9 @@
   .video-node:hover &,
   .video-node--selected &,
   .image-gen-node:hover &,
-  .image-gen-node--selected & {
+  .image-gen-node--selected &,
+  .text-node:hover &,
+  .text-node--selected & {
     opacity: 1;
   }
 

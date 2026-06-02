@@ -7,6 +7,14 @@
     }"
   >
     <button
+      type="button"
+      class="node-port-plus"
+      title="添加连线节点"
+      @mousedown.stop="onPlusPointerDown"
+    >
+      +
+    </button>
+    <button
       v-if="data.imageGenTask === 'picker'"
       type="button"
       class="image-gen-node__upload-btn"
@@ -132,11 +140,13 @@ import {
 } from '../constants'
 import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
+import { useNodeConnect } from './useNodeConnect'
 
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
 const applyImageGenTask = inject<(nodeId: string, task: ImageGenTask) => void>('applyImageGenTask')
 const { removeSelf } = useNodeDelete()
+const { onPlusPointerDown } = useNodeConnect()
 
 const data = reactive<CanvasNodeData>({
   ...createEmptyNodeData(),
@@ -192,6 +202,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import './node-delete.scss';
+@import './node-port-plus.scss';
 
 .image-gen-node {
   position: relative;

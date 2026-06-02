@@ -87,10 +87,28 @@
           全能参考
           <span class="video-dialogue__select-arrow" aria-hidden="true" />
         </button>
-        <button type="button" class="video-dialogue__auto">
-          {{ VIDEO_DIALOGUE_VIDEO_SETTINGS }}
-          <span class="video-dialogue__select-arrow" aria-hidden="true" />
-        </button>
+        <div class="video-dialogue__gen-settings-wrap">
+          <button
+            type="button"
+            class="video-dialogue__auto"
+            :class="{ 'video-dialogue__auto--active': showVideoSettings }"
+            @click="toggleVideoSettings"
+          >
+            {{ videoSettingsLabel }}
+            <span class="video-dialogue__select-arrow" aria-hidden="true" />
+          </button>
+          <div
+            v-if="showVideoSettings"
+            class="video-dialogue__gen-settings-menu"
+            @mousedown.stop
+          >
+            <VideoGenSettingsPopover
+              v-model:duration="videoDuration"
+              v-model:aspect-ratio="videoAspectRatio"
+              v-model:resolution="videoResolution"
+            />
+          </div>
+        </div>
         <span class="video-dialogue__credits">
           <span class="video-dialogue__credits-icon" aria-hidden="true" />
           {{ VIDEO_DIALOGUE_CREDITS }}
@@ -119,14 +137,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import VideoGenSettingsPopover from './VideoGenSettingsPopover.vue'
 import VideoStoryboardPanel from './VideoStoryboardPanel.vue'
 import {
   VIDEO_ADVISOR_MENU,
   VIDEO_DIALOGUE_CREDITS,
   VIDEO_DIALOGUE_GREETING,
   VIDEO_DIALOGUE_PLACEHOLDER,
-  VIDEO_DIALOGUE_VIDEO_SETTINGS,
+  formatVideoGenSettings,
+  type VideoGenAspectRatio,
+  type VideoGenDuration,
+  type VideoGenResolution,
   type VideoStoryboardDuration,
   type VideoStoryboardRatio,
 } from './constants'
@@ -141,13 +163,25 @@ const emit = defineEmits<{
 
 const showAdvisorMenu = ref(false)
 const showStoryboardPanel = ref(false)
+const showVideoSettings = ref(false)
 const activeAdvisorKey = ref<(typeof VIDEO_ADVISOR_MENU)[number]['key']>('dynamic')
 const storyboardDuration = ref<VideoStoryboardDuration>(5)
 const storyboardDescription = ref('')
 const storyboardRatio = ref<VideoStoryboardRatio>('16:9')
+const videoDuration = ref<VideoGenDuration>(5)
+const videoAspectRatio = ref<VideoGenAspectRatio>('16:9')
+const videoResolution = ref<VideoGenResolution>('720P')
+
+const videoSettingsLabel = computed(() =>
+  formatVideoGenSettings(videoDuration.value, videoAspectRatio.value, videoResolution.value),
+)
 
 function onInput(event: Event) {
   emit('update:modelValue', (event.target as HTMLTextAreaElement).value)
+}
+
+function toggleVideoSettings() {
+  showVideoSettings.value = !showVideoSettings.value
 }
 
 function toggleAdvisorMenu() {
@@ -155,6 +189,7 @@ function toggleAdvisorMenu() {
   if (showAdvisorMenu.value) {
     activeAdvisorKey.value = 'dynamic'
     showStoryboardPanel.value = false
+    showVideoSettings.value = false
   }
 }
 
@@ -162,6 +197,7 @@ function toggleStoryboardPanel() {
   showStoryboardPanel.value = !showStoryboardPanel.value
   if (showStoryboardPanel.value) {
     showAdvisorMenu.value = false
+    showVideoSettings.value = false
   }
 }
 
@@ -236,8 +272,21 @@ function selectAdvisorItem() {
   flex-shrink: 0;
 }
 
-.video-dialogue__advisor-wrap {
+.video-dialogue__advisor-wrap,
+.video-dialogue__gen-settings-wrap {
   position: relative;
+}
+
+.video-dialogue__gen-settings-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+}
+
+.video-dialogue__auto--active {
+  background: #f3f4f6;
+  border-color: #d1d5db;
 }
 
 .video-dialogue__select,
