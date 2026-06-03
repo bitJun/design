@@ -45,14 +45,16 @@
 
     <div class="image-gen-node__body">
       <div
-        v-if="data.imageGenTask === 'picker'"
+        v-if="data.imageGenTask === 'picker' || data.imageGenTask === 'img2img'"
         class="image-gen-node__picker"
       >
         <div
-          class="image-gen-node__preview image-gen-node__preview--empty"
+          class="image-gen-node__preview"
+          :class="data.previewUrl ? 'image-gen-node__preview--output' : 'image-gen-node__preview--empty'"
           @click="triggerUpload"
         >
-          <span class="image-gen-node__placeholder-icon" aria-hidden="true" />
+          <img v-if="data.previewUrl" :src="data.previewUrl" :alt="data.fileName" />
+          <span v-else class="image-gen-node__placeholder-icon" aria-hidden="true" />
         </div>
         <p class="image-gen-node__try">尝试：</p>
         <button
@@ -66,14 +68,6 @@
           <span class="image-gen-node__action-icon" :data-icon="action.icon" />
           {{ action.label }}
         </button>
-      </div>
-
-      <div
-        v-else-if="data.imageGenTask === 'img2img'"
-        class="image-gen-node__preview image-gen-node__preview--output"
-      >
-        <img v-if="data.previewUrl" :src="data.previewUrl" :alt="data.fileName" />
-        <span v-else class="image-gen-node__placeholder-icon image-gen-node__placeholder-icon--lg" aria-hidden="true" />
       </div>
 
       <div v-else class="image-gen-node__picker">

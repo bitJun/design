@@ -25,6 +25,7 @@ export interface CanvasNodeData {
   inputUpdated?: boolean
   genPrompt?: string
   genSeed?: number
+  videoGenTab?: string
   viewScale?: number
 }
 
@@ -135,6 +136,22 @@ export const VIDEO_PICKER_ACTIONS = [
   { key: 'frames', label: '首尾帧生成视频', icon: 'frames' },
   { key: 'first', label: '首帧生成视频', icon: 'spark' },
 ]
+
+export const VIDEO_GEN_TABS: Array<{ key: string; label: string; disabled?: boolean }> = [
+  { key: 'text2video', label: '文生视频' },
+  { key: 'reference', label: '全能参考', disabled: true },
+  { key: 'img2video', label: '图生视频', disabled: true },
+  { key: 'frames', label: '首尾帧', disabled: true },
+  { key: 'imageRef', label: '图片参考', disabled: true },
+]
+
+export const VIDEO_GEN_QUICK_ACTIONS = [
+  { key: 'mark', label: '标记', icon: 'mark' },
+  { key: 'camera', label: '运镜', icon: 'camera' },
+  { key: 'role', label: '角色库', icon: 'role' },
+] as const
+
+export const VIDEO_GEN_PROMPT_PLACEHOLDER = '描述你想要生成的画面内容，@引用素材'
 
 export const IMAGE_GEN_ACTIONS = [
   { key: 'img2img' as const, label: '图生图', icon: 'img2img' },
@@ -424,8 +441,7 @@ export const NODE_SIZE = {
     landscape: { width: 300, height: 360 },
     portrait: { width: 220, height: 400 },
     genPicker: { width: 300, height: 340 },
-    /** 图生图节点仅保留预览区，输入框在节点下方浮层 */
-    img2img: { width: 300, height: 240 },
+    img2img: { width: 300, height: 340 },
     hd: { width: 300, height: 360 },
   },
   video: {

@@ -27,6 +27,7 @@ declare module 'vue' {
     TextNode: typeof import('./components/Canvas/nodes/TextNode.vue')['default']
     VideoDialoguePanel: typeof import('./components/Canvas/VideoDialoguePanel.vue')['default']
     VideoFramesPanel: typeof import('./components/Canvas/VideoFramesPanel.vue')['default']
+    VideoGenPromptPanel: typeof import('./components/Canvas/VideoGenPromptPanel.vue')['default']
     VideoGenSettingsPopover: typeof import('./components/Canvas/VideoGenSettingsPopover.vue')['default']
     VideoHdPanel: typeof import('./components/Canvas/VideoHdPanel.vue')['default']
     VideoNode: typeof import('./components/Canvas/nodes/VideoNode.vue')['default']

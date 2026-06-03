@@ -1,7 +1,6 @@
 <template>
   <div class="video-node" :class="{ 'video-node--selected': data.isSelected }">
     <button
-      v-if="data.mode === 'editor'"
       type="button"
       class="node-port-plus"
       title="添加连线节点"
@@ -95,6 +94,7 @@ import { useNodeConnect } from './useNodeConnect'
 
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
+const openVideoGenPromptBar = inject<(nodeId: string, tab?: string) => void>('openVideoGenPromptBar')
 const { removeSelf } = useNodeDelete()
 const { onPlusPointerDown } = useNodeConnect()
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -125,12 +125,8 @@ function triggerUpload() {
 }
 
 function onPickerAction(key: string) {
-  data.mode = 'editor'
-  data.content = key
-  syncData()
-  if (key === 'first' || key === 'frames') {
-    triggerUpload()
-  }
+  const tab = key === 'frames' ? 'frames' : key === 'first' ? 'first' : 'text2video'
+  openVideoGenPromptBar?.(getNode().id, tab)
 }
 
 function onVideoMetadata(event: Event) {

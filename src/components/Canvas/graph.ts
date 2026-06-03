@@ -153,8 +153,9 @@ export function getBaseNodeSize(
     return NODE_SIZE.video.landscape
   }
   if (kind === 'image') {
-    if (data?.imageGenTask === 'picker') return NODE_SIZE.image.genPicker
-    if (data?.imageGenTask === 'img2img') return NODE_SIZE.image.img2img
+    if (data?.imageGenTask === 'picker' || data?.imageGenTask === 'img2img') {
+      return NODE_SIZE.image.genPicker
+    }
     if (data?.imageGenTask === 'hd') return NODE_SIZE.image.hd
     if (w && h && isPortrait(w, h)) return NODE_SIZE.image.portrait
     return NODE_SIZE.image.landscape

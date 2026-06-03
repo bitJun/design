@@ -463,6 +463,23 @@
     </div>
 
     <div
+      v-if="showVideoGenPromptBar"
+      class="canvas__video-gen-prompt"
+      :style="{
+        left: `${videoGenPromptPos.left}px`,
+        top: `${videoGenPromptPos.top}px`,
+        width: `${videoGenPromptPos.width}px`,
+      }"
+    >
+      <VideoGenPromptPanel
+        v-model:prompt="videoGenPromptText"
+        v-model:active-tab="videoGenActiveTab"
+        @update:prompt="persistVideoGenPrompt"
+        @update:active-tab="persistVideoGenPrompt"
+      />
+    </div>
+
+    <div
       v-if="showImageGenPromptBar"
       class="canvas__img2img-prompt"
       :style="{
@@ -726,6 +743,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
 import ImageGenPromptPanel from './ImageGenPromptPanel.vue'
+import VideoGenPromptPanel from './VideoGenPromptPanel.vue'
 import ImageDialoguePanel from './ImageDialoguePanel.vue'
 import ImageCropOverlay from './ImageCropOverlay.vue'
 import VideoDialoguePanel from './VideoDialoguePanel.vue'
@@ -818,12 +836,16 @@ const activeImageGenPromptNodeId = ref('')
 const imageGenPromptText = ref('')
 const imageGenSeed = ref(58)
 const imageGenSourcePreviewUrl = ref('')
+const activeVideoGenPromptNodeId = ref('')
+const videoGenPromptText = ref('')
+const videoGenActiveTab = ref('text2video')
 const selectedNodeId = ref('')
 const pendingUploadNodeId = ref('')
 const toolbarPos = ref({ left: 0, top: 0 })
 const dialoguePos = ref({ left: 0, top: 0, width: 360 })
 const promptPos = ref({ left: 0, top: 0, width: 360 })
 const imageGenPromptPos = ref({ left: 0, top: 0, width: 480 })
+const videoGenPromptPos = ref({ left: 0, top: 0, width: 520 })
 const imageCropPos = ref({ left: 0, top: 0, width: 360, height: 420 })
 const videoHdPos = ref({ left: 0, top: 0, width: 320 })
 const selectedKind = ref<NodeKind | null>(null)
@@ -853,6 +875,9 @@ const showPromptBar = computed(
 )
 const showImageGenPromptBar = computed(
   () => Boolean(activeImageGenPromptNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
+)
+const showVideoGenPromptBar = computed(
+  () => Boolean(activeVideoGenPromptNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
 )
 
 const imageCropSource = computed(() => {
@@ -1085,7 +1110,71 @@ function persistImageGenPrompt() {
   cell.setData(data)
 }
 
+function loadVideoGenPromptFields(nodeId: string) {
+  const g = graph.value
+  if (!g) return
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+  const data = cell.getData() as CanvasNodeData
+  videoGenPromptText.value = data.genPrompt ?? ''
+  videoGenActiveTab.value = data.videoGenTab ?? 'text2video'
+}
+
+function persistVideoGenPrompt() {
+  const g = graph.value
+  const nodeId = activeVideoGenPromptNodeId.value
+  if (!g || !nodeId) return
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+  const data = { ...(cell.getData() as CanvasNodeData) }
+  data.genPrompt = videoGenPromptText.value
+  data.videoGenTab = videoGenActiveTab.value
+  cell.setData(data)
+}
+
+function openVideoGenPromptBar(nodeId: string, tab = 'text2video') {
+  closeImageGenPromptBar()
+
+  const g = graph.value
+  if (g) {
+    const cell = g.getCellById(nodeId)
+    if (cell?.isNode()) {
+      const data = { ...(cell.getData() as CanvasNodeData) }
+      if (data.kind === 'video' && data.mode === 'editor' && !data.previewUrl) {
+        data.mode = 'picker'
+      }
+      data.videoGenTab = tab
+      cell.setData(data)
+    }
+  }
+
+  activeVideoGenPromptNodeId.value = nodeId
+  activePickerNodeId.value = ''
+  videoGenActiveTab.value = tab
+  loadVideoGenPromptFields(nodeId)
+  updateVideoGenPromptBarPosition()
+}
+
+function closeVideoGenPromptBar() {
+  activeVideoGenPromptNodeId.value = ''
+}
+
 function openImageGenPromptBar(nodeId: string) {
+  closeVideoGenPromptBar()
+
+  const g = graph.value
+  if (g) {
+    const cell = g.getCellById(nodeId)
+    if (cell?.isNode()) {
+      const data = { ...(cell.getData() as CanvasNodeData) }
+      if (data.kind === 'image' && data.imageGenTask === 'img2img') {
+        data.imageGenTask = 'picker'
+        data.mode = 'picker'
+        cell.setData(data)
+      }
+    }
+  }
+
   activeImageGenPromptNodeId.value = nodeId
   activePickerNodeId.value = ''
   loadImageGenPromptFields(nodeId)
@@ -1101,17 +1190,29 @@ function handleApplyImageGenTask(nodeId: string, task: ImageGenTask) {
   if (!g) return
   const cell = g.getCellById(nodeId)
   if (!cell?.isNode()) return
-  applyImageGenTaskToNode(cell as Node, task)
   selectedNodeId.value = nodeId
+
   if (task === 'img2img') {
     openImageGenPromptBar(nodeId)
-  } else {
-    closeImageGenPromptBar()
+    updateNodeToolbar()
+    return
   }
+
+  applyImageGenTaskToNode(cell as Node, task)
+  closeImageGenPromptBar()
   updateNodeToolbar()
 }
 
 provide('applyImageGenTask', handleApplyImageGenTask)
+
+function handleOpenVideoGenPromptBar(nodeId: string, tab?: string) {
+  selectedNodeId.value = nodeId
+  openVideoGenPromptBar(nodeId, tab ?? 'text2video')
+  syncNodeSelectionHighlight(nodeId)
+  updateNodeToolbar()
+}
+
+provide('openVideoGenPromptBar', handleOpenVideoGenPromptBar)
 
 function removeConnectPreviewEdge() {
   const g = graph.value as CanvasGraph | null
@@ -1423,6 +1524,9 @@ function removeNodeById(nodeId: string) {
   if (activeImageGenPromptNodeId.value === nodeId) {
     closeImageGenPromptBar()
   }
+  if (activeVideoGenPromptNodeId.value === nodeId) {
+    closeVideoGenPromptBar()
+  }
   syncNodeCount()
 }
 
@@ -1433,6 +1537,7 @@ function syncNodeCount() {
   if (nodeCount.value === 0) {
     activePickerNodeId.value = ''
     closeImageGenPromptBar()
+    closeVideoGenPromptBar()
     selectedNodeId.value = ''
   }
 }
@@ -1488,9 +1593,22 @@ function updateImageGenPromptBarPosition() {
   imageGenPromptPos.value = getNodeImageGenPromptPosition(g, cell as Node, overlayRoot)
 }
 
+function updateVideoGenPromptBarPosition() {
+  const g = graph.value
+  const overlayRoot = canvasRef.value
+  const id = activeVideoGenPromptNodeId.value
+  if (!g || !overlayRoot || !id) return
+
+  const cell = g.getCellById(id)
+  if (!cell?.isNode()) return
+
+  videoGenPromptPos.value = getNodeImageGenPromptPosition(g, cell as Node, overlayRoot)
+}
+
 function updateNodeToolbar() {
   updatePromptBarPosition()
   updateImageGenPromptBarPosition()
+  updateVideoGenPromptBarPosition()
   updateAddMenuPosition()
   updateConnectMenuPosition()
 
@@ -1731,13 +1849,18 @@ function handleNodeClick({ node }: { node: Node }) {
       data.imageGenTask === 'img2img' ||
       (!data.imageGenTask && !data.previewUrl && data.uploadState !== 'uploading'))
 
+  const showVideoGenPrompt =
+    data.kind === 'video' &&
+    data.mode === 'picker' &&
+    data.uploadState !== 'uploading'
+
   if (showImageGenPrompt) {
-    if (data.imageGenTask !== 'img2img') {
-      applyImageGenTaskToNode(node, 'img2img')
-    }
     openImageGenPromptBar(node.id)
+  } else if (showVideoGenPrompt) {
+    openVideoGenPromptBar(node.id, data.videoGenTab ?? 'text2video')
   } else {
     closeImageGenPromptBar()
+    closeVideoGenPromptBar()
     activePickerNodeId.value =
       data.mode === 'picker' && (data.kind === 'text' || data.kind === 'audio') ? node.id : ''
   }
@@ -1749,6 +1872,7 @@ function handleNodeClick({ node }: { node: Node }) {
 function handleNodeUnselected() {
   activePickerNodeId.value = ''
   closeImageGenPromptBar()
+  closeVideoGenPromptBar()
 }
 
 function handleBlankClick() {
@@ -1770,6 +1894,7 @@ function handleBlankClick() {
   resetVideoHdPanel()
   resetVideoFramesPanel()
   closeImageGenPromptBar()
+  closeVideoGenPromptBar()
   syncNodeSelectionHighlight('')
 }
 
