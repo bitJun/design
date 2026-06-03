@@ -55,7 +55,10 @@ export function graphLocalToContainerOffset(
   }
 }
 
-export type ConnectMenuOpener = (nodeId: string, point: { x: number; y: number }) => void
+export type ConnectMenuOpener = (
+  nodeId: string,
+  releasePoint: { x: number; y: number },
+) => void
 
 export type CanvasGraph = Graph & {
   __scroller?: Scroller

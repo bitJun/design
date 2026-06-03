@@ -833,6 +833,22 @@
   backdrop-filter: blur(12px);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
+
+  &--floating {
+    animation: canvas-connect-menu-in 0.18s ease-out;
+  }
+}
+
+@keyframes canvas-connect-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .canvas__connect-title {

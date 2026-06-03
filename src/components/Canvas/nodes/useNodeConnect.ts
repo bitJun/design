@@ -1,7 +1,11 @@
 import { inject, ref } from 'vue'
 import type { Node } from '@antv/x6'
 import type { CanvasGraph } from '../graph'
-import { canOpenConnectMenu, getConnectPreviewStroke } from '../nodeConnect'
+import {
+  canOpenConnectMenu,
+  getConnectPreviewStroke,
+  removeSourcePreviewEdges,
+} from '../nodeConnect'
 
 let activeEdgeId: string | null = null
 
@@ -31,8 +35,10 @@ export function useNodeConnect() {
       canvasGraph.__connectPreviewEdgeId = ''
     }
 
-    dragging.value = true
     const sourceId = node.id
+    removeSourcePreviewEdges(g, sourceId)
+
+    dragging.value = true
     const local = g.clientToLocal(event.clientX, event.clientY)
     const stroke = getConnectPreviewStroke(node) ?? '#6b7cff'
 
@@ -73,8 +79,8 @@ export function useNodeConnect() {
         return
       }
 
-      edge.setTarget(point)
       ;(g as CanvasGraph).__connectPreviewEdgeId = edge.id
+      edge.setTarget(point)
       const openMenu = (g as CanvasGraph).__openConnectMenu
       openMenu?.(sourceId, point)
     }

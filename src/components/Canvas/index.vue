@@ -517,7 +517,7 @@
 
     <div
       v-if="showConnectMenu"
-      class="canvas__connect-menu"
+      class="canvas__connect-menu canvas__connect-menu--floating"
       :style="{ left: `${connectMenuPos.left}px`, top: `${connectMenuPos.top}px` }"
       @mousedown.stop
     >
@@ -673,7 +673,7 @@ import { applyImageGenTask as applyImageGenTaskToNode, spawnCroppedImageNode } f
 import {
   canOpenConnectMenu,
   createNodeFromConnectMenu,
-  getDefaultConnectPoint,
+  getConnectMenuPosition,
 } from './nodeConnect'
 import type { ConnectMenuKey } from './constants'
 import {
@@ -989,10 +989,9 @@ function syncConnectPreviewEdgeTarget() {
   const edge = g.getCellById(g.__connectPreviewEdgeId)
   if (!edge?.isEdge()) return
 
-  const menuHeight = 360
   const rect = graphRef.value.getBoundingClientRect()
   const clientX = rect.left + connectMenuPos.value.left
-  const clientY = rect.top + connectMenuPos.value.top + menuHeight / 2
+  const clientY = rect.top + connectMenuPos.value.top
   edge.setTarget(g.clientToLocal(clientX, clientY))
 }
 
@@ -1084,22 +1083,20 @@ function openAddMenuAtGraphPoint(graphPoint: { x: number; y: number }) {
   showAddMenu.value = true
 }
 
-function openConnectMenu(source: Node, graphPoint: { x: number; y: number }) {
+function openConnectMenu(source: Node, releasePoint: { x: number; y: number }) {
   const g = graph.value
   if (!g || !graphRef.value) return
 
   closeAddMenu()
   connectSourceNodeId.value = source.id
-  connectDropPoint.value = graphPoint
-
-  const client = g.localToClient(graphPoint.x, graphPoint.y)
-  const rect = graphRef.value.getBoundingClientRect()
-  const menuWidth = 220
-  const menuHeight = 360
-  connectMenuPos.value = {
-    left: Math.max(12, Math.min(client.x - rect.left + 10, rect.width - menuWidth - 12)),
-    top: Math.max(60, Math.min(client.y - rect.top - 24, rect.height - menuHeight - 12)),
-  }
+  const { left, top, dropPoint } = getConnectMenuPosition(
+    g,
+    source,
+    graphRef.value,
+    releasePoint,
+  )
+  connectDropPoint.value = dropPoint
+  connectMenuPos.value = { left, top }
   showConnectMenu.value = true
   ;(g as CanvasGraph).__suppressBlankCloseForConnect = true
   nextTick(() => syncConnectPreviewEdgeTarget())
@@ -1140,15 +1137,23 @@ function onConnectMenuItem(item: (typeof CONNECT_GENERATE_MENU)[number]) {
   finishConnectSpawn(spawned)
 }
 
-function openConnectMenuByNodeId(nodeId: string, point: { x: number; y: number }) {
+function openConnectMenuByNodeId(nodeId: string, releasePoint: { x: number; y: number }) {
   const g = graph.value
   if (!g) return
   const cell = g.getCellById(nodeId)
   if (!cell?.isNode()) return
-  openConnectMenu(cell as Node, point)
+  openConnectMenu(cell as Node, releasePoint)
 }
 
 provide('openConnectMenuByNodeId', openConnectMenuByNodeId)
+
+function getEdgeReleasePoint(edge: Edge) {
+  const target = edge.getTarget()
+  if (target && typeof target === 'object' && 'x' in target && 'y' in target) {
+    return { x: Number(target.x), y: Number(target.y) }
+  }
+  return null
+}
 
 function handleEdgeConnected({
   edge,
@@ -1174,18 +1179,14 @@ function handleEdgeConnected({
     return
   }
 
-  const point =
-    currentPoint ??
-    (() => {
-      const target = edge.getTarget()
-      if (target && typeof target === 'object' && 'x' in target && 'y' in target) {
-        return { x: Number(target.x), y: Number(target.y) }
-      }
-      return getDefaultConnectPoint(source as Node)
-    })()
+  const canvasGraph = g as CanvasGraph
+  if (canvasGraph.__connectPreviewEdgeId === edge.id && showConnectMenu.value) return
 
-  ;(g as CanvasGraph).__connectPreviewEdgeId = edge.id
-  openConnectMenu(source as Node, point)
+  const releasePoint = currentPoint ?? getEdgeReleasePoint(edge)
+  if (!releasePoint) return
+
+  canvasGraph.__connectPreviewEdgeId = edge.id
+  openConnectMenu(source as Node, releasePoint)
 }
 
 function removeNodeById(nodeId: string) {
