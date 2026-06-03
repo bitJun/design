@@ -15,7 +15,7 @@
       +
     </button>
     <button
-      v-if="data.imageGenTask === 'picker'"
+      v-if="data.imageGenTask === 'picker' && data.sourceNodeId"
       type="button"
       class="image-gen-node__upload-btn"
       @mousedown.stop
@@ -68,55 +68,13 @@
         </button>
       </div>
 
-      <template v-else-if="data.imageGenTask === 'img2img'">
-        <div class="image-gen-node__preview image-gen-node__preview--output">
-          <img v-if="data.previewUrl" :src="data.previewUrl" :alt="data.fileName" />
-          <span v-else class="image-gen-node__placeholder-icon image-gen-node__placeholder-icon--lg" aria-hidden="true" />
-        </div>
-
-        <div class="image-gen-node__prompt" @mousedown.stop>
-          <div class="image-gen-node__prompt-tags">
-            <button
-              v-for="tag in IMG2IMG_QUICK_TAGS"
-              :key="tag"
-              type="button"
-              class="image-gen-node__tag"
-            >
-              {{ tag }}
-            </button>
-            <span
-              v-if="data.sourcePreviewUrl"
-              class="image-gen-node__ref-thumb"
-            >
-              <img :src="data.sourcePreviewUrl" alt="" />
-            </span>
-          </div>
-          <textarea
-            v-model="promptModel"
-            class="image-gen-node__prompt-input"
-            :placeholder="IMG2IMG_PROMPT_PLACEHOLDER"
-            rows="2"
-            @mousedown.stop
-          />
-          <div class="image-gen-node__prompt-footer">
-            <button type="button" class="image-gen-node__model">Lib Nero Pro ▾</button>
-            <button type="button" class="image-gen-node__ratio">16:9 · 2K</button>
-            <span class="image-gen-node__prompt-icons">
-              <button type="button" title="相机">📷</button>
-              <button type="button" title="增强">✦</button>
-            </span>
-            <span class="image-gen-node__count">1张</span>
-            <input
-              v-model.number="seedModel"
-              type="number"
-              class="image-gen-node__seed"
-              min="0"
-              max="999"
-            />
-            <button type="button" class="image-gen-node__send" title="生成">↑</button>
-          </div>
-        </div>
-      </template>
+      <div
+        v-else-if="data.imageGenTask === 'img2img'"
+        class="image-gen-node__preview image-gen-node__preview--output"
+      >
+        <img v-if="data.previewUrl" :src="data.previewUrl" :alt="data.fileName" />
+        <span v-else class="image-gen-node__placeholder-icon image-gen-node__placeholder-icon--lg" aria-hidden="true" />
+      </div>
 
       <div v-else class="image-gen-node__picker">
         <div class="image-gen-node__preview image-gen-node__preview--empty">
@@ -131,13 +89,7 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, reactive } from 'vue'
 import type { Node } from '@antv/x6'
-import {
-  IMAGE_GEN_ACTIONS,
-  IMG2IMG_PROMPT_PLACEHOLDER,
-  IMG2IMG_QUICK_TAGS,
-  type CanvasNodeData,
-  type ImageGenTask,
-} from '../constants'
+import { IMAGE_GEN_ACTIONS, type CanvasNodeData, type ImageGenTask } from '../constants'
 import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
@@ -161,26 +113,6 @@ const headerTitle = computed(() => {
   if (data.imageGenTask === 'hd') return '图片高清'
   return data.title
 })
-
-const promptModel = computed({
-  get: () => data.genPrompt ?? '',
-  set: (value: string) => {
-    data.genPrompt = value
-    persist()
-  },
-})
-
-const seedModel = computed({
-  get: () => data.genSeed ?? 58,
-  set: (value: number) => {
-    data.genSeed = value
-    persist()
-  },
-})
-
-function persist() {
-  getNode().setData({ ...data })
-}
 
 function triggerUpload() {
   requestCanvasUpload?.(getNode().id)
@@ -281,10 +213,6 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-.image-gen-node--img2img .image-gen-node__body {
-  gap: 10px;
-}
-
 .image-gen-node__picker {
   display: flex;
   flex-direction: column;
@@ -308,7 +236,7 @@ onMounted(() => {
 
   &--output {
     flex: 1;
-    min-height: 180px;
+    min-height: 140px;
 
     img {
       width: 100%;
@@ -415,146 +343,5 @@ onMounted(() => {
   font-size: 12px;
   color: #6b7280;
   text-align: center;
-}
-
-.image-gen-node__prompt {
-  flex-shrink: 0;
-  padding: 10px;
-  border: 1px solid #3d3d45;
-  border-radius: 12px;
-  background: #18181c;
-}
-
-.image-gen-node__prompt-tags {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.image-gen-node__tag {
-  padding: 4px 8px;
-  border: none;
-  border-radius: 6px;
-  background: #252528;
-  color: #9ca3af;
-  font-size: 11px;
-  cursor: pointer;
-
-  &:hover {
-    background: #2a2a30;
-    color: #e5e7eb;
-  }
-}
-
-.image-gen-node__ref-thumb {
-  display: block;
-  width: 28px;
-  height: 28px;
-  margin-left: auto;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid #4b4b55;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-}
-
-.image-gen-node__prompt-input {
-  width: 100%;
-  min-height: 52px;
-  margin-bottom: 8px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: #e5e7eb;
-  font-size: 12px;
-  line-height: 1.5;
-  resize: none;
-  outline: none;
-
-  &::placeholder {
-    color: #6b7280;
-  }
-}
-
-.image-gen-node__prompt-footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.image-gen-node__model,
-.image-gen-node__ratio {
-  padding: 4px 8px;
-  border: none;
-  border-radius: 6px;
-  background: #252528;
-  color: #9ca3af;
-  font-size: 11px;
-  cursor: pointer;
-
-  &:hover {
-    background: #2a2a30;
-    color: #e5e7eb;
-  }
-}
-
-.image-gen-node__prompt-icons {
-  display: flex;
-  gap: 4px;
-
-  button {
-    padding: 4px 6px;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: #9ca3af;
-    font-size: 12px;
-    cursor: pointer;
-
-    &:hover {
-      background: #252528;
-    }
-  }
-}
-
-.image-gen-node__count {
-  margin-left: auto;
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.image-gen-node__seed {
-  width: 40px;
-  padding: 4px;
-  border: 1px solid #3d3d45;
-  border-radius: 6px;
-  background: #252528;
-  color: #e5e7eb;
-  font-size: 11px;
-  text-align: center;
-}
-
-.image-gen-node__send {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 50%;
-  background: #6b7cff;
-  color: #fff;
-  font-size: 16px;
-  cursor: pointer;
-
-  &:hover {
-    background: #5b6cff;
-  }
 }
 </style>

@@ -95,10 +95,10 @@ export const CONNECT_GENERATE_MENU: Array<{
   { key: 'text', label: '文本', icon: 'text' },
   { key: 'image', label: '图片', icon: 'image' },
   { key: 'video', label: '视频', icon: 'video' },
-  { key: 'compose', label: '视频合成', icon: 'compose', badge: 'Beta' },
-  { key: 'director', label: '导演台', icon: 'director', badge: 'NEW' },
-  { key: 'audio', label: '音频', icon: 'audio', disabled: true },
-  { key: 'script', label: '脚本', icon: 'script', badge: 'Beta' },
+  // { key: 'compose', label: '视频合成', icon: 'compose', badge: 'Beta' },
+  // { key: 'director', label: '导演台', icon: 'director', badge: 'NEW' },
+  // { key: 'audio', label: '音频', icon: 'audio', disabled: true },
+  // { key: 'script', label: '脚本', icon: 'script', badge: 'Beta' },
   { key: 'reference', label: '参考节点', icon: 'link', disabled: true },
 ]
 
@@ -424,7 +424,8 @@ export const NODE_SIZE = {
     landscape: { width: 300, height: 360 },
     portrait: { width: 220, height: 400 },
     genPicker: { width: 300, height: 340 },
-    img2img: { width: 360, height: 500 },
+    /** 图生图节点仅保留预览区，输入框在节点下方浮层 */
+    img2img: { width: 300, height: 240 },
     hd: { width: 300, height: 360 },
   },
   video: {

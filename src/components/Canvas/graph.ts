@@ -341,6 +341,14 @@ export function createGraph(container: HTMLElement): CanvasGraph {
   return graph
 }
 
+export function syncNodeShapeFromData(node: Node) {
+  const data = node.getData() as CanvasNodeData
+  const shape = getNodeShape(data.kind, data)
+  if (node.shape !== shape) {
+    node.setProp('shape', shape)
+  }
+}
+
 export function addCanvasNode(
   graph: Graph,
   kind: NodeKind,
@@ -367,6 +375,7 @@ export function bindGraphInteraction(graph: Graph) {
 
   graph.on('node:change:data', ({ node }) => {
     const data = node.getData() as CanvasNodeData
+    syncNodeShapeFromData(node)
     const size = getNodeSize(data.kind, data.mode, data)
     node.resize(size.width, size.height)
   })
@@ -426,6 +435,23 @@ export function getNodePromptPosition(graph: Graph, node: Node, container: HTMLE
     left: box.centerX,
     top: box.bottom + PROMPT_BAR_TOP_GAP,
     width: Math.min(maxWidth, Math.max(box.width, 360)),
+  }
+}
+
+/** 图生图底部对话框：相对节点水平居中，略宽于节点 */
+export function getNodeImageGenPromptPosition(
+  graph: Graph,
+  node: Node,
+  container: HTMLElement,
+) {
+  const box = getNodeScreenBox(graph, node, container)
+  const containerRect = container.getBoundingClientRect()
+  const maxWidth = Math.min(720, containerRect.width - 48)
+
+  return {
+    left: box.centerX,
+    top: box.bottom + PROMPT_BAR_TOP_GAP,
+    width: Math.min(maxWidth, Math.max(box.width, 480)),
   }
 }
 

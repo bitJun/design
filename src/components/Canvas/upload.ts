@@ -1,7 +1,7 @@
 import type { Graph, Node } from '@antv/x6'
 import type { CanvasNodeData } from './constants'
 import { syncGenNodesFromSource } from './imageGen'
-import { getNodeSize } from './graph'
+import { getNodeSize, syncNodeShapeFromData } from './graph'
 
 export function runUploadSimulation(graphNode: Node, file: File) {
   const data = { ...(graphNode.getData() as CanvasNodeData) }
@@ -70,7 +70,11 @@ function finishUpload(graphNode: Node, file: File) {
 }
 
 function applyNodeMedia(graphNode: Node, data: CanvasNodeData) {
+  if (data.imageGenTask === 'picker') {
+    data.imageGenTask = undefined
+  }
   graphNode.setData(data)
+  syncNodeShapeFromData(graphNode)
   const size = getNodeSize(data.kind, data.mode, data)
   graphNode.resize(size.width, size.height)
 

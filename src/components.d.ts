@@ -19,6 +19,7 @@ declare module 'vue' {
     ImageCropOverlay: typeof import('./components/Canvas/ImageCropOverlay.vue')['default']
     ImageDialoguePanel: typeof import('./components/Canvas/ImageDialoguePanel.vue')['default']
     ImageGenNode: typeof import('./components/Canvas/nodes/ImageGenNode.vue')['default']
+    ImageGenPromptPanel: typeof import('./components/Canvas/ImageGenPromptPanel.vue')['default']
     ImageGenSettingsPopover: typeof import('./components/Canvas/ImageGenSettingsPopover.vue')['default']
     ImageNode: typeof import('./components/Canvas/nodes/ImageNode.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

@@ -587,6 +587,15 @@
   overflow: visible;
 }
 
+.canvas__img2img-prompt {
+  position: absolute;
+  z-index: 4;
+  transform: translateX(-50%);
+  max-width: calc(100% - 48px);
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
 .canvas__prompt {
   position: absolute;
   z-index: 4;

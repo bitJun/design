@@ -463,6 +463,24 @@
     </div>
 
     <div
+      v-if="showImageGenPromptBar"
+      class="canvas__img2img-prompt"
+      :style="{
+        left: `${imageGenPromptPos.left}px`,
+        top: `${imageGenPromptPos.top}px`,
+        width: `${imageGenPromptPos.width}px`,
+      }"
+    >
+      <ImageGenPromptPanel
+        v-model:prompt="imageGenPromptText"
+        v-model:seed="imageGenSeed"
+        :source-preview-url="imageGenSourcePreviewUrl"
+        @update:prompt="persistImageGenPrompt"
+        @update:seed="persistImageGenPrompt"
+      />
+    </div>
+
+    <div
       v-if="showPromptBar"
       class="canvas__prompt"
       :style="{
@@ -707,6 +725,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
+import ImageGenPromptPanel from './ImageGenPromptPanel.vue'
 import ImageDialoguePanel from './ImageDialoguePanel.vue'
 import ImageCropOverlay from './ImageCropOverlay.vue'
 import VideoDialoguePanel from './VideoDialoguePanel.vue'
@@ -745,6 +764,7 @@ import {
   createGraph,
   getNodeCropOverlayPosition,
   getNodeDialoguePosition,
+  getNodeImageGenPromptPosition,
   getNodePromptPosition,
   getNodeSidePanelPosition,
   getNodeToolbarPosition,
@@ -794,11 +814,16 @@ const assetsTab = ref<'all' | 'mine'>('mine')
 const assetsLoading = ref(false)
 const promptText = ref('')
 const activePickerNodeId = ref('')
+const activeImageGenPromptNodeId = ref('')
+const imageGenPromptText = ref('')
+const imageGenSeed = ref(58)
+const imageGenSourcePreviewUrl = ref('')
 const selectedNodeId = ref('')
 const pendingUploadNodeId = ref('')
 const toolbarPos = ref({ left: 0, top: 0 })
 const dialoguePos = ref({ left: 0, top: 0, width: 360 })
 const promptPos = ref({ left: 0, top: 0, width: 360 })
+const imageGenPromptPos = ref({ left: 0, top: 0, width: 480 })
 const imageCropPos = ref({ left: 0, top: 0, width: 360, height: 420 })
 const videoHdPos = ref({ left: 0, top: 0, width: 320 })
 const selectedKind = ref<NodeKind | null>(null)
@@ -823,7 +848,12 @@ const currentProjectName = computed(
 const canvasBgThemeLabel = computed(
   () => getCanvasBgThemeMeta(canvasBgTheme.value).label,
 )
-const showPromptBar = computed(() => Boolean(activePickerNodeId.value) && nodeCount.value > 0 && !showImageCrop.value)
+const showPromptBar = computed(
+  () => Boolean(activePickerNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
+)
+const showImageGenPromptBar = computed(
+  () => Boolean(activeImageGenPromptNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
+)
 
 const imageCropSource = computed(() => {
   const data = getSelectedNodeData()
@@ -1032,6 +1062,40 @@ function requestCanvasUpload(nodeId: string) {
 
 provide('requestCanvasUpload', requestCanvasUpload)
 
+function loadImageGenPromptFields(nodeId: string) {
+  const g = graph.value
+  if (!g) return
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+  const data = cell.getData() as CanvasNodeData
+  imageGenPromptText.value = data.genPrompt ?? ''
+  imageGenSeed.value = data.genSeed ?? 58
+  imageGenSourcePreviewUrl.value = data.sourcePreviewUrl ?? ''
+}
+
+function persistImageGenPrompt() {
+  const g = graph.value
+  const nodeId = activeImageGenPromptNodeId.value
+  if (!g || !nodeId) return
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+  const data = { ...(cell.getData() as CanvasNodeData) }
+  data.genPrompt = imageGenPromptText.value
+  data.genSeed = imageGenSeed.value
+  cell.setData(data)
+}
+
+function openImageGenPromptBar(nodeId: string) {
+  activeImageGenPromptNodeId.value = nodeId
+  activePickerNodeId.value = ''
+  loadImageGenPromptFields(nodeId)
+  updateImageGenPromptBarPosition()
+}
+
+function closeImageGenPromptBar() {
+  activeImageGenPromptNodeId.value = ''
+}
+
 function handleApplyImageGenTask(nodeId: string, task: ImageGenTask) {
   const g = graph.value
   if (!g) return
@@ -1039,6 +1103,11 @@ function handleApplyImageGenTask(nodeId: string, task: ImageGenTask) {
   if (!cell?.isNode()) return
   applyImageGenTaskToNode(cell as Node, task)
   selectedNodeId.value = nodeId
+  if (task === 'img2img') {
+    openImageGenPromptBar(nodeId)
+  } else {
+    closeImageGenPromptBar()
+  }
   updateNodeToolbar()
 }
 
@@ -1351,6 +1420,9 @@ function removeNodeById(nodeId: string) {
   if (activePickerNodeId.value === nodeId) {
     activePickerNodeId.value = ''
   }
+  if (activeImageGenPromptNodeId.value === nodeId) {
+    closeImageGenPromptBar()
+  }
   syncNodeCount()
 }
 
@@ -1360,6 +1432,7 @@ function syncNodeCount() {
   nodeCount.value = graph.value?.getNodes().length ?? 0
   if (nodeCount.value === 0) {
     activePickerNodeId.value = ''
+    closeImageGenPromptBar()
     selectedNodeId.value = ''
   }
 }
@@ -1403,8 +1476,21 @@ function updatePromptBarPosition() {
   promptPos.value = getNodePromptPosition(g, cell as Node, overlayRoot)
 }
 
+function updateImageGenPromptBarPosition() {
+  const g = graph.value
+  const overlayRoot = canvasRef.value
+  const id = activeImageGenPromptNodeId.value
+  if (!g || !overlayRoot || !id) return
+
+  const cell = g.getCellById(id)
+  if (!cell?.isNode()) return
+
+  imageGenPromptPos.value = getNodeImageGenPromptPosition(g, cell as Node, overlayRoot)
+}
+
 function updateNodeToolbar() {
   updatePromptBarPosition()
+  updateImageGenPromptBarPosition()
   updateAddMenuPosition()
   updateConnectMenuPosition()
 
@@ -1434,7 +1520,11 @@ function addNode(kind: NodeKind, point?: { x: number; y: number }) {
   if (!g) return
 
   const position = point ?? addMenuDropPoint.value ?? getGraphCenter()
-  const node = addCanvasNode(g, kind, position)
+  const overrides: Partial<CanvasNodeData> =
+    kind === 'image'
+      ? { mode: 'picker', imageGenTask: 'picker' }
+      : {}
+  const node = addCanvasNode(g, kind, position, overrides)
   const data = node.getData() as CanvasNodeData
 
   if (data.mode === 'picker' && (kind === 'text' || kind === 'audio')) {
@@ -1633,14 +1723,32 @@ function handleNodeClick({ node }: { node: Node }) {
   resetVideoHdPanel()
   resetVideoFramesPanel()
   bumpToolbarRevision()
-  activePickerNodeId.value =
-    data.mode === 'picker' && (data.kind === 'text' || data.kind === 'audio') ? node.id : ''
+
+  const showImageGenPrompt =
+    data.kind === 'image' &&
+    data.imageGenTask !== 'hd' &&
+    (data.imageGenTask === 'picker' ||
+      data.imageGenTask === 'img2img' ||
+      (!data.imageGenTask && !data.previewUrl && data.uploadState !== 'uploading'))
+
+  if (showImageGenPrompt) {
+    if (data.imageGenTask !== 'img2img') {
+      applyImageGenTaskToNode(node, 'img2img')
+    }
+    openImageGenPromptBar(node.id)
+  } else {
+    closeImageGenPromptBar()
+    activePickerNodeId.value =
+      data.mode === 'picker' && (data.kind === 'text' || data.kind === 'audio') ? node.id : ''
+  }
+
   syncNodeSelectionHighlight(node.id)
   updateNodeToolbar()
 }
 
 function handleNodeUnselected() {
   activePickerNodeId.value = ''
+  closeImageGenPromptBar()
 }
 
 function handleBlankClick() {
@@ -1661,6 +1769,7 @@ function handleBlankClick() {
   resetVideoDialogue()
   resetVideoHdPanel()
   resetVideoFramesPanel()
+  closeImageGenPromptBar()
   syncNodeSelectionHighlight('')
 }
 
