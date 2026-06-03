@@ -11,6 +11,7 @@ import ImageGenNode from './nodes/ImageGenNode.vue'
 import VideoNode from './nodes/VideoNode.vue'
 import {
   createEmptyNodeData,
+  IMAGE_NODE_META_HEIGHT,
   KIND_LABEL,
   NODE_SIZE,
   type CanvasNodeData,
@@ -18,6 +19,41 @@ import {
   type NodeMode,
   isPortrait,
 } from './constants'
+
+type ScrollerImplLike = {
+  localToBackgroundPoint(x: number, y: number): { x: number; y: number }
+  container: HTMLDivElement
+}
+
+/** 将图坐标转换为相对 canvas 容器的像素偏移（兼容 Scroller 滚动/缩放） */
+export function graphLocalToContainerOffset(
+  graph: Graph,
+  localX: number,
+  localY: number,
+  container: HTMLElement,
+) {
+  const scroller = getScroller(graph)
+  const containerRect = container.getBoundingClientRect()
+  const scrollerImpl = scroller
+    ? (scroller as unknown as { scrollerImpl?: ScrollerImplLike }).scrollerImpl
+    : undefined
+
+  if (scroller && scrollerImpl) {
+    const bg = scrollerImpl.localToBackgroundPoint(localX, localY)
+    const scrollEl = scroller.container
+    const scrollRect = scrollEl.getBoundingClientRect()
+    return {
+      left: bg.x - scrollEl.scrollLeft + (scrollRect.left - containerRect.left),
+      top: bg.y - scrollEl.scrollTop + (scrollRect.top - containerRect.top),
+    }
+  }
+
+  const client = graph.localToClient(localX, localY)
+  return {
+    left: client.x - containerRect.left,
+    top: client.y - containerRect.top,
+  }
+}
 
 export type ConnectMenuOpener = (nodeId: string, point: { x: number; y: number }) => void
 
@@ -305,27 +341,46 @@ export function bindGraphInteraction(graph: Graph) {
   })
 }
 
+function getNodeToolbarAnchorY(node: Node) {
+  const bbox = node.getBBox()
+  const data = node.getData() as CanvasNodeData
+  if (data.kind === 'image' && data.mode === 'editor' && !data.imageGenTask) {
+    return bbox.y + IMAGE_NODE_META_HEIGHT
+  }
+  return bbox.y
+}
+
 export function getNodeToolbarPosition(graph: Graph, node: Node, container: HTMLElement) {
   const bbox = node.getBBox()
-  const topCenter = graph.localToClient(bbox.x + bbox.width / 2, bbox.y)
-  const rect = container.getBoundingClientRect()
+  const anchorY = getNodeToolbarAnchorY(node)
+  const topCenter = graphLocalToContainerOffset(
+    graph,
+    bbox.x + bbox.width / 2,
+    anchorY,
+    container,
+  )
   return {
-    left: topCenter.x - rect.left,
-    top: topCenter.y - rect.top - 8,
+    left: topCenter.left,
+    top: topCenter.top - 8,
   }
 }
 
 export function getNodeDialoguePosition(graph: Graph, node: Node, container: HTMLElement) {
   const bbox = node.getBBox()
-  const bottomCenter = graph.localToClient(bbox.x + bbox.width / 2, bbox.y + bbox.height)
-  const bottomLeft = graph.localToClient(bbox.x, bbox.y + bbox.height)
-  const bottomRight = graph.localToClient(bbox.x + bbox.width, bbox.y + bbox.height)
-  const rect = container.getBoundingClientRect()
-  const width = Math.abs(bottomRight.x - bottomLeft.x)
+  const bottomY = bbox.y + bbox.height
+  const bottomCenter = graphLocalToContainerOffset(
+    graph,
+    bbox.x + bbox.width / 2,
+    bottomY,
+    container,
+  )
+  const bottomLeft = graphLocalToContainerOffset(graph, bbox.x, bottomY, container)
+  const bottomRight = graphLocalToContainerOffset(graph, bbox.x + bbox.width, bottomY, container)
+  const width = Math.abs(bottomRight.left - bottomLeft.left)
 
   return {
-    left: bottomCenter.x - rect.left,
-    top: bottomCenter.y - rect.top + 12,
+    left: bottomCenter.left,
+    top: bottomCenter.top + 12,
     width: Math.max(width, 360),
   }
 }
@@ -338,12 +393,12 @@ export function getNodeSidePanelPosition(
   panelHeight = 260,
 ) {
   const bbox = node.getBBox()
-  const topRight = graph.localToClient(bbox.x + bbox.width, bbox.y)
+  const topRight = graphLocalToContainerOffset(graph, bbox.x + bbox.width, bbox.y, container)
   const rect = container.getBoundingClientRect()
 
   return {
-    left: Math.max(12, Math.min(topRight.x - rect.left + 16, rect.width - panelWidth - 12)),
-    top: Math.max(60, Math.min(topRight.y - rect.top, rect.height - panelHeight - 12)),
+    left: Math.max(12, Math.min(topRight.left + 16, rect.width - panelWidth - 12)),
+    top: Math.max(60, Math.min(topRight.top, rect.height - panelHeight - 12)),
     width: panelWidth,
   }
 }
@@ -356,20 +411,25 @@ export function getNodeCropOverlayPosition(
   minHeight = 420,
 ) {
   const bbox = node.getBBox()
-  const topLeft = graph.localToClient(bbox.x, bbox.y)
-  const bottomRight = graph.localToClient(bbox.x + bbox.width, bbox.y + bbox.height)
+  const topLeft = graphLocalToContainerOffset(graph, bbox.x, bbox.y, container)
+  const bottomRight = graphLocalToContainerOffset(
+    graph,
+    bbox.x + bbox.width,
+    bbox.y + bbox.height,
+    container,
+  )
   const rect = container.getBoundingClientRect()
-  const nodeWidth = Math.abs(bottomRight.x - topLeft.x)
-  const nodeHeight = Math.abs(bottomRight.y - topLeft.y)
+  const nodeWidth = Math.abs(bottomRight.left - topLeft.left)
+  const nodeHeight = Math.abs(bottomRight.top - topLeft.top)
   const width = Math.max(nodeWidth, minWidth)
   const height = Math.max(nodeHeight + 48, minHeight)
 
   return {
     left: Math.max(
       12,
-      Math.min(topLeft.x - rect.left - (width - nodeWidth) / 2, rect.width - width - 12),
+      Math.min(topLeft.left - (width - nodeWidth) / 2, rect.width - width - 12),
     ),
-    top: Math.max(60, Math.min(topLeft.y - rect.top, rect.height - height - 12)),
+    top: Math.max(60, Math.min(topLeft.top, rect.height - height - 12)),
     width,
     height,
   }

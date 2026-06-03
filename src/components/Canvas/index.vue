@@ -1522,6 +1522,21 @@ function handleKeydown(event: KeyboardEvent) {
   removeSelectedNode()
 }
 
+let scrollerScrollTarget: HTMLElement | null = null
+
+function bindScrollerScrollListener(g: Graph) {
+  const scroller = getScroller(g)
+  if (!scroller) return
+  scrollerScrollTarget = scroller.container
+  scrollerScrollTarget.addEventListener('scroll', updateNodeToolbar, { passive: true })
+}
+
+function unbindScrollerScrollListener() {
+  if (!scrollerScrollTarget) return
+  scrollerScrollTarget.removeEventListener('scroll', updateNodeToolbar)
+  scrollerScrollTarget = null
+}
+
 onMounted(() => {
   if (!graphRef.value) return
 
@@ -1529,6 +1544,7 @@ onMounted(() => {
   instance.__openConnectMenu = openConnectMenuByNodeId
   graph.value = instance
   bindGraphInteraction(instance)
+  bindScrollerScrollListener(instance)
 
   instance.on('blank:dblclick', handleBlankDblClick)
   instance.on('scale', ({ sx }) => {
@@ -1563,6 +1579,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  unbindScrollerScrollListener()
   teardownMinimap()
   graph.value?.dispose()
   graph.value = null

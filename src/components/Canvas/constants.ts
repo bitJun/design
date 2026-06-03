@@ -45,6 +45,9 @@ export function createEmptyNodeData(): CanvasNodeData {
 
 export const EMPTY_HINT = '双击画布 自由生成节点'
 
+/** 图片节点标题栏高度 + 与预览区间距，用于工具栏锚定在图片区域正上方 */
+export const IMAGE_NODE_META_HEIGHT = 30
+
 export const NODE_TEMPLATES = [
   { kind: 'text' as const, label: '故事脚本生成', desc: '从创意生成完整故事脚本', accent: '#5b8def' },
   { kind: 'image' as const, label: '角色三视图', desc: '生成角色三视图与设定', accent: '#9b6bff' },
