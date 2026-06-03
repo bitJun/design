@@ -3,15 +3,19 @@ import { Scroller } from '@antv/x6-plugin-scroller'
 import '@antv/x6-plugin-scroller/es/index.css'
 import { register } from '@antv/x6-vue-shape'
 import { getDefaultEdgeStroke } from './canvasTheme'
-import { canOpenConnectMenu, getConnectPreviewStroke } from './nodeConnect'
+import { bindFlowEdgeInteraction, FLOW_EDGE_COLOR, getFlowEdgeAttrs } from './edgeStyle'
+import { canOpenConnectMenu } from './nodeConnect'
 import '@antv/x6-vue-shape'
 import TextNode from './nodes/TextNode.vue'
 import ImageNode from './nodes/ImageNode.vue'
 import ImageGenNode from './nodes/ImageGenNode.vue'
 import VideoNode from './nodes/VideoNode.vue'
 import {
+  CANVAS_MAX_ZOOM,
+  CANVAS_MIN_ZOOM,
   createEmptyNodeData,
   IMAGE_NODE_META_HEIGHT,
+  PROMPT_BAR_TOP_GAP,
   KIND_LABEL,
   NODE_SIZE,
   type CanvasNodeData,
@@ -25,15 +29,18 @@ type ScrollerImplLike = {
   container: HTMLDivElement
 }
 
-/** 将图坐标转换为相对 canvas 容器的像素偏移（兼容 Scroller 滚动/缩放） */
+/**
+ * 图坐标 → 浮层定位容器（.canvas）内的像素偏移。
+ * 须使用不随 Scroller 滚动的容器；勿用 graph.container（会随内容滚动）。
+ */
 export function graphLocalToContainerOffset(
   graph: Graph,
   localX: number,
   localY: number,
   container: HTMLElement,
 ) {
-  const scroller = getScroller(graph)
   const containerRect = container.getBoundingClientRect()
+  const scroller = getScroller(graph)
   const scrollerImpl = scroller
     ? (scroller as unknown as { scrollerImpl?: ScrollerImplLike }).scrollerImpl
     : undefined
@@ -52,6 +59,32 @@ export function graphLocalToContainerOffset(
   return {
     left: client.x - containerRect.left,
     top: client.y - containerRect.top,
+  }
+}
+
+/** 节点在容器坐标系下的屏幕包围盒（缩放后真实像素） */
+function getNodeScreenBox(graph: Graph, node: Node, container: HTMLElement) {
+  const bbox = node.getBBox()
+  const topLeft = graphLocalToContainerOffset(graph, bbox.x, bbox.y, container)
+  const bottomRight = graphLocalToContainerOffset(
+    graph,
+    bbox.x + bbox.width,
+    bbox.y + bbox.height,
+    container,
+  )
+
+  const left = Math.min(topLeft.left, bottomRight.left)
+  const top = Math.min(topLeft.top, bottomRight.top)
+  const right = Math.max(topLeft.left, bottomRight.left)
+  const bottom = Math.max(topLeft.top, bottomRight.top)
+
+  return {
+    left,
+    top,
+    width: right - left,
+    height: bottom - top,
+    centerX: (left + right) / 2,
+    bottom,
   }
 }
 
@@ -241,8 +274,8 @@ export function createGraph(container: HTMLElement): CanvasGraph {
       enabled: true,
       modifiers: null,
       factor: 1.08,
-      minScale: 0.35,
-      maxScale: 2.5,
+      minScale: CANVAS_MIN_ZOOM,
+      maxScale: CANVAS_MAX_ZOOM,
       zoomAtMousePosition: true,
     },
     interacting: {
@@ -265,11 +298,12 @@ export function createGraph(container: HTMLElement): CanvasGraph {
       router: { name: 'normal' },
       createEdge(this: Graph, args) {
         const source = args?.sourceCell
-        const previewStroke = source?.isNode() ? getConnectPreviewStroke(source) : null
-        const stroke = previewStroke ?? getDefaultEdgeStroke()
+        const useFlow =
+          source?.isNode() && canOpenConnectMenu(source)
+        const stroke = useFlow ? FLOW_EDGE_COLOR : getDefaultEdgeStroke()
 
         return new Shape.Edge({
-          attrs: {
+          attrs: useFlow ? getFlowEdgeAttrs(stroke) : {
             line: {
               stroke,
               strokeWidth: 2,
@@ -329,6 +363,8 @@ export function addCanvasNode(
 }
 
 export function bindGraphInteraction(graph: Graph) {
+  bindFlowEdgeInteraction(graph)
+
   graph.on('node:change:data', ({ node }) => {
     const data = node.getData() as CanvasNodeData
     const size = getNodeSize(data.kind, data.mode, data)
@@ -355,36 +391,41 @@ function getNodeToolbarAnchorY(node: Node) {
 
 export function getNodeToolbarPosition(graph: Graph, node: Node, container: HTMLElement) {
   const bbox = node.getBBox()
+  const box = getNodeScreenBox(graph, node, container)
   const anchorY = getNodeToolbarAnchorY(node)
-  const topCenter = graphLocalToContainerOffset(
+  const anchorOffset = graphLocalToContainerOffset(
     graph,
     bbox.x + bbox.width / 2,
     anchorY,
     container,
   )
+
   return {
-    left: topCenter.left,
-    top: topCenter.top - 8,
+    left: box.centerX,
+    top: anchorOffset.top - 8,
   }
 }
 
 export function getNodeDialoguePosition(graph: Graph, node: Node, container: HTMLElement) {
-  const bbox = node.getBBox()
-  const bottomY = bbox.y + bbox.height
-  const bottomCenter = graphLocalToContainerOffset(
-    graph,
-    bbox.x + bbox.width / 2,
-    bottomY,
-    container,
-  )
-  const bottomLeft = graphLocalToContainerOffset(graph, bbox.x, bottomY, container)
-  const bottomRight = graphLocalToContainerOffset(graph, bbox.x + bbox.width, bottomY, container)
-  const width = Math.abs(bottomRight.left - bottomLeft.left)
+  const box = getNodeScreenBox(graph, node, container)
 
   return {
-    left: bottomCenter.left,
-    top: bottomCenter.top + 12,
-    width: Math.max(width, 360),
+    left: box.centerX,
+    top: box.bottom + 12,
+    width: Math.max(box.width, 360),
+  }
+}
+
+/** 文本/音频 picker 底部输入框：锚定在节点正下方水平居中 */
+export function getNodePromptPosition(graph: Graph, node: Node, container: HTMLElement) {
+  const box = getNodeScreenBox(graph, node, container)
+  const containerRect = container.getBoundingClientRect()
+  const maxWidth = Math.min(560, containerRect.width - 48)
+
+  return {
+    left: box.centerX,
+    top: box.bottom + PROMPT_BAR_TOP_GAP,
+    width: Math.min(maxWidth, Math.max(box.width, 360)),
   }
 }
 
@@ -413,26 +454,17 @@ export function getNodeCropOverlayPosition(
   minWidth = 520,
   minHeight = 420,
 ) {
-  const bbox = node.getBBox()
-  const topLeft = graphLocalToContainerOffset(graph, bbox.x, bbox.y, container)
-  const bottomRight = graphLocalToContainerOffset(
-    graph,
-    bbox.x + bbox.width,
-    bbox.y + bbox.height,
-    container,
-  )
+  const box = getNodeScreenBox(graph, node, container)
   const rect = container.getBoundingClientRect()
-  const nodeWidth = Math.abs(bottomRight.left - topLeft.left)
-  const nodeHeight = Math.abs(bottomRight.top - topLeft.top)
-  const width = Math.max(nodeWidth, minWidth)
-  const height = Math.max(nodeHeight + 48, minHeight)
+  const width = Math.max(box.width, minWidth)
+  const height = Math.max(box.height + 48, minHeight)
 
   return {
     left: Math.max(
       12,
-      Math.min(topLeft.left - (width - nodeWidth) / 2, rect.width - width - 12),
+      Math.min(box.left - (width - box.width) / 2, rect.width - width - 12),
     ),
-    top: Math.max(60, Math.min(topLeft.top, rect.height - height - 12)),
+    top: Math.max(60, Math.min(box.top, rect.height - height - 12)),
     width,
     height,
   }

@@ -1,4 +1,5 @@
 import type { Graph } from '@antv/x6'
+import { applyFlowEdgeStyle } from './edgeStyle'
 
 export type CanvasBgTheme = 'dark' | 'light'
 
@@ -44,6 +45,27 @@ export function syncGraphThemeDefaults(theme: CanvasBgTheme) {
   defaultEdgeStroke = getCanvasBgThemeMeta(theme).edgeStroke
 }
 
+type ScrollerPlugin = {
+  drawBackground: (options?: { color?: string }) => void
+  container: HTMLElement
+}
+
+/** 同步 Scroller 各层背景，避免仅主绘图区变色、边距区域仍为深色 */
+function syncScrollerCanvasTheme(graph: Graph, pageBg: string, graphBg: string) {
+  const scroller = graph.getPlugin('scroller') as unknown as ScrollerPlugin | null
+  if (!scroller) return
+
+  scroller.drawBackground({ color: graphBg })
+  scroller.container.style.backgroundColor = pageBg
+
+  const bgEl = scroller.container.querySelector(
+    '.x6-graph-scroller-background',
+  ) as HTMLElement | null
+  if (bgEl) {
+    bgEl.style.backgroundColor = graphBg
+  }
+}
+
 export function applyCanvasBgTheme(
   graph: Graph | null,
   theme: CanvasBgTheme,
@@ -53,7 +75,11 @@ export function applyCanvasBgTheme(
   if (!graph) return
 
   const meta = getCanvasBgThemeMeta(theme)
-  graph.background.draw({ color: meta.graphBg })
+  const bgOptions = { color: meta.graphBg }
+
+  // 须走 Graph API，才能更新 Scroller 插件承载的全画布背景
+  graph.drawBackground(bgOptions)
+  syncScrollerCanvasTheme(graph, meta.pageBg, meta.graphBg)
 
   if (gridVisible) {
     graph.setGridSize(16)
@@ -62,9 +88,11 @@ export function applyCanvasBgTheme(
       args: { color: meta.gridColor, thickness: 1.2 },
     })
     graph.showGrid()
+  } else {
+    graph.hideGrid()
   }
 
   graph.getEdges().forEach((edge) => {
-    edge.setAttrByPath('line/stroke', meta.edgeStroke)
+    applyFlowEdgeStyle(edge)
   })
 }

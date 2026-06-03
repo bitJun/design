@@ -1,5 +1,5 @@
 <template>
-  <div class="canvas" :class="`canvas--bg-${canvasBgTheme}`">
+  <div ref="canvasRef" class="canvas" :class="`canvas--bg-${canvasBgTheme}`">
     <header class="canvas__header">
       <div class="canvas__brand">
         <button type="button" class="canvas__brand-magic" title="AI 创作">
@@ -346,7 +346,7 @@
           </button>
         </template>
       </template>
-      <button
+      <!-- <button
         v-if="selectedKind !== 'image' && selectedKind !== 'video'"
         type="button"
         class="canvas__node-toolbar-btn canvas__node-toolbar-btn--danger"
@@ -354,7 +354,7 @@
         @click="removeSelectedNode"
       >
         🗑
-      </button>
+      </button> -->
     </div>
 
     <aside v-if="showAssetsPanel" class="canvas__assets" @mousedown.stop>
@@ -465,6 +465,11 @@
     <div
       v-if="showPromptBar"
       class="canvas__prompt"
+      :style="{
+        left: `${promptPos.left}px`,
+        top: `${promptPos.top}px`,
+        width: `${promptPos.width}px`,
+      }"
       @mousedown.stop
     >
       <textarea
@@ -636,7 +641,62 @@
         </button>
         <div class="canvas__zoom">
           <button type="button" class="canvas__tool-btn" title="缩小" @click="zoomOut">−</button>
-          <span class="canvas__zoom-value">{{ zoomPercent }}</span>
+          <div class="canvas__zoom-trigger-wrap">
+            <button
+              type="button"
+              class="canvas__zoom-value-btn"
+              :class="{ 'canvas__zoom-value-btn--active': showZoomMenu }"
+              :title="`当前缩放 ${zoomPercent}`"
+              @click.stop="toggleZoomMenu"
+            >
+              {{ zoomPercent }}
+            </button>
+            <div
+              v-if="showZoomMenu"
+              class="canvas__zoom-menu"
+              role="menu"
+              @mousedown.stop
+            >
+              <button
+                type="button"
+                class="canvas__zoom-menu-item"
+                role="menuitem"
+                @click="onZoomMenuAction('in')"
+              >
+                <span>放大</span>
+                <kbd class="canvas__zoom-menu-kbd">⌘ +</kbd>
+              </button>
+              <button
+                type="button"
+                class="canvas__zoom-menu-item"
+                role="menuitem"
+                @click="onZoomMenuAction('out')"
+              >
+                <span>缩小</span>
+                <kbd class="canvas__zoom-menu-kbd">⌘ -</kbd>
+              </button>
+              <button
+                type="button"
+                class="canvas__zoom-menu-item"
+                role="menuitem"
+                @click="onZoomMenuAction('fit')"
+              >
+                <span>适合屏幕</span>
+                <kbd class="canvas__zoom-menu-kbd">⇧ 1</kbd>
+              </button>
+              <div class="canvas__zoom-menu-divider" role="separator" />
+              <button
+                v-for="preset in ZOOM_MENU_PRESETS"
+                :key="preset"
+                type="button"
+                class="canvas__zoom-menu-item"
+                role="menuitem"
+                @click="onZoomMenuAction('preset', preset)"
+              >
+                <span>缩放至{{ Math.round(preset * 100) }}%</span>
+              </button>
+            </div>
+          </div>
           <button type="button" class="canvas__tool-btn" title="放大" @click="zoomIn">+</button>
         </div>
       </div>
@@ -662,7 +722,10 @@ import {
   IMAGE_HD_RESOLUTIONS,
   IMAGE_CUTOUT_MODES,
   getImageToolbarMoreHover,
+  CANVAS_MAX_ZOOM,
+  CANVAS_MIN_ZOOM,
   PROMPT_PLACEHOLDER,
+  ZOOM_MENU_PRESETS,
   VIDEO_NODE_TOOLBAR,
   type CanvasNodeData,
   type ImageGenTask,
@@ -682,9 +745,11 @@ import {
   createGraph,
   getNodeCropOverlayPosition,
   getNodeDialoguePosition,
+  getNodePromptPosition,
   getNodeSidePanelPosition,
   getNodeToolbarPosition,
   getScroller,
+  graphLocalToContainerOffset,
   type CanvasGraph,
 } from './graph'
 import {
@@ -701,12 +766,14 @@ import {
   type CanvasSnapshot,
 } from './canvasSnapshot'
 
+const canvasRef = ref<HTMLElement | null>(null)
 const graphRef = ref<HTMLElement | null>(null)
 const minimapContainerRef = ref<HTMLElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const graph = shallowRef<Graph | null>(null)
 const nodeCount = ref(0)
 const zoomLevel = ref(1)
+const showZoomMenu = ref(false)
 const gridVisible = ref(true)
 const canvasBgTheme = ref<CanvasBgTheme>('dark')
 const panMode = ref(true)
@@ -717,6 +784,7 @@ const activeProjectId = ref('draft-2')
 const showAddMenu = ref(false)
 const showConnectMenu = ref(false)
 const connectMenuPos = ref({ left: 0, top: 0 })
+const connectReleasePoint = ref<{ x: number; y: number } | null>(null)
 const addMenuPos = ref({ left: 0, top: 0 })
 const addMenuDropPoint = ref<{ x: number; y: number } | null>(null)
 const connectSourceNodeId = ref('')
@@ -730,6 +798,7 @@ const selectedNodeId = ref('')
 const pendingUploadNodeId = ref('')
 const toolbarPos = ref({ left: 0, top: 0 })
 const dialoguePos = ref({ left: 0, top: 0, width: 360 })
+const promptPos = ref({ left: 0, top: 0, width: 360 })
 const imageCropPos = ref({ left: 0, top: 0, width: 360, height: 420 })
 const videoHdPos = ref({ left: 0, top: 0, width: 320 })
 const selectedKind = ref<NodeKind | null>(null)
@@ -985,11 +1054,11 @@ function removeConnectPreviewEdge() {
 
 function syncConnectPreviewEdgeTarget() {
   const g = graph.value as CanvasGraph | null
-  if (!g?.__connectPreviewEdgeId || !graphRef.value) return
+  if (!g?.__connectPreviewEdgeId || !canvasRef.value) return
   const edge = g.getCellById(g.__connectPreviewEdgeId)
   if (!edge?.isEdge()) return
 
-  const rect = graphRef.value.getBoundingClientRect()
+  const rect = canvasRef.value.getBoundingClientRect()
   const clientX = rect.left + connectMenuPos.value.left
   const clientY = rect.top + connectMenuPos.value.top
   edge.setTarget(g.clientToLocal(clientX, clientY))
@@ -1000,6 +1069,7 @@ function closeConnectMenu() {
   showConnectMenu.value = false
   connectSourceNodeId.value = ''
   connectDropPoint.value = null
+  connectReleasePoint.value = null
 }
 
 function closeAddMenu() {
@@ -1013,6 +1083,49 @@ function toggleProjectMenu() {
 
 function closeProjectMenu() {
   showProjectMenu.value = false
+}
+
+function closeZoomMenu() {
+  showZoomMenu.value = false
+}
+
+function toggleZoomMenu() {
+  showZoomMenu.value = !showZoomMenu.value
+}
+
+function applyZoomAfterChange() {
+  syncZoom()
+  updateNodeToolbar()
+}
+
+function zoomToScale(scale: number) {
+  const g = graph.value
+  if (!g) return
+  const clamped = Math.min(CANVAS_MAX_ZOOM, Math.max(CANVAS_MIN_ZOOM, scale))
+  g.zoomTo(clamped)
+  applyZoomAfterChange()
+}
+
+function zoomFitToScreen() {
+  const g = graph.value
+  if (!g) return
+  g.zoomToFit({
+    padding: 48,
+    maxScale: CANVAS_MAX_ZOOM,
+    minScale: CANVAS_MIN_ZOOM,
+  })
+  applyZoomAfterChange()
+}
+
+function onZoomMenuAction(
+  action: 'in' | 'out' | 'fit' | 'preset',
+  preset?: (typeof ZOOM_MENU_PRESETS)[number],
+) {
+  if (action === 'in') zoomIn()
+  else if (action === 'out') zoomOut()
+  else if (action === 'fit') zoomFitToScreen()
+  else if (preset != null) zoomToScale(preset)
+  closeZoomMenu()
 }
 
 function selectProject(projectId: string) {
@@ -1067,32 +1180,65 @@ function handleExportCanvas() {
 
 function openAddMenuAtGraphPoint(graphPoint: { x: number; y: number }) {
   const g = graph.value
-  if (!g || !graphRef.value) return
+  const overlayRoot = canvasRef.value
+  if (!g || !overlayRoot) return
 
   closeConnectMenu()
   addMenuDropPoint.value = graphPoint
 
-  const client = g.localToClient(graphPoint.x, graphPoint.y)
-  const rect = graphRef.value.getBoundingClientRect()
+  const offset = graphLocalToContainerOffset(g, graphPoint.x, graphPoint.y, overlayRoot)
+  const rect = overlayRoot.getBoundingClientRect()
   const menuWidth = 220
   const menuHeight = 420
   addMenuPos.value = {
-    left: Math.max(12, Math.min(client.x - rect.left, rect.width - menuWidth - 12)),
-    top: Math.max(60, Math.min(client.y - rect.top, rect.height - menuHeight - 12)),
+    left: Math.max(12, Math.min(offset.left, rect.width - menuWidth - 12)),
+    top: Math.max(60, Math.min(offset.top, rect.height - menuHeight - 12)),
   }
   showAddMenu.value = true
 }
 
+function updateAddMenuPosition() {
+  const g = graph.value
+  const overlayRoot = canvasRef.value
+  const drop = addMenuDropPoint.value
+  if (!g || !overlayRoot || !showAddMenu.value || !drop) return
+
+  const offset = graphLocalToContainerOffset(g, drop.x, drop.y, overlayRoot)
+  const rect = overlayRoot.getBoundingClientRect()
+  const menuWidth = 220
+  const menuHeight = 420
+  addMenuPos.value = {
+    left: Math.max(12, Math.min(offset.left, rect.width - menuWidth - 12)),
+    top: Math.max(60, Math.min(offset.top, rect.height - menuHeight - 12)),
+  }
+}
+
+function updateConnectMenuPosition() {
+  const g = graph.value
+  const overlayRoot = canvasRef.value
+  const release = connectReleasePoint.value
+  if (!g || !overlayRoot || !showConnectMenu.value || !release) return
+
+  const source = g.getCellById(connectSourceNodeId.value)
+  if (!source?.isNode()) return
+
+  const { left, top } = getConnectMenuPosition(g, source as Node, overlayRoot, release)
+  connectMenuPos.value = { left, top }
+  syncConnectPreviewEdgeTarget()
+}
+
 function openConnectMenu(source: Node, releasePoint: { x: number; y: number }) {
   const g = graph.value
-  if (!g || !graphRef.value) return
+  const overlayRoot = canvasRef.value
+  if (!g || !overlayRoot) return
 
   closeAddMenu()
   connectSourceNodeId.value = source.id
+  connectReleasePoint.value = releasePoint
   const { left, top, dropPoint } = getConnectMenuPosition(
     g,
     source,
-    graphRef.value,
+    overlayRoot,
     releasePoint,
   )
   connectDropPoint.value = dropPoint
@@ -1245,10 +1391,27 @@ function syncNodeSelectionHighlight(nodeId: string) {
   })
 }
 
-function updateNodeToolbar() {
+function updatePromptBarPosition() {
   const g = graph.value
+  const overlayRoot = canvasRef.value
+  const id = activePickerNodeId.value
+  if (!g || !overlayRoot || !id) return
+
+  const cell = g.getCellById(id)
+  if (!cell?.isNode()) return
+
+  promptPos.value = getNodePromptPosition(g, cell as Node, overlayRoot)
+}
+
+function updateNodeToolbar() {
+  updatePromptBarPosition()
+  updateAddMenuPosition()
+  updateConnectMenuPosition()
+
+  const g = graph.value
+  const overlayRoot = canvasRef.value
   const id = selectedNodeId.value
-  if (!g || !id || !graphRef.value) return
+  if (!g || !overlayRoot || !id) return
 
   const cell = g.getCellById(id)
   if (!cell?.isNode()) return
@@ -1256,13 +1419,13 @@ function updateNodeToolbar() {
   const data = cell.getData() as CanvasNodeData
   selectedKind.value = data.kind
   const node = cell as Node
-  toolbarPos.value = getNodeToolbarPosition(g, node, graphRef.value)
-  dialoguePos.value = getNodeDialoguePosition(g, node, graphRef.value)
+  toolbarPos.value = getNodeToolbarPosition(g, node, overlayRoot)
+  dialoguePos.value = getNodeDialoguePosition(g, node, overlayRoot)
   if (showImageCrop.value) {
-    imageCropPos.value = getNodeCropOverlayPosition(g, node, graphRef.value)
+    imageCropPos.value = getNodeCropOverlayPosition(g, node, overlayRoot)
   }
   if (data.kind === 'video' && showVideoHdPanel.value) {
-    videoHdPos.value = getNodeSidePanelPosition(g, node, graphRef.value)
+    videoHdPos.value = getNodeSidePanelPosition(g, node, overlayRoot)
   }
 }
 
@@ -1441,14 +1604,12 @@ function toggleGrid() {
 
 function zoomIn() {
   graph.value?.zoom(0.12)
-  syncZoom()
-  updateNodeToolbar()
+  applyZoomAfterChange()
 }
 
 function zoomOut() {
   graph.value?.zoom(-0.12)
-  syncZoom()
-  updateNodeToolbar()
+  applyZoomAfterChange()
 }
 
 function removeSelectedNode() {
@@ -1485,6 +1646,7 @@ function handleNodeUnselected() {
 function handleBlankClick() {
   closeAddMenu()
   closeProjectMenu()
+  closeZoomMenu()
   const g = graph.value as CanvasGraph | null
   if (g?.__suppressBlankCloseForConnect) {
     g.__suppressBlankCloseForConnect = false
@@ -1514,10 +1676,35 @@ function handleNodeDataChange({ node }: { node: Node }) {
   }
 }
 
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable
+}
+
 function handleKeydown(event: KeyboardEvent) {
+  const target = event.target
+  if (isEditableTarget(target)) return
+
+  const mod = event.metaKey || event.ctrlKey
+
+  if (mod && (event.key === '=' || event.key === '+')) {
+    event.preventDefault()
+    zoomIn()
+    return
+  }
+  if (mod && event.key === '-') {
+    event.preventDefault()
+    zoomOut()
+    return
+  }
+  if (event.shiftKey && event.key === '1' && !mod && !event.altKey) {
+    event.preventDefault()
+    zoomFitToScreen()
+    return
+  }
+
   if (event.key !== 'Delete' && event.key !== 'Backspace') return
-  const target = event.target as HTMLElement
-  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
   if (!selectedNodeId.value) return
   event.preventDefault()
   removeSelectedNode()
@@ -1550,7 +1737,7 @@ onMounted(() => {
   instance.on('blank:dblclick', handleBlankDblClick)
   instance.on('scale', ({ sx }) => {
     syncZoom(sx)
-    updateNodeToolbar()
+    requestAnimationFrame(() => updateNodeToolbar())
   })
   instance.on('translate', updateNodeToolbar)
   instance.on('node:moving', updateNodeToolbar)

@@ -2,20 +2,15 @@ import type { Graph, Node } from '@antv/x6'
 import type { CanvasNodeData, ImageGenTask } from './constants'
 import { addCanvasNode, getNodeSize } from './graph'
 
+import { getFlowEdgeAttrs } from './edgeStyle'
+
 const GEN_GAP = 56
-export const GEN_EDGE_COLOR = '#6b7cff'
 
 export function connectGenEdge(graph: Graph, sourceId: string, targetId: string) {
   return graph.addEdge({
     source: { cell: sourceId, port: 'right' },
     target: { cell: targetId, port: 'left' },
-    attrs: {
-      line: {
-        stroke: GEN_EDGE_COLOR,
-        strokeWidth: 2,
-        targetMarker: { name: 'block', width: 10, height: 8 },
-      },
-    },
+    attrs: getFlowEdgeAttrs(),
     zIndex: 0,
   })
 }

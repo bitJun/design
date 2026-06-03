@@ -1,9 +1,9 @@
 import { inject, ref } from 'vue'
 import type { Node } from '@antv/x6'
 import type { CanvasGraph } from '../graph'
+import { getFlowEdgeAttrs } from '../edgeStyle'
 import {
   canOpenConnectMenu,
-  getConnectPreviewStroke,
   removeSourcePreviewEdges,
 } from '../nodeConnect'
 
@@ -40,18 +40,10 @@ export function useNodeConnect() {
 
     dragging.value = true
     const local = g.clientToLocal(event.clientX, event.clientY)
-    const stroke = getConnectPreviewStroke(node) ?? '#6b7cff'
-
     const edge = g.addEdge({
       source: { cell: sourceId, port: 'right' },
       target: { x: local.x, y: local.y },
-      attrs: {
-        line: {
-          stroke,
-          strokeWidth: 2,
-          targetMarker: { name: 'block', width: 10, height: 8 },
-        },
-      },
+      attrs: getFlowEdgeAttrs(),
       zIndex: 0,
     })
     activeEdgeId = edge.id

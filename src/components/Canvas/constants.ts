@@ -48,6 +48,14 @@ export const EMPTY_HINT = '双击画布 自由生成节点'
 /** 图片节点标题栏高度 + 与预览区间距，用于工具栏锚定在图片区域正上方 */
 export const IMAGE_NODE_META_HEIGHT = 30
 
+/** 文本/音频 picker 底部输入框距节点底边的垂直间距 */
+export const PROMPT_BAR_TOP_GAP = 62
+
+export const CANVAS_MIN_ZOOM = 0.35
+export const CANVAS_MAX_ZOOM = 2
+
+export const ZOOM_MENU_PRESETS = [0.5, 1, 2] as const
+
 export const NODE_TEMPLATES = [
   { kind: 'text' as const, label: '故事脚本生成', desc: '从创意生成完整故事脚本', accent: '#5b8def' },
   { kind: 'image' as const, label: '角色三视图', desc: '生成角色三视图与设定', accent: '#9b6bff' },
@@ -101,10 +109,10 @@ export const ADD_NODE_GROUPS = [
       { kind: 'text' as const, label: '文本', desc: '脚本、广告词、品牌文案', icon: 'text' as MenuIcon },
       { kind: 'image' as const, label: '图片', desc: '海报、封面、素材图', icon: 'image' as MenuIcon },
       { kind: 'video' as const, label: '视频', desc: '短视频、动画片段', icon: 'video' as MenuIcon },
-      { kind: 'video' as const, label: '视频合成', desc: '多段素材合成', badge: 'Beta', icon: 'compose' as MenuIcon },
-      { kind: 'text' as const, label: '导演台', desc: '镜头与分镜控制', badge: 'NEW', icon: 'director' as MenuIcon },
-      { kind: 'audio' as const, label: '音频', desc: '配音、音效、背景音乐', icon: 'audio' as MenuIcon },
-      { kind: 'text' as const, label: '脚本', desc: '结构化拍摄脚本', badge: 'Beta', icon: 'script' as MenuIcon },
+      // { kind: 'video' as const, label: '视频合成', desc: '多段素材合成', badge: 'Beta', icon: 'compose' as MenuIcon },
+      // { kind: 'text' as const, label: '导演台', desc: '镜头与分镜控image.png制', badge: 'NEW', icon: 'director' as MenuIcon },
+      // { kind: 'audio' as const, label: '音频', desc: '配音、音效、背景音乐', icon: 'audio' as MenuIcon },
+      // { kind: 'text' as const, label: '脚本', desc: '结构化拍摄脚本', badge: 'Beta', icon: 'script' as MenuIcon },
     ],
   },
   {

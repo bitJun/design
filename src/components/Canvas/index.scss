@@ -1,19 +1,19 @@
 .canvas {
+  --canvas-page-bg: #141416;
+  --canvas-graph-bg: #141416;
+
   position: relative;
   width: 100%;
   height: 100%;
   min-height: 100%;
   overflow: hidden;
-  background: #141416;
+  background: var(--canvas-page-bg);
   color: #f3f4f6;
 
   &--bg-light {
-    background: #e8eaed;
+    --canvas-page-bg: #e8eaed;
+    --canvas-graph-bg: #e8eaed;
     color: #1f2937;
-
-    .canvas__graph :deep(.x6-graph-scroller) {
-      background: #e8eaed;
-    }
 
     .canvas__hint {
       color: #6b7280;
@@ -40,7 +40,7 @@
         color: #111827;
       }
 
-      .canvas__zoom-value {
+      .canvas__zoom-value-btn {
         color: #6b7280;
       }
     }
@@ -415,10 +415,18 @@
   height: 100%;
   touch-action: none;
 
+  :deep(.x6-graph-scroller),
+  :deep(.x6-graph-scroller-background),
+  :deep(.x6-graph-scroller-content),
+  :deep(.x6-graph-background),
+  :deep(.x6-graph-grid) {
+    background-color: var(--canvas-graph-bg) !important;
+  }
+
   :deep(.x6-graph-scroller) {
     width: 100% !important;
     height: 100% !important;
-    background: #141416;
+    background-color: var(--canvas-page-bg) !important;
   }
 
   :deep(.x6-graph-scroller-content) {
@@ -433,6 +441,38 @@
   :deep(.x6-port) {
     visibility: hidden !important;
     pointer-events: none !important;
+  }
+
+  /* 连线电流输出：虚线沿路径流动 + 蓝色辉光 */
+  :deep(.x6-edge path:nth-child(2)) {
+    stroke: #6b7cff;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 12 7;
+    animation: canvas-edge-flow 0.45s linear infinite;
+    filter: drop-shadow(0 0 3px rgba(107, 124, 255, 0.95))
+      drop-shadow(0 0 8px rgba(107, 124, 255, 0.4));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :deep(.x6-edge path:nth-child(2)) {
+      animation: none;
+      stroke-dasharray: none;
+    }
+  }
+}
+
+@keyframes canvas-edge-flow {
+  to {
+    stroke-dashoffset: -38;
+  }
+}
+
+.canvas--bg-light .canvas__graph {
+  :deep(.x6-edge path:nth-child(2)) {
+    stroke: #5b6ef5;
+    filter: drop-shadow(0 0 3px rgba(91, 110, 245, 0.85))
+      drop-shadow(0 0 6px rgba(91, 110, 245, 0.35));
   }
 }
 
@@ -549,17 +589,17 @@
 
 .canvas__prompt {
   position: absolute;
-  left: 50%;
-  bottom: 72px;
-  z-index: 3;
-  width: min(560px, calc(100% - 48px));
+  z-index: 4;
   transform: translateX(-50%);
+  max-width: calc(100% - 48px);
+  box-sizing: border-box;
   padding: 16px 18px;
   border: 1px solid #3d3d45;
   border-radius: 16px;
   background: rgba(30, 30, 34, 0.96);
   backdrop-filter: blur(12px);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
 }
 
 .canvas__prompt-input {
@@ -816,10 +856,126 @@
   user-select: none;
 }
 
-.canvas__zoom-value {
+.canvas__zoom-trigger-wrap {
+  position: relative;
+}
+
+.canvas__zoom-value-btn {
   min-width: 44px;
-  text-align: center;
+  height: 32px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
   color: #e5e7eb;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover,
+  &--active {
+    background: #3d3d45;
+    color: #fff;
+  }
+}
+
+.canvas__zoom-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 8;
+  min-width: 212px;
+  padding: 6px;
+  border: 1px solid #3d3d45;
+  border-radius: 12px;
+  background: rgba(28, 28, 32, 0.98);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  animation: canvas-zoom-menu-in 0.16s ease-out;
+}
+
+@keyframes canvas-zoom-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.canvas__zoom-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+
+  &:hover {
+    background: #3d3d45;
+  }
+}
+
+.canvas__zoom-menu-kbd {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  color: #9ca3af;
+  letter-spacing: 0.02em;
+}
+
+.canvas__zoom-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: #2e2e34;
+}
+
+.canvas--bg-light {
+  .canvas__zoom-value-btn {
+    color: #374151;
+
+    &:hover,
+    &--active {
+      background: #e5e7eb;
+      color: #111827;
+    }
+  }
+
+  .canvas__zoom-menu {
+    border-color: #d1d5db;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  }
+
+  .canvas__zoom-menu-item {
+    color: #374151;
+
+    &:hover {
+      background: #f3f4f6;
+    }
+  }
+
+  .canvas__zoom-menu-kbd {
+    color: #6b7280;
+  }
+
+  .canvas__zoom-menu-divider {
+    background: #e5e7eb;
+  }
 }
 
 .canvas__connect-menu {
