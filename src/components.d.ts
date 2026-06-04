@@ -25,6 +25,7 @@ declare module 'vue' {
     ImageGenPromptPanel: typeof import('./components/Canvas/ImageGenPromptPanel.vue')['default']
     ImageGenSettingsPopover: typeof import('./components/Canvas/ImageGenSettingsPopover.vue')['default']
     ImageNode: typeof import('./components/Canvas/nodes/ImageNode.vue')['default']
+    Login: typeof import('./components/Login/index.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TextNode: typeof import('./components/Canvas/nodes/TextNode.vue')['default']

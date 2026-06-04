@@ -53,7 +53,7 @@
             class="app-sidebar__btn"
             :class="{ 'app-sidebar__btn--active': route.name === 'userInfo' }"
             title="个人主页"
-            @click="router.push({ name: 'userInfo' })"
+            @click="openLoginModal"
           >
             <span class="app-sidebar__icon app-sidebar__icon--user" aria-hidden="true" />
           </button>
@@ -80,17 +80,26 @@
     <main class="app-main">
       <router-view />
     </main>
+    <Login v-model:open="modalStore.loginVisible" />
   </div>
 </template>
 
 <script setup lang="ts">
+import { useModalStore } from '@stores/useModal';
+import Login from '@components/Login/index.vue';
+
 import { useRoute, useRouter } from 'vue-router'
 import { nextTick, watch, ref } from 'vue'
 
+const modalStore = useModalStore()
 const showNav = ref(true)
 
 const route = useRoute()
 const router = useRouter()
+
+function openLoginModal() {
+  modalStore.openModal('login')
+}
 
 watch(
   () => route.name,
