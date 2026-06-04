@@ -3,12 +3,13 @@
     <div class="home__content">
       <section class="home__hero">
         <div class="home__hero-brand">
-          <span class="home__hero-logo" aria-hidden="true" />
-          <h1 class="home__hero-title">Daone 电商视觉 AI 生产平台</h1>
+          <!-- <span class="home__hero-logo" aria-hidden="true" /> -->
+          <h1 class="home__hero-title">
+            <img src="@assets/images/logo_black.png" alt="Daone" class="home__hero-logo" />Daone 电商视觉AI生产平台</h1>
           <p class="home__hero-subtitle">生产真正懂审美、能卖货的视觉内容</p>
           <a-flex justify="center" align="center" gap="10px">
-            <a-button type="primary" @click="openNewProject">开始创作</a-button>
-            <a-button type="default" @click="openNewProject">教程</a-button>
+            <a-button type="primary" class="home__hero-create" @click="openNewProject">开始创作</a-button>
+            <a-button type="default" class="home__hero-voideo" @click="openNewProject">查看演示</a-button>
           </a-flex>
         </div>
       </section>

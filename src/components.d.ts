@@ -24,6 +24,7 @@ declare module 'vue' {
     ImageNode: typeof import('./components/Canvas/nodes/ImageNode.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    TaijiLogo: typeof import('./components/TaijiLogo.vue')['default']
     TextNode: typeof import('./components/Canvas/nodes/TextNode.vue')['default']
     VideoDialoguePanel: typeof import('./components/Canvas/VideoDialoguePanel.vue')['default']
     VideoFramesPanel: typeof import('./components/Canvas/VideoFramesPanel.vue')['default']
@@ -32,5 +33,6 @@ declare module 'vue' {
     VideoHdPanel: typeof import('./components/Canvas/VideoHdPanel.vue')['default']
     VideoNode: typeof import('./components/Canvas/nodes/VideoNode.vue')['default']
     VideoStoryboardPanel: typeof import('./components/Canvas/VideoStoryboardPanel.vue')['default']
+    WaterFlowLogo: typeof import('./components/WaterFlowLogo.vue')['default']
   }
 }

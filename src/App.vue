@@ -1,45 +1,48 @@
 <template>
   <div class="app-shell">
-    <nav class="app-sidebar" v-if="showNav" aria-label="主导航">
-      <button 
-        type="button"
-        class="app-sidebar__btn app-sidebar__btn--primary"
-        title="新建"
-        @click="router.push({ name: 'createOrEdit' })"
-      >
-        <span class="app-sidebar__icon app-sidebar__icon--plus" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="app-sidebar__btn"
-        :class="{ 'app-sidebar__btn--active': route.name === 'home' }"
-        title="首页"
-        @click="router.push({ name: 'home' })"
-      >
-        <span class="app-sidebar__icon app-sidebar__icon--home" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="app-sidebar__btn"
-        :class="{ 'app-sidebar__btn--active': route.name === 'project' }"
-        title="项目"
-        @click="router.push({ name: 'project' })"
-      >
-        <span class="app-sidebar__icon app-sidebar__icon--folder" aria-hidden="true" />
-      </button>
-      <button 
-        type="button"
-        class="app-sidebar__btn"
-        :class="{ 'app-sidebar__btn--active': route.name === 'userInfo' }"
-        title="个人中心"
-        @click="router.push({ name: 'userInfo' })"
-      >
-        <span class="app-sidebar__icon app-sidebar__icon--user" aria-hidden="true" />
-      </button>
-      <button type="button" class="app-sidebar__btn" title="帮助">
-        <span class="app-sidebar__icon app-sidebar__icon--info" aria-hidden="true" />
-      </button>
-    </nav>
+    <div class="app-navBar">
+      <!-- <img src="@assets/images/logo_black.png" alt="Daone" class="app-navBar-logo" /> -->
+      <nav class="app-sidebar" v-if="showNav" aria-label="主导航">
+        <button 
+          type="button"
+          class="app-sidebar__btn app-sidebar__btn--primary"
+          title="新建"
+          @click="router.push({ name: 'createOrEdit' })"
+        >
+          <span class="app-sidebar__icon app-sidebar__icon--plus" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="app-sidebar__btn"
+          :class="{ 'app-sidebar__btn--active': route.name === 'home' }"
+          title="首页"
+          @click="router.push({ name: 'home' })"
+        >
+          <span class="app-sidebar__icon app-sidebar__icon--home" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="app-sidebar__btn"
+          :class="{ 'app-sidebar__btn--active': route.name === 'project' }"
+          title="项目"
+          @click="router.push({ name: 'project' })"
+        >
+          <span class="app-sidebar__icon app-sidebar__icon--folder" aria-hidden="true" />
+        </button>
+        <button 
+          type="button"
+          class="app-sidebar__btn"
+          :class="{ 'app-sidebar__btn--active': route.name === 'userInfo' }"
+          title="个人中心"
+          @click="router.push({ name: 'userInfo' })"
+        >
+          <span class="app-sidebar__icon app-sidebar__icon--user" aria-hidden="true" />
+        </button>
+        <button type="button" class="app-sidebar__btn" title="帮助">
+          <span class="app-sidebar__icon app-sidebar__icon--info" aria-hidden="true" />
+        </button>
+      </nav>
+    </div>
     <main class="app-main">
       <router-view />
     </main>
@@ -75,12 +78,21 @@ watch(
   width: 100%;
   min-height: 100svh;
 }
-
-.app-sidebar {
+.app-navBar {
   position: fixed;
   top: 50%;
   left: 20px;
   z-index: 20;
+  transform: translateY(-50%);
+}
+.app-navBar-logo {
+  width: 48px;
+  height: auto;
+  border-radius: 100%;
+  margin-bottom: 15px;
+  margin-left: 5px;
+}
+.app-sidebar {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -91,7 +103,7 @@ watch(
   background: rgba(248, 249, 250, 0.96);
   backdrop-filter: blur(12px);
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
-  transform: translateY(-50%);
+  
 }
 
 .app-sidebar__btn {

@@ -19,7 +19,7 @@
   align-items: center;
   padding: 24px 0 56px;
   text-align: center;
-  background: #111827;
+  // background: #111827;
   border-radius: 25px;
   margin-bottom: 24px;
 }
@@ -28,32 +28,64 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
   margin-bottom: 28px;
 }
 
-.home__hero-logo {
-  width: 28px;
-  height: 28px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='%23111827'%3E%3Cpath d='M4 4v16h16V4H4zm2 2h8.5L6 14.5V6zm10.8 0L18 7.2V18H6.8L16.8 8h2z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-}
+// .home__hero-logo {
+//   width: 28px;
+//   height: 28px;
+//   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='%23111827'%3E%3Cpath d='M4 4v16h16V4H4zm2 2h8.5L6 14.5V6zm10.8 0L18 7.2V18H6.8L16.8 8h2z'/%3E%3C/svg%3E");
+//   background-repeat: no-repeat;
+//   background-position: center;
+//   background-size: contain;
+// }
 
 .home__hero-title {
   margin: 0;
-  font-size: 40px;
+  font-size: 48px;
   font-weight: bold;
-  line-height: 1.15;
+  // line-height: 1.15;
+  height: 51px;
   letter-spacing: -0.03em;
-  color: #ffffff;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
 }
 
 .home__hero-subtitle {
   margin: 0;
-  font-size: 15px;
-  color: #9ca3af;
+  font-size: 20px;
+  color: #111827;
+  margin-bottom: 40px;
+}
+.home__hero-logo {
+  width: 51px;
+  height: auto;
+  margin-right: 10px;
+  border-radius: 100%;
+}
+.home__hero-create {
+  background-color: hsl(var(--bg-primary));
+  margin-right: 15px;
+  height: 48px;
+  font-size: 16px;
+  padding: 0 32px;
+}
+.home__hero-create:hover {
+  background-color: hsl(var(--bg-primary) / .9);
+}
+.home__hero-voideo {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--surface));
+  height: 48px;
+  font-size: 16px;
+  padding: 0 32px;
+}
+.home__hero-voideo:hover {
+  background-color: hsl(var(--surface-hover));
+  border-color: #d9d9d9;
+  color: hsl(var(--foreground));
 }
 
 .home__prompt-box {
