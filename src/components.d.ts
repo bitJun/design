@@ -13,7 +13,9 @@ declare module 'vue' {
   export interface GlobalComponents {
     AButton: typeof import('ant-design-vue/es')['Button']
     AFlex: typeof import('ant-design-vue/es')['Flex']
+    APopover: typeof import('ant-design-vue/es')['Popover']
     Canvas: typeof import('./components/Canvas/index.vue')['default']
+    CanvasShortcutsPanel: typeof import('./components/Canvas/CanvasShortcutsPanel.vue')['default']
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
     ImageColorPickerPanel: typeof import('./components/Canvas/ImageColorPickerPanel.vue')['default']
     ImageCropOverlay: typeof import('./components/Canvas/ImageCropOverlay.vue')['default']
@@ -24,7 +26,6 @@ declare module 'vue' {
     ImageNode: typeof import('./components/Canvas/nodes/ImageNode.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    TaijiLogo: typeof import('./components/TaijiLogo.vue')['default']
     TextNode: typeof import('./components/Canvas/nodes/TextNode.vue')['default']
     VideoDialoguePanel: typeof import('./components/Canvas/VideoDialoguePanel.vue')['default']
     VideoFramesPanel: typeof import('./components/Canvas/VideoFramesPanel.vue')['default']
@@ -33,6 +34,5 @@ declare module 'vue' {
     VideoHdPanel: typeof import('./components/Canvas/VideoHdPanel.vue')['default']
     VideoNode: typeof import('./components/Canvas/nodes/VideoNode.vue')['default']
     VideoStoryboardPanel: typeof import('./components/Canvas/VideoStoryboardPanel.vue')['default']
-    WaterFlowLogo: typeof import('./components/WaterFlowLogo.vue')['default']
   }
 }

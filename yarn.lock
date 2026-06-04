@@ -45,6 +45,11 @@
   resolved "https://registry.npmjs.org/@antv/x6-plugin-scroller/-/x6-plugin-scroller-2.0.10.tgz"
   integrity sha512-CrC5zCbtPe7LJEKK8ucLcDN+9lMtTJNApFmFObAiR/y2LO1QFCHz8GGLVeNOZaIEmJbR/Z/etpJkvc1LE7WhTg==
 
+"@antv/x6-plugin-selection@^2.2.2":
+  version "2.2.2"
+  resolved "https://registry.npmjs.org/@antv/x6-plugin-selection/-/x6-plugin-selection-2.2.2.tgz"
+  integrity sha512-s2gtR9Onlhr7HOHqyqg0d+4sG76JCcQEbvrZZ64XmSChlvieIPlC3YtH4dg1KMNhYIuBmBmpSum6S0eVTEiPQw==
+
 "@antv/x6-vue-shape@^2.1.2":
   version "2.1.2"
   resolved "https://registry.npmjs.org/@antv/x6-vue-shape/-/x6-vue-shape-2.1.2.tgz"

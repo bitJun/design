@@ -1,6 +1,8 @@
 import { Graph, Shape, type Node } from '@antv/x6'
 import { Scroller } from '@antv/x6-plugin-scroller'
 import '@antv/x6-plugin-scroller/es/index.css'
+import { Selection } from '@antv/x6-plugin-selection'
+import '@antv/x6-plugin-selection/es/index.css'
 import { register } from '@antv/x6-vue-shape'
 import { getDefaultEdgeStroke } from './canvasTheme'
 import { bindFlowEdgeInteraction, FLOW_EDGE_COLOR, getFlowEdgeAttrs } from './edgeStyle'
@@ -337,6 +339,18 @@ export function createGraph(container: HTMLElement): CanvasGraph {
 
   graph.use(scroller)
   graph.__scroller = scroller
+
+  graph.use(
+    new Selection({
+      enabled: true,
+      multiple: true,
+      rubberband: true,
+      modifiers: ['ctrl', 'meta'],
+      multipleSelectionModifiers: ['ctrl', 'meta'],
+      showNodeSelectionBox: true,
+      pointerEvents: 'none',
+    }),
+  )
 
   return graph
 }

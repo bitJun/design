@@ -3,44 +3,77 @@
     <div class="app-navBar">
       <!-- <img src="@assets/images/logo_black.png" alt="Daone" class="app-navBar-logo" /> -->
       <nav class="app-sidebar" v-if="showNav" aria-label="主导航">
-        <button 
-          type="button"
-          class="app-sidebar__btn app-sidebar__btn--primary"
-          title="新建"
-          @click="router.push({ name: 'createOrEdit' })"
-        >
-          <span class="app-sidebar__icon app-sidebar__icon--plus" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="app-sidebar__btn"
-          :class="{ 'app-sidebar__btn--active': route.name === 'home' }"
-          title="首页"
-          @click="router.push({ name: 'home' })"
-        >
-          <span class="app-sidebar__icon app-sidebar__icon--home" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="app-sidebar__btn"
-          :class="{ 'app-sidebar__btn--active': route.name === 'project' }"
-          title="项目"
-          @click="router.push({ name: 'project' })"
-        >
-          <span class="app-sidebar__icon app-sidebar__icon--folder" aria-hidden="true" />
-        </button>
-        <button 
-          type="button"
-          class="app-sidebar__btn"
-          :class="{ 'app-sidebar__btn--active': route.name === 'userInfo' }"
-          title="个人中心"
-          @click="router.push({ name: 'userInfo' })"
-        >
-          <span class="app-sidebar__icon app-sidebar__icon--user" aria-hidden="true" />
-        </button>
-        <button type="button" class="app-sidebar__btn" title="帮助">
-          <span class="app-sidebar__icon app-sidebar__icon--info" aria-hidden="true" />
-        </button>
+        <a-popover placement="right">
+          <template #content>
+            <span>新建项目</span>
+          </template>
+          <button 
+            type="button"
+            class="app-sidebar__btn app-sidebar__btn--primary"
+            title="新建"
+            @click="router.push({ name: 'createOrEdit' })"
+          >
+            <span class="app-sidebar__icon app-sidebar__icon--plus" aria-hidden="true" />
+          </button>
+        </a-popover>
+        <a-popover placement="right">
+          <template #content>
+            <span>首页</span>
+          </template>
+          <button
+            type="button"
+            class="app-sidebar__btn"
+            :class="{ 'app-sidebar__btn--active': route.name === 'home' }"
+            title="首页"
+            @click="goHome"
+          >
+            <span class="app-sidebar__icon app-sidebar__icon--home" aria-hidden="true" />
+          </button>
+        </a-popover>
+        <a-popover placement="right">
+          <template #content>
+            <span>项目</span>
+          </template>
+          <button
+            type="button"
+            class="app-sidebar__btn"
+            :class="{ 'app-sidebar__btn--active': route.name === 'project' }"
+            title="项目"
+            @click="router.push({ name: 'project' })"
+          >
+            <span class="app-sidebar__icon app-sidebar__icon--folder" aria-hidden="true" />
+          </button>
+        </a-popover>
+        <a-popover placement="right">
+          <template #content>
+            <span>个人主页</span>
+          </template>
+          <button 
+            type="button"
+            class="app-sidebar__btn"
+            :class="{ 'app-sidebar__btn--active': route.name === 'userInfo' }"
+            title="个人主页"
+            @click="router.push({ name: 'userInfo' })"
+          >
+            <span class="app-sidebar__icon app-sidebar__icon--user" aria-hidden="true" />
+          </button>
+        </a-popover>
+        <a-popover placement="right">
+          <template #content>
+            <a-flex justify="space-between">
+              用户协议
+            </a-flex>
+            <a-flex justify="space-between">
+              隐私政策
+            </a-flex>
+            <img
+              src="@"
+            />
+          </template>
+          <button type="button" class="app-sidebar__btn" title="帮助">
+            <span class="app-sidebar__icon app-sidebar__icon--info" aria-hidden="true" />
+          </button>
+        </a-popover>
       </nav>
     </div>
     <main class="app-main">
@@ -51,7 +84,7 @@
 
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
-import { watch, ref } from 'vue'
+import { nextTick, watch, ref } from 'vue'
 
 const showNav = ref(true)
 
@@ -65,6 +98,19 @@ watch(
   },
   { immediate: true },
 )
+
+async function goHome() {
+  if (route.name !== 'home') {
+    await router.push({ name: 'home' })
+  }
+  await nextTick()
+  scrollPageToTop()
+}
+
+function scrollPageToTop() {
+  document.querySelector('.home')?.scrollTo({ top: 0, behavior: 'smooth' })
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 </script>
 
 <style scoped lang="scss">

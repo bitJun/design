@@ -63,10 +63,22 @@
         <button type="button" class="canvas__brand-add" title="新建">+</button>
         <span class="canvas__brand-divider" aria-hidden="true" />
         <div class="canvas__brand-group">
-          <button type="button" class="canvas__brand-icon-btn" title="撤销">
+          <button
+            type="button"
+            class="canvas__brand-icon-btn"
+            title="撤销"
+            :disabled="!canUndo"
+            @click="handleUndo"
+          >
             <span class="canvas__brand-icon canvas__brand-icon--undo" aria-hidden="true" />
           </button>
-          <button type="button" class="canvas__brand-icon-btn" title="重做" disabled>
+          <button
+            type="button"
+            class="canvas__brand-icon-btn"
+            title="重做"
+            :disabled="!canRedo"
+            @click="handleRedo"
+          >
             <span class="canvas__brand-icon canvas__brand-icon--redo" aria-hidden="true" />
           </button>
         </div>
@@ -668,6 +680,15 @@
         <button
           type="button"
           class="canvas__tool-btn"
+          :class="{ 'canvas__tool-btn--active': showShortcutsPanel }"
+          title="快捷键"
+          @click="toggleShortcutsPanel"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--libtv pointer-events-none " width="16" height="16" viewBox="0 0 16 16" style="color: var(--canvas-controls-icon);"><g transform="translate(0 1.4681) scale(0.880669)"><path d="M15.751 0C17.0855 0.000175557 18.168 1.08241 18.168 2.41699V12.417C18.168 13.7516 17.0855 14.8338 15.751 14.834H2.41699C1.08245 14.8338 1.60011e-07 13.7516 0 12.417V2.41699C0 1.08241 1.08245 0.00017602 2.41699 0H15.751ZM2.41699 1.50098C1.91088 1.50115 1.50098 1.91084 1.50098 2.41699V12.417C1.50098 12.9231 1.91088 13.3328 2.41699 13.333H15.751C16.2571 13.3328 16.667 12.9231 16.667 12.417V2.41699C16.667 1.91084 16.2571 1.50115 15.751 1.50098H2.41699ZM13.251 10C13.6649 10.0002 14.0008 10.336 14.001 10.75C14.001 11.1641 13.665 11.5008 13.251 11.501H4.91699C4.50293 11.5008 4.16699 11.1641 4.16699 10.75C4.16717 10.336 4.50304 10.0002 4.91699 10H13.251ZM5.75879 6.66699C6.173 6.66699 6.50879 7.00278 6.50879 7.41699C6.50879 7.83121 6.173 8.16699 5.75879 8.16699H5.75098C5.33676 8.16699 5 7.83121 5 7.41699C5 7.00278 5.33676 6.66699 5.75098 6.66699H5.75879ZM9.0918 6.66699C9.50601 6.66699 9.84277 7.00278 9.84277 7.41699C9.84277 7.83121 9.50601 8.16699 9.0918 8.16699H9.08398C8.66977 8.16699 8.33398 7.83121 8.33398 7.41699C8.33398 7.00278 8.66977 6.66699 9.08398 6.66699H9.0918ZM12.4258 6.66699C12.8398 6.66717 13.1758 7.00289 13.1758 7.41699C13.1758 7.8311 12.8398 8.16682 12.4258 8.16699H12.417C12.0029 8.16682 11.667 7.8311 11.667 7.41699C11.667 7.00289 12.0029 6.66717 12.417 6.66699H12.4258ZM4.0918 3.33301C4.50601 3.33301 4.84277 3.66977 4.84277 4.08398C4.8426 4.49805 4.5059 4.83398 4.0918 4.83398H4.08398C3.66988 4.83398 3.33416 4.49805 3.33398 4.08398C3.33398 3.66977 3.66977 3.33301 4.08398 3.33301H4.0918ZM7.42578 3.33301C7.83985 3.33318 8.17578 3.66988 8.17578 4.08398C8.17561 4.49794 7.83974 4.83381 7.42578 4.83398H7.41699C7.00304 4.83381 6.66717 4.49794 6.66699 4.08398C6.66699 3.66988 7.00293 3.33318 7.41699 3.33301H7.42578ZM10.7588 3.33301C11.173 3.33301 11.5088 3.66977 11.5088 4.08398C11.5086 4.49805 11.1729 4.83398 10.7588 4.83398H10.751C10.3369 4.83398 10.0002 4.49805 10 4.08398C10 3.66977 10.3368 3.33301 10.751 3.33301H10.7588ZM14.0918 3.33301C14.506 3.33301 14.8428 3.66977 14.8428 4.08398C14.8426 4.49805 14.5059 4.83398 14.0918 4.83398H14.084C13.6699 4.83398 13.3342 4.49805 13.334 4.08398C13.334 3.66977 13.6698 3.33301 14.084 3.33301H14.0918Z" fill="currentColor"></path></g></svg>
+        </button>
+        <button
+          type="button"
+          class="canvas__tool-btn"
           :class="{ 'canvas__tool-btn--active': panMode }"
           title="拖动画布"
           @click="togglePanMode"
@@ -736,12 +757,34 @@
         </div>
       </div>
     </div>
+
+    <Transition name="canvas-shortcuts-fade">
+      <div
+        v-if="showShortcutsPanel"
+        class="canvas__shortcuts-backdrop"
+        @mousedown.self="closeShortcutsPanel"
+      >
+        <CanvasShortcutsPanel @close="closeShortcutsPanel" />
+      </div>
+    </Transition>
+
+    <div
+      v-if="imagePreviewUrl"
+      class="canvas__image-preview"
+      role="dialog"
+      aria-label="图片预览"
+      @mousedown.self="closeImagePreview"
+      @click.self="closeImagePreview"
+    >
+      <img :src="imagePreviewUrl" alt="预览" @click.stop />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
+import CanvasShortcutsPanel from './CanvasShortcutsPanel.vue'
 import ImageGenPromptPanel from './ImageGenPromptPanel.vue'
 import VideoGenPromptPanel from './VideoGenPromptPanel.vue'
 import ImageDialoguePanel from './ImageDialoguePanel.vue'
@@ -803,6 +846,7 @@ import {
   saveCanvasSnapshotToStorage,
   type CanvasSnapshot,
 } from './canvasSnapshot'
+import { createCanvasHistory } from './canvasHistory'
 
 const canvasRef = ref<HTMLElement | null>(null)
 const graphRef = ref<HTMLElement | null>(null)
@@ -815,6 +859,18 @@ const showZoomMenu = ref(false)
 const gridVisible = ref(true)
 const canvasBgTheme = ref<CanvasBgTheme>('dark')
 const panMode = ref(true)
+const showShortcutsPanel = ref(false)
+const imagePreviewUrl = ref('')
+const canUndo = ref(false)
+const canRedo = ref(false)
+const nodeClipboard = ref<Record<string, unknown> | null>(null)
+
+let canvasHistory: ReturnType<typeof createCanvasHistory> | null = null
+let historyPushTimer: ReturnType<typeof setTimeout> | null = null
+let spacePanActive = false
+let spacePanWasEnabled = false
+let spaceKeyDownAt = 0
+let altVoiceTimer: ReturnType<typeof setTimeout> | null = null
 const showMinimap = ref(true)
 const showProjectMenu = ref(false)
 const canvasProjects = ref([...CANVAS_PROJECTS])
@@ -1528,6 +1584,7 @@ function removeNodeById(nodeId: string) {
     closeVideoGenPromptBar()
   }
   syncNodeCount()
+  scheduleHistoryPush()
 }
 
 provide('deleteCanvasNode', removeNodeById)
@@ -1649,6 +1706,7 @@ function addNode(kind: NodeKind, point?: { x: number; y: number }) {
   updateNodeToolbar()
   closeAddMenu()
   syncNodeCount()
+  scheduleHistoryPush()
   return node
 }
 
@@ -1711,6 +1769,7 @@ function onFileSelected(event: Event) {
   selectedNodeId.value = node.id
   runUploadSimulation(node, file)
   updateNodeToolbar()
+  scheduleHistoryPush()
 }
 
 function toggleAddMenu() {
@@ -1740,6 +1799,19 @@ function toggleAssetsPanel() {
   } else {
     openAssetsPanel()
   }
+}
+
+function closeShortcutsPanel() {
+  showShortcutsPanel.value = false
+}
+
+function toggleShortcutsPanel() {
+  showShortcutsPanel.value = !showShortcutsPanel.value
+  if (!showShortcutsPanel.value) return
+  showZoomMenu.value = false
+  closeAddMenu()
+  closeConnectMenu()
+  showAssetsPanel.value = false
 }
 
 function togglePanMode() {
@@ -1826,10 +1898,19 @@ function handleBlankDblClick(event: { x: number; y: number }) {
   openAddMenuAtGraphPoint({ x: event.x, y: event.y })
 }
 
-function handleNodeClick({ node }: { node: Node }) {
+function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
   const data = node.getData() as CanvasNodeData
+  const multiSelect = Boolean(e?.ctrlKey || e?.metaKey)
+
   selectedNodeId.value = node.id
   selectedKind.value = data.kind
+
+  if (multiSelect) {
+    syncNodeSelectionHighlight(node.id)
+    updateNodeToolbar()
+    return
+  }
+
   resetImageToolbarMore()
   resetImageDialogue()
   resetImageCrop()
@@ -1872,6 +1953,7 @@ function handleBlankClick() {
   closeAddMenu()
   closeProjectMenu()
   closeZoomMenu()
+  closeShortcutsPanel()
   const g = graph.value as CanvasGraph | null
   if (g?.__suppressBlankCloseForConnect) {
     g.__suppressBlankCloseForConnect = false
@@ -1909,32 +1991,348 @@ function isEditableTarget(target: EventTarget | null) {
   return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable
 }
 
+function getHistoryMeta() {
+  return {
+    projectId: activeProjectId.value,
+    projectName: currentProjectName.value,
+    canvasBgTheme: canvasBgTheme.value,
+    gridVisible: gridVisible.value,
+    panMode: panMode.value,
+    showMinimap: showMinimap.value,
+  }
+}
+
+function syncHistoryState() {
+  canUndo.value = canvasHistory?.canUndo() ?? false
+  canRedo.value = canvasHistory?.canRedo() ?? false
+}
+
+function scheduleHistoryPush() {
+  const g = graph.value
+  if (!g || !canvasHistory) return
+  if (historyPushTimer) clearTimeout(historyPushTimer)
+  historyPushTimer = setTimeout(() => {
+    canvasHistory?.push(g)
+    syncHistoryState()
+    historyPushTimer = null
+  }, 280)
+}
+
+function handleUndo() {
+  const g = graph.value
+  if (!g || !canvasHistory?.undo(g)) return
+  syncHistoryState()
+  syncNodeCount()
+  handleBlankClick()
+  nextTick(() => updateNodeToolbar())
+}
+
+function handleRedo() {
+  const g = graph.value
+  if (!g || !canvasHistory?.redo(g)) return
+  syncHistoryState()
+  syncNodeCount()
+  handleBlankClick()
+  nextTick(() => updateNodeToolbar())
+}
+
+function copySelectedNode() {
+  const g = graph.value
+  const id = selectedNodeId.value
+  if (!g || !id) return
+  const cell = g.getCellById(id)
+  if (!cell?.isNode()) return
+  nodeClipboard.value = (cell as Node).toJSON()
+}
+
+function pasteNode() {
+  const g = graph.value
+  const payload = nodeClipboard.value
+  if (!g || !payload) return
+
+  const source = g.getCellById(String(payload.id ?? ''))
+  let node: Node
+  if (source?.isNode()) {
+    node = (source as Node).clone() as Node
+    const pos = node.getPosition()
+    node.position(pos.x + 32, pos.y + 32)
+    g.addCell(node)
+  } else {
+    const { id: _removed, x, y, ...rest } = payload
+    node = g.addNode({
+      ...rest,
+      x: (typeof x === 'number' ? x : 0) + 32,
+      y: (typeof y === 'number' ? y : 0) + 32,
+    })
+  }
+
+  const data = node.getData() as CanvasNodeData
+  node.setData({ ...data, isSelected: true })
+
+  selectedNodeId.value = node.id
+  selectedKind.value = data.kind
+  syncNodeSelectionHighlight(node.id)
+  updateNodeToolbar()
+  syncNodeCount()
+  scheduleHistoryPush()
+}
+
+function getSelectedNode() {
+  const g = graph.value
+  const id = selectedNodeId.value
+  if (!g || !id) return null
+  const cell = g.getCellById(id)
+  return cell?.isNode() ? (cell as Node) : null
+}
+
+function moveNodeLayer(step: 'front' | 'back' | 'forward' | 'backward') {
+  const g = graph.value
+  const node = getSelectedNode()
+  if (!g || !node) return
+
+  if (step === 'front') {
+    node.toFront()
+  } else if (step === 'back') {
+    node.toBack()
+  } else {
+    const nodes = g
+      .getNodes()
+      .slice()
+      .sort((a, b) => (a.getZIndex() ?? 0) - (b.getZIndex() ?? 0))
+    const idx = nodes.findIndex((n) => n.id === node.id)
+    const targetIdx = step === 'forward' ? idx + 1 : idx - 1
+    const current = nodes[idx]
+    const target = nodes[targetIdx]
+    if (!current || !target || targetIdx < 0 || targetIdx >= nodes.length) return
+    const zA = current.getZIndex() ?? 0
+    const zB = target.getZIndex() ?? 0
+    current.setZIndex(zB)
+    target.setZIndex(zA)
+  }
+  scheduleHistoryPush()
+}
+
+function openImagePreview() {
+  const node = getSelectedNode()
+  if (!node) return
+  const data = node.getData() as CanvasNodeData
+  if (data.kind !== 'image' || !data.previewUrl) return
+  imagePreviewUrl.value = data.previewUrl
+}
+
+function closeImagePreview() {
+  imagePreviewUrl.value = ''
+}
+
+function cancelCurrentOperation() {
+  if (imagePreviewUrl.value) {
+    closeImagePreview()
+    return true
+  }
+  if (showShortcutsPanel.value) {
+    closeShortcutsPanel()
+    return true
+  }
+  if (showImageCrop.value) {
+    closeImageCrop()
+    return true
+  }
+  if (showConnectMenu.value) {
+    closeConnectMenu()
+    return true
+  }
+  if (showAddMenu.value) {
+    closeAddMenu()
+    return true
+  }
+  if (showProjectMenu.value) {
+    closeProjectMenu()
+    return true
+  }
+  if (showZoomMenu.value) {
+    closeZoomMenu()
+    return true
+  }
+  if (showAssetsPanel.value) {
+    showAssetsPanel.value = false
+    return true
+  }
+  if (showImageDialogue.value) {
+    resetImageDialogue()
+    return true
+  }
+  if (showVideoDialogue.value || showVideoHdPanel.value || showVideoFramesPanel.value) {
+    resetVideoDialogue()
+    resetVideoHdPanel()
+    resetVideoFramesPanel()
+    return true
+  }
+  if (selectedNodeId.value) {
+    handleBlankClick()
+    return true
+  }
+  return false
+}
+
+function beginSpacePan() {
+  const scroller = graph.value ? getScroller(graph.value) : null
+  if (!scroller || spacePanActive) return
+  spacePanActive = true
+  spacePanWasEnabled = panMode.value
+  if (!panMode.value) scroller.togglePanning(true)
+}
+
+function endSpacePan() {
+  const scroller = graph.value ? getScroller(graph.value) : null
+  if (!scroller || !spacePanActive) return
+  spacePanActive = false
+  scroller.togglePanning(spacePanWasEnabled || panMode.value)
+}
+
+function triggerCanvasUploadShortcut() {
+  pendingUploadNodeId.value = ''
+  addMenuDropPoint.value = getGraphCenter()
+  fileInputRef.value?.click()
+}
+
 function handleKeydown(event: KeyboardEvent) {
   const target = event.target
   if (isEditableTarget(target)) return
 
   const mod = event.metaKey || event.ctrlKey
+  const key = event.key
 
-  if (mod && (event.key === '=' || event.key === '+')) {
+  if (key === 'Escape') {
+    if (cancelCurrentOperation()) {
+      event.preventDefault()
+    }
+    return
+  }
+
+  if (key === ' ' && !mod && !event.altKey) {
+    if (!event.repeat) {
+      spaceKeyDownAt = Date.now()
+      beginSpacePan()
+    }
+    event.preventDefault()
+    return
+  }
+
+  if (mod && (key === '=' || key === '+')) {
     event.preventDefault()
     zoomIn()
     return
   }
-  if (mod && event.key === '-') {
+  if (mod && key === '-') {
     event.preventDefault()
     zoomOut()
     return
   }
-  if (event.shiftKey && event.key === '1' && !mod && !event.altKey) {
+  if (mod && key === '0') {
+    event.preventDefault()
+    zoomToScale(1)
+    return
+  }
+  if (event.shiftKey && key === '1' && !mod && !event.altKey) {
     event.preventDefault()
     zoomFitToScreen()
     return
   }
+  if (event.shiftKey && (key === 'a' || key === 'A') && !mod && !event.altKey) {
+    event.preventDefault()
+    triggerCanvasUploadShortcut()
+    return
+  }
 
-  if (event.key !== 'Delete' && event.key !== 'Backspace') return
+  if (mod && (key === 's' || key === 'S')) {
+    event.preventDefault()
+    handleSaveCanvas()
+    return
+  }
+  if (mod && (key === 'c' || key === 'C')) {
+    event.preventDefault()
+    copySelectedNode()
+    return
+  }
+  if (mod && (key === 'v' || key === 'V')) {
+    event.preventDefault()
+    pasteNode()
+    return
+  }
+  if (mod && event.shiftKey && (key === 'z' || key === 'Z')) {
+    event.preventDefault()
+    handleRedo()
+    return
+  }
+  if (mod && (key === 'z' || key === 'Z') && !event.shiftKey) {
+    event.preventDefault()
+    handleUndo()
+    return
+  }
+
+  if (!mod && !event.altKey && !event.shiftKey) {
+    if (key === ']') {
+      event.preventDefault()
+      moveNodeLayer('front')
+      return
+    }
+    if (key === '[') {
+      event.preventDefault()
+      moveNodeLayer('back')
+      return
+    }
+  }
+
+  if (mod && key === ']') {
+    event.preventDefault()
+    moveNodeLayer('forward')
+    return
+  }
+  if (mod && key === '[') {
+    event.preventDefault()
+    moveNodeLayer('backward')
+    return
+  }
+
+  if (key === 'Alt' && !event.repeat) {
+    const node = getSelectedNode()
+    if (!node) return
+    const data = node.getData() as CanvasNodeData
+    if (data.kind !== 'image') return
+    if (altVoiceTimer) clearTimeout(altVoiceTimer)
+    altVoiceTimer = setTimeout(() => {
+      selectedNodeId.value = node.id
+      selectedKind.value = 'image'
+      showImageDialogue.value = true
+      updateNodeToolbar()
+      altVoiceTimer = null
+    }, 420)
+    return
+  }
+
+  if (key !== 'Delete' && key !== 'Backspace') return
   if (!selectedNodeId.value) return
   event.preventDefault()
   removeSelectedNode()
+}
+
+function handleKeyup(event: KeyboardEvent) {
+  if (isEditableTarget(event.target)) return
+
+  if (event.key === ' ') {
+    const heldMs = Date.now() - spaceKeyDownAt
+    endSpacePan()
+    if (heldMs < 220 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      openImagePreview()
+    }
+    event.preventDefault()
+    return
+  }
+
+  if (event.key === 'Alt' && altVoiceTimer) {
+    clearTimeout(altVoiceTimer)
+    altVoiceTimer = null
+  }
 }
 
 let scrollerScrollTarget: HTMLElement | null = null
@@ -1968,7 +2366,10 @@ onMounted(() => {
   })
   instance.on('translate', updateNodeToolbar)
   instance.on('node:moving', updateNodeToolbar)
-  instance.on('node:moved', updateNodeToolbar)
+  instance.on('node:moved', () => {
+    updateNodeToolbar()
+    scheduleHistoryPush()
+  })
   instance.on('node:added', syncNodeCount)
   instance.on('node:removed', syncNodeCount)
   instance.on('node:click', handleNodeClick)
@@ -1980,6 +2381,11 @@ onMounted(() => {
   instance.on('edge:connected', handleEdgeConnected)
 
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('keyup', handleKeyup)
+
+  canvasHistory = createCanvasHistory(getHistoryMeta)
+  canvasHistory.seed(instance)
+  syncHistoryState()
 
   const scroller = getScroller(instance)
   scroller?.togglePanning(panMode.value)
@@ -1994,6 +2400,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('keyup', handleKeyup)
+  if (historyPushTimer) clearTimeout(historyPushTimer)
+  if (altVoiceTimer) clearTimeout(altVoiceTimer)
+  endSpacePan()
+  canvasHistory = null
   unbindScrollerScrollListener()
   teardownMinimap()
   graph.value?.dispose()
