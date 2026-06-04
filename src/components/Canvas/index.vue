@@ -2,14 +2,19 @@
   <div ref="canvasRef" class="canvas" :class="`canvas--bg-${canvasBgTheme}`">
     <header class="canvas__header">
       <div :class="`canvas__brand ${canvasBgTheme === 'light' ? 'bg_white' : ''}`">
-        <button
+        <img
+          :src="canvasBgTheme === 'light' ? logoBlack : logoWhite"
+          class="canvas__brand-magic"
+          @click="onGoHome()"
+        />
+        <!-- <button
           type="button"
           class="canvas__brand-magic"
           title="AI 创作"
           @click="onGoHome()"
         >
           <span class="canvas__brand-magic-icon" aria-hidden="true" />
-        </button>
+        </button> -->
         <div class="canvas__brand-project-wrap">
           <button
             type="button"
@@ -820,6 +825,8 @@
 </template>
 
 <script setup lang="ts">
+import logoWhite from '@assets/images/logo_white.png'
+import logoBlack from '@assets/images/logo_black.png'
 import { useRouter } from 'vue-router'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'

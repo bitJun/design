@@ -53,7 +53,7 @@
             class="app-sidebar__btn"
             :class="{ 'app-sidebar__btn--active': route.name === 'userInfo' }"
             title="个人主页"
-            @click="openLoginModal"
+            @click="router.push({ name: 'userInfo' })"
           >
             <span class="app-sidebar__icon app-sidebar__icon--user" aria-hidden="true" />
           </button>
@@ -65,6 +65,9 @@
             </a-flex>
             <a-flex justify="space-between">
               隐私政策
+            </a-flex>
+            <a-flex justify="space-between" @click="openLoginModal">
+              登录
             </a-flex>
             <img
               src="@assets/images/kefu.png"
