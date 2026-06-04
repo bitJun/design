@@ -61,7 +61,11 @@
               <label class="user-info__label">当前订阅</label>
               <div class="user-info__input user-info__input--with-action">
                 <span>{{ USER_PROFILE.plan }}</span>
-                <button type="button" class="user-info__upgrade-btn">
+                <button
+                  type="button"
+                  class="user-info__upgrade-btn"
+                  @click="openComboModal"
+                >
                   <span class="user-info__upgrade-icon" aria-hidden="true" />
                   升级
                 </button>
@@ -72,7 +76,10 @@
               <label class="user-info__label">可用积分</label>
               <div class="user-info__input user-info__input--with-inline-btn">
                 <span>{{ USER_PROFILE.availablePoints.toLocaleString('en-US') }}</span>
-                <button type="button" class="user-info__recharge-btn">
+                <button 
+                  type="button" class="user-info__recharge-btn"
+                  @click="openComboModal"
+                >
                   <span class="user-info__recharge-icon" aria-hidden="true" />
                   充值
                 </button>
@@ -391,9 +398,12 @@
       </div>
     </div>
   </div>
+  <Combo v-model:open="modalStore.comboVisible" />
 </template>
 
 <script setup lang="ts">
+import { useModalStore } from '@stores/useModal';
+import Combo from '@components/Combo/index.vue';
 import { computed, ref } from 'vue'
 import {
   BILL_STATUS_LABEL,
@@ -408,6 +418,7 @@ import {
   type PointsLogFilterKey,
   type UserInfoTabKey,
 } from './userInfoData'
+const modalStore = useModalStore()
 
 type InvoiceHeaderType = 'personal' | 'enterprise'
 
@@ -457,6 +468,10 @@ async function copyOrderNo(orderNo: string) {
   } catch {
     // ignore clipboard errors in unsupported environments
   }
+}
+
+function openComboModal() {
+  modalStore.openModal('combo')
 }
 
 function resetInvoiceForm() {

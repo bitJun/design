@@ -17,6 +17,7 @@ declare module 'vue' {
     Canvas: typeof import('./components/Canvas/index.vue')['default']
     CanvasHistoryPanel: typeof import('./components/Canvas/CanvasHistoryPanel.vue')['default']
     CanvasShortcutsPanel: typeof import('./components/Canvas/CanvasShortcutsPanel.vue')['default']
+    Combo: typeof import('./components/Combo/index.vue')['default']
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
     ImageColorPickerPanel: typeof import('./components/Canvas/ImageColorPickerPanel.vue')['default']
     ImageCropOverlay: typeof import('./components/Canvas/ImageCropOverlay.vue')['default']

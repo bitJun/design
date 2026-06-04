@@ -2,15 +2,17 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 /** 全局可管理的弹窗类型，新增弹窗时在此扩展 */
-export type ModalKey = 'login'
+export type ModalKey = 'login' | 'combo'
 
 type ModalPayloadMap = {
   login: undefined
+  combo: undefined
 }
 
 export const useModalStore = defineStore('modal', () => {
   const visible = ref<Record<ModalKey, boolean>>({
     login: false,
+    combo: false,
   })
 
   const payload = ref<Partial<{ [K in ModalKey]: ModalPayloadMap[K] }>>({})
@@ -28,6 +30,17 @@ export const useModalStore = defineStore('modal', () => {
         openModal('login')
       } else {
         closeModal('login')
+      }
+    },
+  })
+
+  const comboVisible = computed({
+    get: () => visible.value.combo,
+    set: (value: boolean) => {
+      if (value) {
+        openModal('combo')
+      } else {
+        closeModal('combo')
       }
     },
   })
@@ -76,6 +89,7 @@ export const useModalStore = defineStore('modal', () => {
     activeKeys,
     hasOpenModal,
     loginVisible,
+    comboVisible,
     isModalOpen,
     openModal,
     closeModal,
