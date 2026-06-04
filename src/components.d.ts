@@ -15,6 +15,7 @@ declare module 'vue' {
     AFlex: typeof import('ant-design-vue/es')['Flex']
     APopover: typeof import('ant-design-vue/es')['Popover']
     Canvas: typeof import('./components/Canvas/index.vue')['default']
+    CanvasHistoryPanel: typeof import('./components/Canvas/CanvasHistoryPanel.vue')['default']
     CanvasShortcutsPanel: typeof import('./components/Canvas/CanvasShortcutsPanel.vue')['default']
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
     ImageColorPickerPanel: typeof import('./components/Canvas/ImageColorPickerPanel.vue')['default']

@@ -58,8 +58,8 @@ const emit = defineEmits<{
 <style scoped lang="scss">
 .canvas-shortcuts {
   position: relative;
-  width: min(1080px, calc(100vw - 48px));
-  padding: 28px 36px 24px;
+  width: 80vw;
+  padding: 28px 24px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   background: #fafafa;
@@ -131,7 +131,7 @@ const emit = defineEmits<{
   gap: 16px;
   min-height: 34px;
   margin-bottom: 4px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .canvas-shortcuts__label {
@@ -141,23 +141,24 @@ const emit = defineEmits<{
 }
 
 .canvas-shortcuts__keys {
+  flex: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
-  min-width: 0;
+  // min-width: 0;
 }
 
 .canvas-shortcuts__plus {
-  margin: 0 2px;
+  margin: 0 1px;
   font-size: 12px;
   color: #9ca3af;
   user-select: none;
 }
 
 .canvas-shortcuts__slash {
-  margin: 0 4px;
+  margin: 0 2px;
   font-size: 12px;
   color: #9ca3af;
 }
@@ -168,13 +169,13 @@ const emit = defineEmits<{
   justify-content: center;
   min-width: 24px;
   height: 24px;
-  padding: 0 8px;
+  padding: 0 4px;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   background: #f3f4f6;
   box-shadow: inset 0 -1px 0 #e5e7eb;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: #374151;
   white-space: nowrap;

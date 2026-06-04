@@ -543,6 +543,14 @@
       @change="onFileSelected"
     />
 
+    <div
+      v-if="showHistoryPanel"
+      class="canvas__history-anchor"
+      @mousedown.stop
+    >
+      <CanvasHistoryPanel @close="closeHistoryPanel" />
+    </div>
+
     <div class="canvas__toolbar canvas__toolbar--left">
       <button
         type="button"
@@ -562,9 +570,34 @@
       >
         ▤
       </button>
-      <button type="button" class="canvas__tool-btn" title="节点图">⎔</button>
-      <button type="button" class="canvas__tool-btn" title="历史">◷</button>
-      <button type="button" class="canvas__tool-btn" title="帮助">?</button>
+      <button
+        type="button"
+        class="canvas__tool-btn"
+        title="工作流"
+      >
+        ⎔
+      </button>
+      <button
+        type="button"
+        class="canvas__tool-btn"
+        :class="{ 'canvas__tool-btn--active': showHistoryPanel }"
+        title="历史记录"
+        @click="toggleHistoryPanel"
+      >
+        <span class="canvas__history-icon" aria-hidden="true" />
+      </button>
+      <a-popover placement="right">
+        <template #content>
+          <span>使用教程</span>
+        </template>
+        <button
+          type="button"
+          class="canvas__tool-btn"
+          title="帮助"
+        >
+          ?
+        </button>
+      </a-popover>
     </div>
 
     <div
@@ -785,6 +818,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
 import CanvasShortcutsPanel from './CanvasShortcutsPanel.vue'
+import CanvasHistoryPanel from './CanvasHistoryPanel.vue'
 import ImageGenPromptPanel from './ImageGenPromptPanel.vue'
 import VideoGenPromptPanel from './VideoGenPromptPanel.vue'
 import ImageDialoguePanel from './ImageDialoguePanel.vue'
@@ -884,6 +918,7 @@ const addMenuDropPoint = ref<{ x: number; y: number } | null>(null)
 const connectSourceNodeId = ref('')
 const connectDropPoint = ref<{ x: number; y: number } | null>(null)
 const showAssetsPanel = ref(false)
+const showHistoryPanel = ref(false)
 const assetsTab = ref<'all' | 'mine'>('mine')
 const assetsLoading = ref(false)
 const promptText = ref('')
@@ -1781,6 +1816,7 @@ function toggleAddMenu() {
   addMenuDropPoint.value = null
   showAddMenu.value = true
   showAssetsPanel.value = false
+  closeHistoryPanel()
   closeConnectMenu()
 }
 
@@ -1797,8 +1833,26 @@ function toggleAssetsPanel() {
   if (showAssetsPanel.value) {
     showAssetsPanel.value = false
   } else {
+    closeHistoryPanel()
     openAssetsPanel()
   }
+}
+
+function closeHistoryPanel() {
+  showHistoryPanel.value = false
+}
+
+function toggleHistoryPanel() {
+  if (showHistoryPanel.value) {
+    closeHistoryPanel()
+    return
+  }
+  showHistoryPanel.value = true
+  showAssetsPanel.value = false
+  closeAddMenu()
+  closeConnectMenu()
+  closeShortcutsPanel()
+  closeZoomMenu()
 }
 
 function closeShortcutsPanel() {
@@ -1812,6 +1866,7 @@ function toggleShortcutsPanel() {
   closeAddMenu()
   closeConnectMenu()
   showAssetsPanel.value = false
+  closeHistoryPanel()
 }
 
 function togglePanMode() {
@@ -1954,6 +2009,7 @@ function handleBlankClick() {
   closeProjectMenu()
   closeZoomMenu()
   closeShortcutsPanel()
+  closeHistoryPanel()
   const g = graph.value as CanvasGraph | null
   if (g?.__suppressBlankCloseForConnect) {
     g.__suppressBlankCloseForConnect = false
@@ -2155,6 +2211,10 @@ function cancelCurrentOperation() {
   }
   if (showAssetsPanel.value) {
     showAssetsPanel.value = false
+    return true
+  }
+  if (showHistoryPanel.value) {
+    closeHistoryPanel()
     return true
   }
   if (showImageDialogue.value) {

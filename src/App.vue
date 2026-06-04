@@ -67,7 +67,8 @@
               隐私政策
             </a-flex>
             <img
-              src="@"
+              src="@assets/images/kefu.png"
+              class="app-sidebar__kefu"
             />
           </template>
           <button type="button" class="app-sidebar__btn" title="帮助">
@@ -213,5 +214,9 @@ function scrollPageToTop() {
 
 .app-sidebar__icon--info {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23374151' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cline x1='12' y1='11' x2='12' y2='16'/%3E%3Ccircle cx='12' cy='8' r='0.8' fill='%23374151' stroke='none'/%3E%3C/svg%3E");
+}
+.app-sidebar__kefu {
+  width: 150px;
+  height: auto;
 }
 </style>
