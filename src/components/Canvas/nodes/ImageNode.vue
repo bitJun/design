@@ -29,57 +29,35 @@
     </div>
 
     <div class="image-node__body">
-      <div
-        v-if="showPickerBody"
-        class="image-node__picker"
+      <button
+        v-if="data.previewUrl"
+        type="button"
+        class="image-node__scale-btn"
+        :class="{ 'image-node__scale-btn--active': isResizing }"
+        title="缩放视图"
+        @mousedown.stop="startResize"
       >
-        <div
-          class="image-node__preview image-node__preview--empty"
-          @click="requestFile"
-        >
-          <span class="image-node__placeholder-icon" aria-hidden="true" />
-        </div>
-        <p class="image-node__try">尝试：</p>
-        <button
-          v-for="action in IMAGE_GEN_ACTIONS"
-          :key="action.key"
-          type="button"
-          class="image-node__action"
-          @mousedown.stop
-          @click="onPickerAction(action.key)"
-        >
-          <span class="image-node__action-icon" :data-icon="action.icon" />
-          {{ action.label }}
-        </button>
+        ↗
+      </button>
+
+      <div
+        class="image-node__preview"
+        :class="{ 'image-node__preview--uploading': data.uploadState === 'uploading' }"
+        @click="requestFile"
+      >
+        <template v-if="data.uploadState === 'uploading'">
+          <span class="image-node__spinner" />
+          <span>上传中 ({{ data.uploadProgress }}%) ...</span>
+        </template>
+        <template v-else-if="data.previewUrl">
+          <img :src="data.previewUrl" :alt="data.fileName" />
+          <span v-if="showUploadSuccess" class="image-node__success">上传成功</span>
+        </template>
+        <template v-else>
+          <span class="image-node__placeholder-icon">▣</span>
+          <span>点击上传图片</span>
+        </template>
       </div>
-
-      <template v-else>
-        <button
-          v-if="data.previewUrl"
-          type="button"
-          class="image-node__scale-btn"
-          :class="{ 'image-node__scale-btn--active': isResizing }"
-          title="缩放视图"
-          @mousedown.stop="startResize"
-        >
-          ↗
-        </button>
-
-        <div
-          class="image-node__preview"
-          :class="{ 'image-node__preview--uploading': data.uploadState === 'uploading' }"
-          @click="requestFile"
-        >
-          <template v-if="data.uploadState === 'uploading'">
-            <span class="image-node__spinner" />
-            <span>上传中 ({{ data.uploadProgress }}%) ...</span>
-          </template>
-          <template v-else-if="data.previewUrl">
-            <img :src="data.previewUrl" :alt="data.fileName" />
-            <span v-if="showUploadSuccess" class="image-node__success">上传成功</span>
-          </template>
-        </div>
-      </template>
     </div>
   </div>
 </template>
@@ -87,13 +65,8 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, reactive } from 'vue'
 import type { Node } from '@antv/x6'
-import {
-  formatDimensions,
-  IMAGE_GEN_ACTIONS,
-  isPortrait,
-  type CanvasNodeData,
-  type ImageGenTask,
-} from '../constants'
+import { formatDimensions, isPortrait } from '../constants'
+import type { CanvasNodeData } from '../constants'
 import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
@@ -101,7 +74,6 @@ import { useNodeViewScale } from './useNodeViewScale'
 
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
-const applyImageGenTask = inject<(nodeId: string, task: ImageGenTask) => void>('applyImageGenTask')
 const { removeSelf } = useNodeDelete()
 const { onPlusPointerDown } = useNodeConnect()
 const { startResize, previewScale, isResizing } = useNodeViewScale()
@@ -122,19 +94,9 @@ const isPortraitLayout = computed(() =>
 const showUploadSuccess = computed(
   () => data.uploadState === 'done' && Boolean(data.previewUrl),
 )
-const showPickerBody = computed(
-  () =>
-    !data.previewUrl &&
-    data.uploadState !== 'uploading' &&
-    !data.imageGenTask,
-)
 
 function requestFile() {
   requestCanvasUpload?.(getNode().id)
-}
-
-function onPickerAction(key: ImageGenTask) {
-  applyImageGenTask?.(getNode().id, key)
 }
 
 onMounted(() => {
@@ -198,76 +160,12 @@ onMounted(() => {
 
 .image-node__body {
   position: relative;
-  display: flex;
-  flex-direction: column;
   height: calc(100% - 24px);
   padding: 10px;
   border: 1px solid #4b4b55;
   border-radius: 14px;
   background: #1e1e22;
   box-sizing: border-box;
-}
-
-.image-node__picker {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-.image-node__try {
-  margin: 12px 0 8px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.image-node__action {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  margin-bottom: 6px;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: #e5e7eb;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover {
-    background: #2a2a30;
-  }
-}
-
-.image-node__action-icon {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  background: #3d3d45;
-
-  &[data-icon='img2img']::after {
-    content: '▣';
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    font-size: 11px;
-    color: #9ca3af;
-  }
-
-  &[data-icon='hd']::after {
-    content: 'HD';
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    font-size: 8px;
-    font-weight: 700;
-    color: #9ca3af;
-  }
 }
 
 .image-node__scale-btn {
@@ -314,11 +212,6 @@ onMounted(() => {
   overflow: hidden;
   position: relative;
 
-  &--empty {
-    flex: 1;
-    min-height: 140px;
-  }
-
   img {
     width: 100%;
     height: 100%;
@@ -343,35 +236,8 @@ onMounted(() => {
 }
 
 .image-node__placeholder-icon {
-  width: 48px;
-  height: 40px;
-  border: 2px solid #4b5563;
-  border-radius: 6px;
-  opacity: 0.55;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 8px;
-    bottom: 8px;
-    width: 14px;
-    height: 10px;
-    border-left: 2px solid #6b7280;
-    border-bottom: 2px solid #6b7280;
-    transform: skewX(-12deg);
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #6b7280;
-  }
+  font-size: 32px;
+  opacity: 0.5;
 }
 
 .image-node__spinner {

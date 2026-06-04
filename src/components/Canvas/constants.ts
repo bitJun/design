@@ -441,7 +441,8 @@ export const NODE_SIZE = {
     landscape: { width: 300, height: 360 },
     portrait: { width: 220, height: 400 },
     genPicker: { width: 300, height: 340 },
-    img2img: { width: 300, height: 340 },
+    /** 图生图节点仅保留预览区，输入框在节点下方浮层 */
+    img2img: { width: 300, height: 240 },
     hd: { width: 300, height: 360 },
   },
   video: {

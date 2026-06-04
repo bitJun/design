@@ -1638,11 +1638,7 @@ function addNode(kind: NodeKind, point?: { x: number; y: number }) {
   if (!g) return
 
   const position = point ?? addMenuDropPoint.value ?? getGraphCenter()
-  const overrides: Partial<CanvasNodeData> =
-    kind === 'image'
-      ? { mode: 'picker', imageGenTask: 'picker' }
-      : {}
-  const node = addCanvasNode(g, kind, position, overrides)
+  const node = addCanvasNode(g, kind, position)
   const data = node.getData() as CanvasNodeData
 
   if (data.mode === 'picker' && (kind === 'text' || kind === 'audio')) {
@@ -1844,10 +1840,7 @@ function handleNodeClick({ node }: { node: Node }) {
 
   const showImageGenPrompt =
     data.kind === 'image' &&
-    data.imageGenTask !== 'hd' &&
-    (data.imageGenTask === 'picker' ||
-      data.imageGenTask === 'img2img' ||
-      (!data.imageGenTask && !data.previewUrl && data.uploadState !== 'uploading'))
+    data.imageGenTask === 'img2img'
 
   const showVideoGenPrompt =
     data.kind === 'video' &&
