@@ -1,8 +1,13 @@
 <template>
   <div ref="canvasRef" class="canvas" :class="`canvas--bg-${canvasBgTheme}`">
     <header class="canvas__header">
-      <div class="canvas__brand">
-        <button type="button" class="canvas__brand-magic" title="AI 创作">
+      <div :class="`canvas__brand ${canvasBgTheme === 'light' ? 'bg_white' : ''}`">
+        <button
+          type="button"
+          class="canvas__brand-magic"
+          title="AI 创作"
+          @click="onGoHome()"
+        >
           <span class="canvas__brand-magic-icon" aria-hidden="true" />
         </button>
         <div class="canvas__brand-project-wrap">
@@ -551,7 +556,7 @@
       <CanvasHistoryPanel @close="closeHistoryPanel" />
     </div>
 
-    <div class="canvas__toolbar canvas__toolbar--left">
+    <div :class="`canvas__toolbar canvas__toolbar--left  ${canvasBgTheme === 'light' ? 'bg_white' : ''}`">
       <button
         type="button"
         class="canvas__tool-btn"
@@ -815,6 +820,7 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
 import CanvasShortcutsPanel from './CanvasShortcutsPanel.vue'
@@ -881,7 +887,7 @@ import {
   type CanvasSnapshot,
 } from './canvasSnapshot'
 import { createCanvasHistory } from './canvasHistory'
-
+const router = useRouter()
 const canvasRef = ref<HTMLElement | null>(null)
 const graphRef = ref<HTMLElement | null>(null)
 const minimapContainerRef = ref<HTMLElement | null>(null)
@@ -890,7 +896,7 @@ const graph = shallowRef<Graph | null>(null)
 const nodeCount = ref(0)
 const zoomLevel = ref(1)
 const showZoomMenu = ref(false)
-const gridVisible = ref(true)
+const gridVisible = ref(false)
 const canvasBgTheme = ref<CanvasBgTheme>('dark')
 const panMode = ref(true)
 const showShortcutsPanel = ref(false)
@@ -905,7 +911,7 @@ let spacePanActive = false
 let spacePanWasEnabled = false
 let spaceKeyDownAt = 0
 let altVoiceTimer: ReturnType<typeof setTimeout> | null = null
-const showMinimap = ref(true)
+const showMinimap = ref(false)
 const showProjectMenu = ref(false)
 const canvasProjects = ref([...CANVAS_PROJECTS])
 const activeProjectId = ref('draft-2')
@@ -983,6 +989,10 @@ const imageCropSource = computed(() => {
 
 const showNodeToolbar = computed(() => Boolean(selectedNodeId.value))
 const toolbarRevision = ref(0)
+
+function onGoHome() {
+  router.push({ name: 'home' })
+}
 
 function getSelectedNodeData(): CanvasNodeData | undefined {
   const id = selectedNodeId.value
