@@ -1,5 +1,5 @@
 <template>
-  <div class="image-dialogue">
+  <div class="image-dialogue" :class="{ 'image-dialogue--light': isLightTheme }">
     <div class="image-dialogue__head">
       <div class="image-dialogue__greeting">
         <span class="image-dialogue__avatar" aria-hidden="true" />
@@ -129,6 +129,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useCanvasBgTheme } from './useCanvasBgTheme'
 import ImageColorPickerPanel from './ImageColorPickerPanel.vue'
 import ImageGenSettingsPopover from './ImageGenSettingsPopover.vue'
 import {
@@ -148,6 +149,8 @@ defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
+
+const { isLightTheme } = useCanvasBgTheme()
 
 const showAdvisorMenu = ref(false)
 const showColorPicker = ref(false)
@@ -198,11 +201,17 @@ function selectAdvisorItem() {
   position: relative;
   width: 100%;
   padding: 14px 16px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #3d3d45;
   border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+  background: rgba(30, 30, 34, 0.98);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   overflow: visible;
+
+  &--light {
+    border-color: #e5e7eb;
+    background: #fff;
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+  }
 }
 
 .image-dialogue__head {
@@ -231,10 +240,14 @@ function selectAdvisorItem() {
 .image-dialogue__greeting-text {
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: #e5e7eb;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  .image-dialogue--light & {
+    color: #374151;
+  }
 }
 
 .image-dialogue__head-actions {
@@ -258,8 +271,13 @@ function selectAdvisorItem() {
 }
 
 .image-dialogue__auto--active {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: #2a2a30;
+  border-color: #4b4b55;
+
+  .image-dialogue--light & {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+  }
 }
 
 .image-dialogue__color-panel-wrap {
@@ -276,22 +294,37 @@ function selectAdvisorItem() {
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #4b4b55;
   border-radius: 999px;
-  background: #fff;
-  color: #374151;
+  background: #252528;
+  color: #e5e7eb;
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
 
   &:hover {
-    background: #f9fafb;
+    background: #2a2a30;
+  }
+
+  .image-dialogue--light & {
+    border-color: #e5e7eb;
+    background: #fff;
+    color: #374151;
+
+    &:hover {
+      background: #f9fafb;
+    }
   }
 }
 
 .image-dialogue__select--active {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: #2a2a30;
+  border-color: #4b4b55;
+
+  .image-dialogue--light & {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+  }
 }
 
 .image-dialogue__select-arrow {
@@ -307,11 +340,17 @@ function selectAdvisorItem() {
   z-index: 3;
   min-width: 168px;
   padding: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #3d3d45;
   border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  background: #1e1e22;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   transform: translateX(calc(100% + 10px));
+
+  .image-dialogue--light & {
+    border-color: #e5e7eb;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  }
 }
 
 .image-dialogue__advisor-title {
@@ -321,10 +360,14 @@ function selectAdvisorItem() {
   gap: 8px;
   margin-bottom: 4px;
   padding: 6px 8px;
-  color: #374151;
+  color: #e5e7eb;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.2;
+
+  .image-dialogue--light & {
+    color: #374151;
+  }
 }
 
 .image-dialogue__advisor-title-arrow {
@@ -343,14 +386,22 @@ function selectAdvisorItem() {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #374151;
+  color: #e5e7eb;
   font-size: 13px;
   line-height: 1.2;
   text-align: left;
   cursor: pointer;
 
   &:hover {
-    background: #f3f4f6;
+    background: #2a2a30;
+  }
+
+  .image-dialogue--light & {
+    color: #374151;
+
+    &:hover {
+      background: #f3f4f6;
+    }
   }
 }
 
@@ -374,6 +425,10 @@ function selectAdvisorItem() {
   cursor: pointer;
 
   &:hover {
+    background: #2a2a30;
+  }
+
+  .image-dialogue--light &:hover {
     background: #f3f4f6;
   }
 }
@@ -388,10 +443,10 @@ function selectAdvisorItem() {
   width: 100%;
   min-height: 88px;
   padding: 12px 14px;
-  border: 1px solid #eef0f3;
+  border: 1px solid #3d3d45;
   border-radius: 12px;
-  background: #fafafa;
-  color: #111827;
+  background: #252528;
+  color: #f3f4f6;
   font-size: 14px;
   line-height: 1.55;
   resize: none;
@@ -399,12 +454,27 @@ function selectAdvisorItem() {
   box-sizing: border-box;
 
   &::placeholder {
-    color: #9ca3af;
+    color: #6b7280;
   }
 
   &:focus {
-    border-color: #d1d5db;
-    background: #fff;
+    border-color: #4b4b55;
+    background: #2a2a30;
+  }
+
+  .image-dialogue--light & {
+    border-color: #eef0f3;
+    background: #fafafa;
+    color: #111827;
+
+    &::placeholder {
+      color: #9ca3af;
+    }
+
+    &:focus {
+      border-color: #d1d5db;
+      background: #fff;
+    }
   }
 }
 
@@ -436,6 +506,10 @@ function selectAdvisorItem() {
   cursor: pointer;
 
   &:hover {
+    background: #2a2a30;
+  }
+
+  .image-dialogue--light &:hover {
     background: #f3f4f6;
   }
 }
@@ -471,13 +545,22 @@ function selectAdvisorItem() {
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #4b4b55;
   border-radius: 8px;
-  background: #fff;
+  background: #252528;
   cursor: pointer;
 
   &:hover {
-    background: #f9fafb;
+    background: #2a2a30;
+  }
+
+  .image-dialogue--light & {
+    border-color: #e5e7eb;
+    background: #fff;
+
+    &:hover {
+      background: #f9fafb;
+    }
   }
 }
 
@@ -496,11 +579,19 @@ function selectAdvisorItem() {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: #111827;
+  background: #6b7cff;
   cursor: pointer;
 
   &:hover {
-    background: #1f2937;
+    background: #5b6cff;
+  }
+
+  .image-dialogue--light & {
+    background: #111827;
+
+    &:hover {
+      background: #1f2937;
+    }
   }
 }
 

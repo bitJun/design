@@ -1221,6 +1221,29 @@
   .canvas__zoom-menu-divider {
     background: #e5e7eb;
   }
+
+  .canvas__prompt {
+    border-color: #e5e7eb;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.1);
+  }
+
+  .canvas__prompt-input {
+    color: #111827;
+
+    &::placeholder {
+      color: #9ca3af;
+    }
+  }
+
+  .canvas__prompt-icon {
+    background: #f3f4f6;
+    color: #374151;
+  }
+
+  .canvas__prompt-count {
+    color: #6b7280;
+  }
 }
 
 .canvas__connect-menu {

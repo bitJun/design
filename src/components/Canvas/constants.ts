@@ -49,6 +49,14 @@ export const EMPTY_HINT = '双击画布 自由生成节点'
 /** 图片节点标题栏高度 + 与预览区间距，用于工具栏锚定在图片区域正上方 */
 export const IMAGE_NODE_META_HEIGHT = 30
 
+/** 文本/图片/视频默认卡片宽与 2:3 比例（宽:高 = 2:3） */
+export const NODE_DEFAULT_WIDTH = 180
+export const NODE_DEFAULT_HEIGHT = 270
+
+export function nodeCardSize2x3(width = NODE_DEFAULT_WIDTH) {
+  return { width, height: Math.round(width * 3 / 2) }
+}
+
 /** 文本/音频 picker 底部输入框距节点底边的垂直间距 */
 export const PROMPT_BAR_TOP_GAP = 62
 
@@ -133,8 +141,8 @@ export const TEXT_PICKER_ACTIONS = [
 ]
 
 export const VIDEO_PICKER_ACTIONS = [
-  { key: 'frames', label: '首尾帧生成视频', icon: 'frames' },
-  { key: 'first', label: '首帧生成视频', icon: 'spark' },
+  // { key: 'frames', label: '首尾帧生成视频', icon: 'frames' },
+  // { key: 'first', label: '首帧生成视频', icon: 'spark' },
 ]
 
 export const VIDEO_GEN_TABS: Array<{ key: string; label: string; disabled?: boolean }> = [
@@ -435,21 +443,26 @@ export function getImageToolbarMoreHover(key: string) {
 export const PROMPT_PLACEHOLDER =
   '写下你想讲的故事、场景或角色设定，例如：一个来自未来的机器人，在城市屋顶看星星。'
 
+const NODE_CARD = nodeCardSize2x3()
+
 export const NODE_SIZE = {
-  text: { picker: { width: 280, height: 300 }, editor: { width: 320, height: 220 } },
+  text: { picker: { ...NODE_CARD }, editor: { width: 320, height: 220 } },
   image: {
-    landscape: { width: 300, height: 360 },
-    portrait: { width: 220, height: 400 },
-    genPicker: { width: 300, height: 340 },
+    landscape: { ...NODE_CARD },
+    portrait: { ...NODE_CARD },
+    genPicker: { ...NODE_CARD },
     /** 图生图节点仅保留预览区，输入框在节点下方浮层 */
     img2img: { width: 300, height: 240 },
     hd: { width: 300, height: 360 },
   },
   video: {
-    picker: { width: 300, height: 340 },
-    landscape: { width: 480, height: 300 },
+    picker: { ...NODE_CARD },
+    /** 未上传视频时与文本/图片卡片同尺寸 */
+    landscape: { ...NODE_CARD },
+    /** 已上传视频按 2:3 展示，宽 180 */
+    media: { ...NODE_CARD },
   },
-  audio: { picker: { width: 280, height: 300 }, editor: { width: 320, height: 220 } },
+  audio: { picker: { ...NODE_CARD }, editor: { width: 320, height: 220 } },
 }
 
 export const KIND_LABEL: Record<NodeKind, string> = {

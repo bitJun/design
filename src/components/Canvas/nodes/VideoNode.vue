@@ -1,5 +1,12 @@
 <template>
-  <div class="video-node" :class="{ 'video-node--selected': data.isSelected }">
+  <div
+    class="video-node"
+    :class="{
+      'video-node--selected': data.isSelected,
+      'video-node--light': isLightTheme,
+      'video-node--picker-card': data.mode === 'picker',
+    }"
+  >
     <button
       type="button"
       class="node-port-plus"
@@ -8,7 +15,7 @@
     >
       +
     </button>
-    <div class="video-node__meta canvas-node__meta">
+    <!-- <div class="video-node__meta canvas-node__meta">
       <span class="video-node__title">
         <span class="video-node__play">▶</span>
         <span class="video-node__title-text">{{ data.title }}</span>
@@ -23,7 +30,7 @@
       >
         ×
       </button>
-    </div>
+    </div> -->
 
     <button
       v-if="data.mode === 'picker'"
@@ -37,7 +44,7 @@
 
     <div v-if="data.mode === 'picker'" class="video-node__body video-node__body--picker">
       <div class="video-node__hero-play">▶</div>
-      <p class="video-node__try">尝试：</p>
+      <!-- <p class="video-node__try">尝试：</p>
       <button
         v-for="action in VIDEO_PICKER_ACTIONS"
         :key="action.key"
@@ -48,7 +55,7 @@
       >
         <span class="video-node__action-icon" :data-icon="action.icon" />
         {{ action.label }}
-      </button>
+      </button> -->
     </div>
 
     <div v-else class="video-node__body video-node__body--media">
@@ -91,12 +98,14 @@ import { VIDEO_PICKER_ACTIONS, formatDimensions } from '../constants'
 import type { CanvasNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
+import { useCanvasBgTheme } from '../useCanvasBgTheme'
 
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
 const openVideoGenPromptBar = inject<(nodeId: string, tab?: string) => void>('openVideoGenPromptBar')
 const { removeSelf } = useNodeDelete()
 const { onPlusPointerDown } = useNodeConnect()
+const { isLightTheme } = useCanvasBgTheme()
 const videoRef = ref<HTMLVideoElement | null>(null)
 
 const data = reactive<CanvasNodeData>({
@@ -154,8 +163,11 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 @import './node-delete.scss';
 @import './node-port-plus.scss';
+@import './node-light-theme.scss';
 .video-node {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -163,6 +175,18 @@ onBeforeUnmount(() => {
   color: #f3f4f6;
   pointer-events: auto;
   overflow: visible;
+}
+
+.video-node--picker-card {
+  .video-node__body--picker {
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .video-node__hero-play {
+    margin: 0;
+  }
 }
 
 .video-node__meta {
@@ -222,6 +246,10 @@ onBeforeUnmount(() => {
 }
 
 .video-node__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   border: 1px solid #4b4b55;
   border-radius: 14px;
   background: #1e1e22;
@@ -229,17 +257,13 @@ onBeforeUnmount(() => {
 }
 
 .video-node__body--picker {
-  padding: 24px 16px 16px;
+  padding: 16px 12px;
 }
 
 .video-node__body--media {
-  display: flex;
-  flex-direction: column;
   align-items: stretch;
   justify-content: center;
   gap: 12px;
-  height: calc(100% - 24px);
-  min-height: 180px;
   padding: 0;
   color: #9ca3af;
   font-size: 14px;
@@ -247,9 +271,9 @@ onBeforeUnmount(() => {
 
 .video-node__player {
   display: flex;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
-  min-height: 180px;
   background: #0a0a0c;
 }
 
@@ -263,13 +287,13 @@ onBeforeUnmount(() => {
 .video-node__empty {
   display: flex;
   flex: 1;
+  min-height: 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
   width: 100%;
-  min-height: 180px;
-  padding: 24px 16px;
+  padding: 16px 12px;
   border: none;
   background: transparent;
   color: #9ca3af;
@@ -285,12 +309,12 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   margin: 0 auto 16px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.08);
-  font-size: 20px;
+  font-size: 18px;
   color: #d1d5db;
 
   &--lg {

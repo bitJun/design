@@ -1,5 +1,9 @@
 <template>
-  <div class="image-gen-prompt-panel" @mousedown.stop>
+  <div
+    class="image-gen-prompt-panel"
+    :class="{ 'image-gen-prompt-panel--light': isLightTheme }"
+    @mousedown.stop
+  >
     <div class="image-gen-prompt-panel__head">
       <div class="image-gen-prompt-panel__tags">
         <button
@@ -51,6 +55,9 @@
 
 <script setup lang="ts">
 import { IMG2IMG_PROMPT_PLACEHOLDER, IMG2IMG_QUICK_TAGS } from './constants'
+import { useCanvasBgTheme } from './useCanvasBgTheme'
+
+const { isLightTheme } = useCanvasBgTheme()
 
 defineProps<{
   prompt: string
@@ -82,6 +89,12 @@ function onSeedInput(event: Event) {
   background: rgba(24, 24, 28, 0.98);
   backdrop-filter: blur(12px);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+
+  &--light {
+    border-color: #e5e7eb;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.1);
+  }
 }
 
 .image-gen-prompt-panel__head {
@@ -112,6 +125,16 @@ function onSeedInput(event: Event) {
   &:hover {
     background: #2a2a30;
     color: #e5e7eb;
+  }
+
+  .image-gen-prompt-panel--light & {
+    background: #f3f4f6;
+    color: #6b7280;
+
+    &:hover {
+      background: #e5e7eb;
+      color: #374151;
+    }
   }
 }
 
@@ -147,6 +170,15 @@ function onSeedInput(event: Event) {
     background: #2a2a30;
     color: #e5e7eb;
   }
+
+  .image-gen-prompt-panel--light & {
+    color: #6b7280;
+
+    &:hover {
+      background: #f3f4f6;
+      color: #374151;
+    }
+  }
 }
 
 .image-gen-prompt-panel__input {
@@ -165,6 +197,14 @@ function onSeedInput(event: Event) {
 
   &::placeholder {
     color: #6b7280;
+  }
+
+  .image-gen-prompt-panel--light & {
+    color: #111827;
+
+    &::placeholder {
+      color: #9ca3af;
+    }
   }
 }
 
@@ -195,6 +235,16 @@ function onSeedInput(event: Event) {
     align-items: center;
     gap: 4px;
   }
+
+  .image-gen-prompt-panel--light & {
+    background: #f3f4f6;
+    color: #6b7280;
+
+    &:hover {
+      background: #e5e7eb;
+      color: #374151;
+    }
+  }
 }
 
 .image-gen-prompt-panel__tools {
@@ -214,6 +264,15 @@ function onSeedInput(event: Event) {
   &:hover {
     background: #252528;
     color: #e5e7eb;
+  }
+
+  .image-gen-prompt-panel--light & {
+    color: #6b7280;
+
+    &:hover {
+      background: #f3f4f6;
+      color: #374151;
+    }
   }
 }
 
@@ -237,6 +296,12 @@ function onSeedInput(event: Event) {
   color: #e5e7eb;
   font-size: 11px;
   text-align: center;
+
+  .image-gen-prompt-panel--light & {
+    border-color: #e5e7eb;
+    background: #f9fafb;
+    color: #374151;
+  }
 }
 
 .image-gen-prompt-panel__send {

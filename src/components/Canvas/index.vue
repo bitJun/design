@@ -889,13 +889,14 @@ import logoWhite from '@assets/images/logo_white.png'
 import logoBlack from '@assets/images/logo_black.png'
 import { useModalStore } from '@stores/useModal'
 import { useRouter } from 'vue-router'
-import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
 import CanvasShortcutsPanel from './CanvasShortcutsPanel.vue'
 import CanvasHistoryPanel from './CanvasHistoryPanel.vue'
 import ImageGenPromptPanel from './ImageGenPromptPanel.vue'
 import VideoGenPromptPanel from './VideoGenPromptPanel.vue'
 import ImageDialoguePanel from './ImageDialoguePanel.vue'
+import { setSharedCanvasBgTheme } from './useCanvasBgTheme'
 import ImageCropOverlay from './ImageCropOverlay.vue'
 import VideoDialoguePanel from './VideoDialoguePanel.vue'
 import VideoHdPanel from './VideoHdPanel.vue'
@@ -939,6 +940,8 @@ import {
   getNodeToolbarPosition,
   getScroller,
   graphLocalToContainerOffset,
+  refreshCanvasNodeViews,
+  syncAllNodeSizes,
   type CanvasGraph,
 } from './graph'
 import {
@@ -989,6 +992,12 @@ const zoomLevel = ref(1)
 const showZoomMenu = ref(false)
 const gridVisible = ref(false)
 const canvasBgTheme = ref<CanvasBgTheme>('light')
+
+watch(canvasBgTheme, (theme) => {
+  setSharedCanvasBgTheme(theme)
+  const g = graph.value
+  if (g) refreshCanvasNodeViews(g)
+}, { immediate: true })
 const panMode = ref(true)
 const showShortcutsPanel = ref(false)
 const imagePreviewUrl = ref('')
@@ -2628,6 +2637,11 @@ onMounted(() => {
 
   syncZoom()
   syncNodeCount()
+
+  nextTick(() => {
+    syncAllNodeSizes(instance)
+    refreshCanvasNodeViews(instance)
+  })
 
   if (showMinimap.value) {
     nextTick(() => setupMinimap())

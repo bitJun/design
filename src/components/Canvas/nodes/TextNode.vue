@@ -1,5 +1,12 @@
 <template>
-  <div class="text-node" :class="{ 'text-node--selected': data.isSelected }">
+  <div
+    class="text-node"
+    :class="{
+      'text-node--selected': data.isSelected,
+      'text-node--light': isLightTheme,
+      'text-node--picker-card': data.mode === 'picker',
+    }"
+  >
     <button
       type="button"
       class="node-port-plus"
@@ -8,7 +15,7 @@
     >
       +
     </button>
-    <div class="text-node__title canvas-node__meta">
+    <div v-if="data.mode !== 'picker'" class="text-node__title canvas-node__meta">
       <span class="text-node__title-icon">T</span>
       <span class="text-node__title-text">{{ data.title }}</span>
       <button
@@ -73,8 +80,10 @@ import type { CanvasNodeData } from '../constants'
 import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
+import { useCanvasBgTheme } from '../useCanvasBgTheme'
 
 const getNode = inject<() => Node>('getNode')!
+const { isLightTheme } = useCanvasBgTheme()
 const { removeSelf } = useNodeDelete()
 const { onPlusPointerDown } = useNodeConnect()
 
@@ -111,14 +120,26 @@ onMounted(() => {
 <style scoped lang="scss">
 @import './node-delete.scss';
 @import './node-port-plus.scss';
+@import './node-light-theme.scss';
 .text-node {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
   font-family: system-ui, -apple-system, sans-serif;
   color: #f3f4f6;
   pointer-events: auto;
+}
+
+.text-node--picker-card {
+  .text-node__body--picker {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .text-node__title {
@@ -162,7 +183,7 @@ onMounted(() => {
 }
 
 .text-node__body--picker {
-  padding: 20px 16px 16px;
+  padding: 16px 12px 12px;
 }
 
 .text-node__hero-icon {
@@ -170,7 +191,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 
   span {
     display: block;
@@ -196,13 +217,13 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   width: 100%;
-  margin-bottom: 6px;
-  padding: 10px 12px;
+  margin-bottom: 4px;
+  padding: 8px 10px;
   border: none;
   border-radius: 10px;
   background: transparent;
   color: #e5e7eb;
-  font-size: 13px;
+  font-size: 12px;
   text-align: left;
   cursor: pointer;
   transition: background 0.15s;

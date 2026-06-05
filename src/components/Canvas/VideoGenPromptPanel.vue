@@ -1,5 +1,9 @@
 <template>
-  <div class="video-gen-prompt-panel" @mousedown.stop>
+  <div
+    class="video-gen-prompt-panel"
+    :class="{ 'video-gen-prompt-panel--light': isLightTheme }"
+    @mousedown.stop
+  >
     <p v-if="showConnectHint" class="video-gen-prompt-panel__hint">
       需要连接图片节点（1~9个）
     </p>
@@ -62,11 +66,14 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useCanvasBgTheme } from './useCanvasBgTheme'
 import {
   VIDEO_GEN_PROMPT_PLACEHOLDER,
   VIDEO_GEN_QUICK_ACTIONS,
   VIDEO_GEN_TABS,
 } from './constants'
+
+const { isLightTheme } = useCanvasBgTheme()
 
 const props = defineProps<{
   prompt: string
@@ -102,6 +109,12 @@ function onPromptInput(event: Event) {
   background: rgba(24, 24, 28, 0.98);
   backdrop-filter: blur(12px);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+
+  &--light {
+    border-color: #e5e7eb;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.1);
+  }
 }
 
 .video-gen-prompt-panel__hint {
@@ -112,6 +125,11 @@ function onPromptInput(event: Event) {
   color: #9ca3af;
   font-size: 12px;
   text-align: center;
+
+  .video-gen-prompt-panel--light & {
+    background: #f3f4f6;
+    color: #6b7280;
+  }
 }
 
 .video-gen-prompt-panel__tabs {
@@ -122,6 +140,10 @@ function onPromptInput(event: Event) {
   padding-bottom: 10px;
   border-bottom: 1px solid #2e2e34;
   overflow-x: auto;
+
+  .video-gen-prompt-panel--light & {
+    border-bottom-color: #e5e7eb;
+  }
 }
 
 .video-gen-prompt-panel__tab {
@@ -144,6 +166,21 @@ function onPromptInput(event: Event) {
   &--active-disabled {
     color: #f3f4f6;
     background: #3d3d45;
+  }
+
+  .video-gen-prompt-panel--light & {
+    color: #9ca3af;
+
+    &:hover:not(:disabled) {
+      color: #374151;
+      background: #f3f4f6;
+    }
+
+    &--active,
+    &--active-disabled {
+      color: #111827;
+      background: #e5e7eb;
+    }
   }
 
   &:disabled {
@@ -186,6 +223,15 @@ function onPromptInput(event: Event) {
     background: #2a2a30;
     color: #e5e7eb;
   }
+
+  .video-gen-prompt-panel--light & {
+    color: #6b7280;
+
+    &:hover {
+      background: #f3f4f6;
+      color: #374151;
+    }
+  }
 }
 
 .video-gen-prompt-panel__action-icon {
@@ -193,6 +239,10 @@ function onPromptInput(event: Event) {
   height: 28px;
   border-radius: 8px;
   background: #3d3d45;
+
+  .video-gen-prompt-panel--light & {
+    background: #e5e7eb;
+  }
 
   &[data-icon='mark']::after {
     content: '⌖';
@@ -241,6 +291,15 @@ function onPromptInput(event: Event) {
     background: #2a2a30;
     color: #e5e7eb;
   }
+
+  .video-gen-prompt-panel--light & {
+    color: #6b7280;
+
+    &:hover {
+      background: #f3f4f6;
+      color: #374151;
+    }
+  }
 }
 
 .video-gen-prompt-panel__input {
@@ -259,6 +318,14 @@ function onPromptInput(event: Event) {
 
   &::placeholder {
     color: #6b7280;
+  }
+
+  .video-gen-prompt-panel--light & {
+    color: #111827;
+
+    &::placeholder {
+      color: #9ca3af;
+    }
   }
 }
 
@@ -287,6 +354,20 @@ function onPromptInput(event: Event) {
   &--vip {
     color: #c4b5fd;
   }
+
+  .video-gen-prompt-panel--light & {
+    background: #f3f4f6;
+    color: #6b7280;
+
+    &:hover {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    &--vip {
+      color: #7c3aed;
+    }
+  }
 }
 
 .video-gen-prompt-panel__tools {
@@ -307,6 +388,15 @@ function onPromptInput(event: Event) {
     background: #252528;
     color: #e5e7eb;
   }
+
+  .video-gen-prompt-panel--light & {
+    color: #6b7280;
+
+    &:hover {
+      background: #f3f4f6;
+      color: #374151;
+    }
+  }
 }
 
 .video-gen-prompt-panel__credits {
@@ -314,6 +404,10 @@ function onPromptInput(event: Event) {
   font-size: 11px;
   color: #6b7280;
   white-space: nowrap;
+
+  .video-gen-prompt-panel--light & {
+    color: #9ca3af;
+  }
 }
 
 .video-gen-prompt-panel__send {

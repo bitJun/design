@@ -116,10 +116,10 @@ export function registerShapes() {
   if (shapesRegistered) return
   shapesRegistered = true
 
-  register({ shape: 'text-node', width: 280, height: 300, component: TextNode })
-  register({ shape: 'image-node', width: 300, height: 360, component: ImageNode })
-  register({ shape: 'image-gen-node', width: 300, height: 340, component: ImageGenNode })
-  register({ shape: 'video-node', width: 300, height: 340, component: VideoNode })
+  register({ shape: 'text-node', width: 180, height: 270, component: TextNode })
+  register({ shape: 'image-node', width: 180, height: 270, component: ImageNode })
+  register({ shape: 'image-gen-node', width: 180, height: 270, component: ImageGenNode })
+  register({ shape: 'video-node', width: 180, height: 270, component: VideoNode })
 }
 
 export function createDefaultNodeData(kind: NodeKind): CanvasNodeData {
@@ -152,8 +152,8 @@ export function getBaseNodeSize(
     return mode === 'editor' ? NODE_SIZE.text.editor : NODE_SIZE.text.picker
   }
   if (kind === 'video') {
-    if (mode === 'picker') return NODE_SIZE.video.picker
-    return NODE_SIZE.video.landscape
+    if (mode === 'picker' || !data?.previewUrl) return NODE_SIZE.video.picker
+    return NODE_SIZE.video.media
   }
   if (kind === 'image') {
     if (data?.imageGenTask === 'picker') return NODE_SIZE.image.genPicker
@@ -407,7 +407,12 @@ export function bindGraphInteraction(graph: Graph) {
 function getNodeToolbarAnchorY(node: Node) {
   const bbox = node.getBBox()
   const data = node.getData() as CanvasNodeData
-  if (data.kind === 'image' && data.mode === 'editor' && !data.imageGenTask) {
+  if (
+    data.kind === 'image' &&
+    data.mode === 'editor' &&
+    !data.imageGenTask &&
+    data.previewUrl
+  ) {
     return bbox.y + IMAGE_NODE_META_HEIGHT
   }
   return bbox.y
@@ -509,4 +514,25 @@ export function getNodeCropOverlayPosition(
     width,
     height,
   }
+}
+
+type VueShapeViewLike = {
+  renderVueComponent?: () => void
+}
+
+/** 按当前数据重新计算并应用节点尺寸（用于历史记录恢复后的尺寸校正） */
+export function syncAllNodeSizes(graph: Graph) {
+  graph.getNodes().forEach((node) => {
+    const data = node.getData() as CanvasNodeData
+    const size = getNodeSize(data.kind, data.mode, data)
+    node.resize(size.width, size.height)
+  })
+}
+
+/** vue-shape 节点在独立 Vue 实例中，主题切换后强制重渲染 */
+export function refreshCanvasNodeViews(graph: Graph) {
+  graph.getNodes().forEach((node) => {
+    const view = graph.findViewByCell(node) as VueShapeViewLike | null
+    view?.renderVueComponent?.()
+  })
 }

@@ -1,7 +1,12 @@
 <template>
   <div
     class="image-node"
-    :class="{ 'image-node--portrait': isPortraitLayout, 'image-node--selected': data.isSelected }"
+    :class="{
+      'image-node--portrait': isPortraitLayout,
+      'image-node--selected': data.isSelected,
+      'image-node--light': isLightTheme,
+      'image-node--card-only': !data.previewUrl,
+    }"
   >
     <button
       type="button"
@@ -11,7 +16,7 @@
     >
       +
     </button>
-    <div class="image-node__meta canvas-node__meta">
+    <div v-if="data.previewUrl" class="image-node__meta canvas-node__meta">
       <span class="image-node__title">
         <span class="image-node__title-icon">▣</span>
         <span class="image-node__title-text">{{ data.title }}</span>
@@ -73,12 +78,14 @@ import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
 import { useNodeViewScale } from './useNodeViewScale'
+import { useCanvasBgTheme } from '../useCanvasBgTheme'
 
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
 const { removeSelf } = useNodeDelete()
 const { onPlusPointerDown } = useNodeConnect()
 const { startResize, previewScale, isResizing } = useNodeViewScale()
+const { isLightTheme } = useCanvasBgTheme()
 
 const data = reactive<CanvasNodeData>({ ...createEmptyNodeData(), kind: 'image', title: '图片节点', mode: 'editor' })
 
@@ -137,8 +144,11 @@ onMounted(() => {
 <style scoped lang="scss">
 @import './node-delete.scss';
 @import './node-port-plus.scss';
+@import './node-light-theme.scss';
 .image-node {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -146,6 +156,15 @@ onMounted(() => {
   color: #f3f4f6;
   pointer-events: auto;
   overflow: visible;
+}
+
+.image-node--card-only {
+  .image-node__body {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    // padding: 8px;
+  }
 }
 
 .image-node__meta {
@@ -187,7 +206,7 @@ onMounted(() => {
 .image-node__body {
   position: relative;
   height: calc(100% - 24px);
-  padding: 10px;
+  // padding: 10px;
   border: 1px solid #4b4b55;
   border-radius: 14px;
   background: #1e1e22;
@@ -226,14 +245,14 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   height: 100%;
-  min-height: 160px;
+  min-height: 0;
   border-radius: 10px;
   background: #141416;
   color: #9ca3af;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   overflow: hidden;
   position: relative;
@@ -262,7 +281,7 @@ onMounted(() => {
 }
 
 .image-node__placeholder-icon {
-  font-size: 32px;
+  font-size: 28px;
   opacity: 0.5;
 }
 
