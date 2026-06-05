@@ -14,6 +14,7 @@ declare module 'vue' {
     AButton: typeof import('ant-design-vue/es')['Button']
     AFlex: typeof import('ant-design-vue/es')['Flex']
     APopover: typeof import('ant-design-vue/es')['Popover']
+    ASelect: typeof import('ant-design-vue/es')['Select']
     Canvas: typeof import('./components/Canvas/index.vue')['default']
     CanvasHistoryPanel: typeof import('./components/Canvas/CanvasHistoryPanel.vue')['default']
     CanvasShortcutsPanel: typeof import('./components/Canvas/CanvasShortcutsPanel.vue')['default']

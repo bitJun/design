@@ -587,11 +587,16 @@
       <textarea
         v-model="promptText"
         class="canvas__prompt-input"
-        :placeholder="PROMPT_PLACEHOLDER"
+        :placeholder="modelPrompt[modelType as keyof typeof modelPrompt]"
         rows="3"
       />
       <div class="canvas__prompt-footer">
-        <span class="canvas__prompt-model">GVLM 3.1</span>
+        <a-select
+          placeholder="选择"
+          v-model="modelType"
+          :options="promptModelOptions"
+          style="width: 140px;"
+        />
         <div class="canvas__prompt-actions">
           <button type="button" class="canvas__prompt-icon" title="翻译">文</button>
           <span class="canvas__prompt-count">+ 1</span>
@@ -960,7 +965,17 @@ const USER_MENU_ITEMS = [
 ] as const
 
 type UserMenuKey = (typeof USER_MENU_ITEMS)[number]['key']
-
+const modelType = ref('img2prompt');
+const modelPrompt = ref({
+  'img2prompt': '根据图片生成提示词',
+  'text2xhs': '根据文字生成小红书种草文案',
+  'free': '自由编辑文案',
+});
+const promptModelOptions = [
+  { label: '反推提示词', value: 'img2prompt' },
+  { label: '小红书种草文案', value: 'text2xhs' },
+  { label: '自由编辑', value: 'free' },
+]
 const userMenuName = ref('李阳')
 const userMenuRole = ref('普通用户')
 const userMenuPoints = ref(3)
@@ -1247,12 +1262,36 @@ function closeVideoSubPanels(except?: 'dialogue' | 'hd' | 'frames') {
   if (except !== 'frames') showVideoFramesPanel.value = false
 }
 
-function toggleImageDialogue() {
-  showImageDialogue.value = !showImageDialogue.value
+function openImageDialogue(nodeId?: string) {
+  const g = graph.value
+  if (!g) return
+  const id = nodeId ?? selectedNodeId.value
+  if (!id) return
+  const cell = g.getCellById(id)
+  if (!cell?.isNode()) return
+  const data = cell.getData() as CanvasNodeData
+  if (data.kind !== 'image') return
+
+  selectedNodeId.value = id
+  selectedKind.value = 'image'
+  showImageDialogue.value = true
   showImageHdMenu.value = false
+  closeImageGenPromptBar()
+  syncNodeSelectionHighlight(id)
+  updateNodeToolbar()
+}
+
+function toggleImageDialogue() {
   if (showImageDialogue.value) {
-    updateNodeToolbar()
+    resetImageDialogue()
+  } else {
+    openImageDialogue()
   }
+  showImageHdMenu.value = false
+}
+
+function handleImageNodeDblClick({ node }: { node: Node }) {
+  openImageDialogue(node.id)
 }
 
 function toggleVideoDialogue() {
@@ -2494,10 +2533,7 @@ function handleKeydown(event: KeyboardEvent) {
     if (data.kind !== 'image') return
     if (altVoiceTimer) clearTimeout(altVoiceTimer)
     altVoiceTimer = setTimeout(() => {
-      selectedNodeId.value = node.id
-      selectedKind.value = 'image'
-      showImageDialogue.value = true
-      updateNodeToolbar()
+      openImageDialogue(node.id)
       altVoiceTimer = null
     }, 420)
     return
@@ -2548,6 +2584,7 @@ onMounted(() => {
 
   const instance = createGraph(graphRef.value) as CanvasGraph
   instance.__openConnectMenu = openConnectMenuByNodeId
+  instance.__openImageDialogue = openImageDialogue
   graph.value = instance
   bindGraphInteraction(instance)
   bindScrollerScrollListener(instance)
@@ -2566,6 +2603,12 @@ onMounted(() => {
   instance.on('node:added', syncNodeCount)
   instance.on('node:removed', syncNodeCount)
   instance.on('node:click', handleNodeClick)
+  instance.on('node:dblclick', ({ node }) => {
+    const data = node.getData() as CanvasNodeData
+    if (data.kind === 'image') {
+      handleImageNodeDblClick({ node })
+    }
+  })
   instance.on('blank:click', () => {
     handleBlankClick()
     handleNodeUnselected()

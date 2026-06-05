@@ -98,6 +98,7 @@ export type ConnectMenuOpener = (
 export type CanvasGraph = Graph & {
   __scroller?: Scroller
   __openConnectMenu?: ConnectMenuOpener
+  __openImageDialogue?: (nodeId: string) => void
   __suppressBlankCloseForConnect?: boolean
   __connectPreviewEdgeId?: string
 }

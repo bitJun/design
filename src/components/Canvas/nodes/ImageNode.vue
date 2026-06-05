@@ -43,7 +43,8 @@
       <div
         class="image-node__preview"
         :class="{ 'image-node__preview--uploading': data.uploadState === 'uploading' }"
-        @click="requestFile"
+        @click="onPreviewClick"
+        @dblclick.stop="onPreviewDblClick"
       >
         <template v-if="data.uploadState === 'uploading'">
           <span class="image-node__spinner" />
@@ -67,6 +68,7 @@ import { computed, inject, onMounted, reactive } from 'vue'
 import type { Node } from '@antv/x6'
 import { formatDimensions, isPortrait } from '../constants'
 import type { CanvasNodeData } from '../constants'
+import type { CanvasGraph } from '../graph'
 import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
@@ -95,8 +97,32 @@ const showUploadSuccess = computed(
   () => data.uploadState === 'done' && Boolean(data.previewUrl),
 )
 
+let uploadClickTimer: ReturnType<typeof setTimeout> | null = null
+const UPLOAD_CLICK_DELAY = 280
+
 function requestFile() {
   requestCanvasUpload?.(getNode().id)
+}
+
+function cancelPendingUpload() {
+  if (!uploadClickTimer) return
+  clearTimeout(uploadClickTimer)
+  uploadClickTimer = null
+}
+
+function onPreviewClick() {
+  cancelPendingUpload()
+  uploadClickTimer = setTimeout(() => {
+    requestFile()
+    uploadClickTimer = null
+  }, UPLOAD_CLICK_DELAY)
+}
+
+function onPreviewDblClick() {
+  cancelPendingUpload()
+  const node = getNode()
+  const g = node.model?.graph as CanvasGraph | undefined
+  g?.__openImageDialogue?.(node.id)
 }
 
 onMounted(() => {
