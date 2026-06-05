@@ -61,16 +61,16 @@
         <a-popover placement="right">
           <template #content>
             <a-flex justify="space-between">
-              用户协议
+              <div class="protocol-link">用户协议</div>
             </a-flex>
             <a-flex justify="space-between">
-              隐私政策
+              <div class="protocol-link">隐私政策</div>
             </a-flex>
             <a-flex justify="space-between">
               <a-button type="primary" @click="openLoginModal">登录</a-button>
             </a-flex>
             <img
-              src="@assets/images/kefu.png"
+              src="@assets/images/kefu.jpg"
               class="app-sidebar__kefu"
             />
           </template>
@@ -84,10 +84,12 @@
       <router-view />
     </main>
     <Login v-model:open="modalStore.loginVisible" />
+    <Combo v-model:open="modalStore.comboVisible" />
   </div>
 </template>
 
 <script setup lang="ts">
+import Combo from '@components/Combo/index.vue';
 import { useModalStore } from '@stores/useModal';
 import Login from '@components/Login/index.vue';
 
@@ -230,5 +232,12 @@ function scrollPageToTop() {
 .app-sidebar__kefu {
   width: 150px;
   height: auto;
+}
+.protocol-link {
+  height: 48px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  color: #111827;
 }
 </style>

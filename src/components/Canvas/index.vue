@@ -107,10 +107,65 @@
           <span class="canvas__header-pill-icon canvas__header-pill-icon--share" aria-hidden="true" />
           导出
         </button>
-        <div class="canvas__header-pill canvas__header-pill--credits">
-          <span class="canvas__header-pill-icon canvas__header-pill-icon--star" aria-hidden="true" />
-          <span class="canvas__header-credits-value">{{ canvasCredits }}</span>
-          <span class="canvas__header-avatar" aria-hidden="true" />
+        <div class="canvas__header-user-wrap">
+          <button
+            type="button"
+            class="canvas__header-pill canvas__header-pill--credits"
+            :class="{ 'canvas__header-pill--active': showUserMenu }"
+            @click="toggleUserMenu"
+          >
+            <span class="canvas__header-pill-icon canvas__header-pill-icon--star" aria-hidden="true" />
+            <span class="canvas__header-credits-value">{{ canvasCredits }}</span>
+            <span class="canvas__header-avatar" aria-hidden="true" />
+          </button>
+
+          <div v-if="showUserMenu" class="canvas__user-menu" @mousedown.stop>
+            <button type="button" class="canvas__user-menu-profile" @click="goUserCenter">
+              <span class="canvas__user-menu-avatar" aria-hidden="true" />
+              <span class="canvas__user-menu-profile-main">
+                <span class="canvas__user-menu-name">{{ userMenuName }}</span>
+                <span class="canvas__user-menu-badge">
+                  <span class="canvas__user-menu-vip" aria-hidden="true">VIP</span>
+                  {{ userMenuRole }}
+                </span>
+              </span>
+              <span class="canvas__user-menu-chevron" aria-hidden="true" />
+            </button>
+
+            <div class="canvas__user-menu-balance">
+              <span class="canvas__user-menu-balance-left">
+                <span class="canvas__user-menu-balance-icon" aria-hidden="true" />
+                <span class="canvas__user-menu-balance-value">{{ userMenuPoints }}</span>
+              </span>
+              <button type="button" class="canvas__user-menu-buy" @click="openComboModal">
+                购买
+              </button>
+            </div>
+
+            <nav class="canvas__user-menu-nav" aria-label="用户菜单">
+              <button
+                v-for="item in USER_MENU_ITEMS"
+                :key="item.key"
+                type="button"
+                class="canvas__user-menu-item"
+                @click="handleUserMenuAction(item.key)"
+              >
+                <span
+                  class="canvas__user-menu-item-icon"
+                  :class="`canvas__user-menu-item-icon--${item.key}`"
+                  aria-hidden="true"
+                />
+                <span>{{ item.label }}</span>
+              </button>
+            </nav>
+
+            <div class="canvas__user-menu-divider" aria-hidden="true" />
+
+            <button type="button" class="canvas__user-menu-logout" @click="handleLogout">
+              <span class="canvas__user-menu-logout-icon" aria-hidden="true" />
+              退出登录
+            </button>
+          </div>
         </div>
       </div>
     </header>
@@ -827,6 +882,7 @@
 <script setup lang="ts">
 import logoWhite from '@assets/images/logo_white.png'
 import logoBlack from '@assets/images/logo_black.png'
+import { useModalStore } from '@stores/useModal'
 import { useRouter } from 'vue-router'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
@@ -895,6 +951,19 @@ import {
 } from './canvasSnapshot'
 import { createCanvasHistory } from './canvasHistory'
 const router = useRouter()
+const modalStore = useModalStore()
+
+const USER_MENU_ITEMS = [
+  { key: 'assets', label: '账户管理' },
+  { key: 'projects', label: '用户协议' },
+  { key: 'materials', label: '隐私政策' },
+] as const
+
+type UserMenuKey = (typeof USER_MENU_ITEMS)[number]['key']
+
+const userMenuName = ref('李阳')
+const userMenuRole = ref('普通用户')
+const userMenuPoints = ref(3)
 const canvasRef = ref<HTMLElement | null>(null)
 const graphRef = ref<HTMLElement | null>(null)
 const minimapContainerRef = ref<HTMLElement | null>(null)
@@ -920,6 +989,7 @@ let spaceKeyDownAt = 0
 let altVoiceTimer: ReturnType<typeof setTimeout> | null = null
 const showMinimap = ref(false)
 const showProjectMenu = ref(false)
+const showUserMenu = ref(false)
 const canvasProjects = ref([...CANVAS_PROJECTS])
 const activeProjectId = ref('draft-2')
 const showAddMenu = ref(false)
@@ -966,6 +1036,47 @@ const imageDialogueText = ref('')
 const videoDialogueText = ref('')
 const videoHdMagnification = ref<VideoHdMagnification>('2')
 const canvasCredits = ref(12003)
+
+function toggleUserMenu() {
+  showUserMenu.value = !showUserMenu.value
+}
+
+function closeUserMenu() {
+  showUserMenu.value = false
+}
+
+function goUserCenter() {
+  closeUserMenu()
+  router.push({ name: 'userInfo' })
+}
+
+function openComboModal() {
+  closeUserMenu()
+  modalStore.openModal('combo')
+}
+
+function handleUserMenuAction(key: UserMenuKey) {
+  if (key === 'projects') {
+    closeUserMenu()
+    router.push({ name: 'project' })
+    return
+  }
+  if (key === 'center') {
+    goUserCenter()
+    return
+  }
+  if (key === 'service') {
+    closeUserMenu()
+    modalStore.openModal('combo')
+    return
+  }
+  closeUserMenu()
+}
+
+function handleLogout() {
+  closeUserMenu()
+  modalStore.openModal('login')
+}
 
 const zoomPercent = computed(() => `${Math.round(zoomLevel.value * 100)}%`)
 const currentProjectName = computed(
@@ -2024,6 +2135,7 @@ function handleNodeUnselected() {
 function handleBlankClick() {
   closeAddMenu()
   closeProjectMenu()
+  closeUserMenu()
   closeZoomMenu()
   closeShortcutsPanel()
   closeHistoryPanel()
@@ -2220,6 +2332,10 @@ function cancelCurrentOperation() {
   }
   if (showProjectMenu.value) {
     closeProjectMenu()
+    return true
+  }
+  if (showUserMenu.value) {
+    closeUserMenu()
     return true
   }
   if (showZoomMenu.value) {

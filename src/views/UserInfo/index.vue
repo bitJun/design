@@ -398,12 +398,10 @@
       </div>
     </div>
   </div>
-  <Combo v-model:open="modalStore.comboVisible" />
 </template>
 
 <script setup lang="ts">
 import { useModalStore } from '@stores/useModal';
-import Combo from '@components/Combo/index.vue';
 import { computed, ref } from 'vue'
 import {
   BILL_STATUS_LABEL,
