@@ -27,6 +27,40 @@
             设计参谋
             <span class="image-dialogue__select-arrow" aria-hidden="true" />
           </button>
+          <div
+            v-if="showAdvisorMenu"
+            class="image-dialogue__advisor-menu"
+            @mousedown.stop
+          >
+            <div class="image-dialogue__advisor-title">
+              <span>{{ IMAGE_DESIGN_ADVISOR_TITLE }}</span>
+              <span class="image-dialogue__advisor-title-arrow" aria-hidden="true" />
+            </div>
+            <div
+              v-for="item in IMAGE_DESIGN_ADVISOR_MENU"
+              :key="item.key"
+              class="image-dialogue__advisor-item"
+              :class="{ 'image-dialogue__advisor-item--active': activeAdvisorKey === item.key }"
+              @mouseenter="activeAdvisorKey = item.key"
+            >
+              <span>{{ item.label }}</span>
+              <span class="image-dialogue__advisor-arrow" aria-hidden="true" />
+              <div
+                v-if="activeAdvisorKey === item.key"
+                class="image-dialogue__advisor-submenu"
+              >
+                <button
+                  v-for="child in item.children"
+                  :key="child.key"
+                  type="button"
+                  class="image-dialogue__advisor-subitem"
+                  @click="selectAdvisorSubitem(child)"
+                >
+                  {{ child.label }}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
         <button type="button" class="image-dialogue__history" title="历史">
           <span class="image-dialogue__history-icon" aria-hidden="true" />
@@ -63,27 +97,34 @@
               <span>{{ IMAGE_DESIGN_WORKFLOW_TITLE }}</span>
               <span class="image-dialogue__advisor-title-arrow" aria-hidden="true" />
             </div>
-            <button
+            <div
               v-for="item in IMAGE_DESIGN_WORKFLOW_MENU"
               :key="item.key"
-              type="button"
               class="image-dialogue__advisor-item"
-              @click="selectAdvisorItem"
+              :class="{ 'image-dialogue__advisor-item--active': activeWorkflowKey === item.key }"
+              @mouseenter="activeWorkflowKey = item.key"
             >
               <span>{{ item.label }}</span>
               <span class="image-dialogue__advisor-arrow" aria-hidden="true" />
-            </button>
+              <div
+                v-if="activeWorkflowKey === item.key"
+                class="image-dialogue__advisor-submenu"
+              >
+                <button
+                  v-for="child in item.children"
+                  :key="child.key"
+                  type="button"
+                  class="image-dialogue__advisor-subitem"
+                  @click="selectAdvisorSubitem(child)"
+                >
+                  {{ child.label }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       <div class="image-dialogue__actions">
-        <button type="button" class="image-dialogue__cube" title="模型">
-          <span class="image-dialogue__cube-icon" aria-hidden="true" />
-        </button>
-        <button type="button" class="image-dialogue__auto">
-          auto
-          <span class="image-dialogue__select-arrow" aria-hidden="true" />
-        </button>
         <div class="image-dialogue__gen-settings-wrap">
           <button
             type="button"
@@ -105,6 +146,37 @@
             />
           </div>
         </div>
+        <div class="image-dialogue__gen-settings-wrap">
+          <button
+            type="button"
+            class="image-dialogue__auto"
+            :class="{ 'image-dialogue__auto--active': showGenIPS }"
+            @click="toggleGenIPS"
+          >
+            auto
+            <span class="image-dialogue__select-arrow" aria-hidden="true" />
+          </button>
+          <div
+            v-if="showGenIPS"
+            class="image-dialogue__advisor-menu"
+            @mousedown.stop
+          >
+            <div class="image-dialogue__advisor-title">
+              <span>{{ IMAGE_DESIGN_WORKFLOW_TITLE }}</span>
+              <span class="image-dialogue__advisor-title-arrow" aria-hidden="true" />
+            </div>
+            <div
+              v-for="item in IMAGE_DESIGN_IPS_MENU"
+              :key="item.key"
+              class="image-dialogue__advisor-item"
+              :class="{ 'image-dialogue__advisor-item--active': activeIPSKey === item.key }"
+              @mouseenter="activeIPSKey = item.key"
+            >
+              <span>{{ item.label }}</span>
+              <span class="image-dialogue__advisor-arrow" aria-hidden="true" />
+            </div>
+          </div>
+        </div>
         <button type="button" class="image-dialogue__send" title="发送">
           <span class="image-dialogue__send-icon" aria-hidden="true" />
         </button>
@@ -123,26 +195,6 @@
       />
     </div>
 
-    <div
-      v-if="showAdvisorMenu"
-      class="image-dialogue__advisor-menu"
-      @mousedown.stop
-    >
-      <div class="image-dialogue__advisor-title">
-        <span>{{ IMAGE_DESIGN_ADVISOR_TITLE }}</span>
-        <span class="image-dialogue__advisor-title-arrow" aria-hidden="true" />
-      </div>
-      <button
-        v-for="item in IMAGE_DESIGN_ADVISOR_MENU"
-        :key="item.key"
-        type="button"
-        class="image-dialogue__advisor-item"
-        @click="selectAdvisorItem"
-      >
-        <span>{{ item.label }}</span>
-        <span class="image-dialogue__advisor-arrow" aria-hidden="true" />
-      </button>
-    </div>
   </div>
 </template>
 
@@ -159,6 +211,8 @@ import {
   IMAGE_DIALOGUE_PLACEHOLDER,
   IMAGE_DESIGN_WORKFLOW_TITLE,
   IMAGE_DESIGN_WORKFLOW_MENU,
+  IMAGE_DESIGN_IPS_TITLE,
+  IMAGE_DESIGN_IPS_MENU,
   type ImageGenAspectRatio,
   type ImageGenCount,
 } from './constants'
@@ -174,15 +228,24 @@ const emit = defineEmits<{
 const { isLightTheme } = useCanvasBgTheme()
 
 const showAdvisorMenu = ref(false)
+const activeAdvisorKey = ref<(typeof IMAGE_DESIGN_ADVISOR_MENU)[number]['key']>('product-shot')
+const activeIPSKey = ref<(typeof IMAGE_DESIGN_IPS_MENU)[number]['key']>('auto')
+const activeWorkflowKey = ref<(typeof IMAGE_DESIGN_WORKFLOW_MENU)[number]['key']>('idea')
+
 const showColorPicker = ref(false)
 const showGenSettings = ref(false)
 const showGenWorkflow = ref(false)
+const showGenIPS = ref(false)
 const selectedColor = ref(IMAGE_COLOR_DEFAULT)
 const genAspectRatio = ref<ImageGenAspectRatio>('auto')
 const genImageCount = ref<ImageGenCount>(1)
 
 function onInput(event: Event) {
   emit('update:modelValue', (event.target as HTMLTextAreaElement).value)
+}
+
+function toggleGenIPS() {
+  showGenIPS.value = !showGenIPS.value
 }
 
 function toggleWorkflow() {
@@ -212,9 +275,16 @@ function onColorSelect() {
 function toggleAdvisorMenu() {
   showAdvisorMenu.value = !showAdvisorMenu.value
   if (showAdvisorMenu.value) {
+    activeAdvisorKey.value = 'product-shot'
     showColorPicker.value = false
     showGenSettings.value = false
+    showGenWorkflow.value = false
   }
+}
+
+function selectAdvisorSubitem(item: { label: string; prompt?: string }) {
+  emit('update:modelValue', item.prompt ?? item.label)
+  showAdvisorMenu.value = false
 }
 
 function selectAdvisorItem() {
@@ -361,16 +431,15 @@ function selectAdvisorItem() {
 
 .image-dialogue__advisor-menu {
   position: absolute;
+  top: calc(100% + 8px);
   right: 0;
-  bottom: 72px;
-  z-index: 3;
-  min-width: 168px;
-  padding: 8px;
+  z-index: 6;
+  min-width: 148px;
+  padding: 6px;
   border: 1px solid #3d3d45;
   border-radius: 12px;
   background: #1e1e22;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  transform: translateX(calc(100% + 10px));
 
   .image-dialogue--light & {
     border-color: #e5e7eb;
@@ -403,10 +472,54 @@ function selectAdvisorItem() {
 }
 
 .image-dialogue__advisor-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #e5e7eb;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+
+  &:hover,
+  &--active {
+    background: #2a2a30;
+  }
+
+  .image-dialogue--light & {
+    color: #374151;
+
+    &:hover,
+    &.image-dialogue__advisor-item--active {
+      background: #f3f4f6;
+    }
+  }
+}
+
+.image-dialogue__advisor-submenu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 6px);
+  z-index: 7;
+  min-width: 148px;
+  padding: 6px;
+  border: 1px solid #3d3d45;
+  border-radius: 12px;
+  background: #1e1e22;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  .image-dialogue--light & {
+    border-color: #e5e7eb;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  }
+}
+
+.image-dialogue__advisor-subitem {
+  display: block;
   width: 100%;
   padding: 8px 10px;
   border: none;

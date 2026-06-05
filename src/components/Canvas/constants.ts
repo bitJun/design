@@ -307,23 +307,137 @@ export type ImageGenAspectRatio = (typeof IMAGE_GEN_ASPECT_RATIOS)[number]['key'
 export const IMAGE_GEN_COUNTS = [1, 2, 3] as const
 export type ImageGenCount = (typeof IMAGE_GEN_COUNTS)[number]
 
+export const IMAGE_DESIGN_IPS_TITLE = '分辨率';
+export const IMAGE_DESIGN_IPS_MENU = [
+  {
+    key: 'auto',
+    label: 'auto',
+  },
+  {
+    key: '1K',
+    label: '1K',
+  },
+  {
+    key: '2K',
+    label: '2K',
+  },
+  {
+    key: '4K',
+    label: '4K',
+  },
+] as const
+
 export const IMAGE_DESIGN_ADVISOR_TITLE = '设计灵感'
 export const IMAGE_DESIGN_ADVISOR_MENU = [
-  { key: 'idea', label: '设计思路' },
-  { key: 'product-shot', label: '商品实拍' },
-  { key: 'product-match', label: '商品搭配' },
-  { key: 'model-pose', label: '模特姿态' },
-  { key: 'model-tryon', label: '模特试穿' },
-  { key: 'digital-model', label: '数字人模特' },
+  {
+    key: 'idea',
+    label: '设计思路',
+    children: [
+      { key: 'concept', label: '灵感发散', prompt: '请根据图片分析设计灵感，给出可落地的创意方向' },
+      { key: 'style', label: '风格定位', prompt: '请根据图片提炼整体风格，并说明适用场景与人群' },
+      { key: 'color', label: '配色建议', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+    ],
+  },
+  {
+    key: 'product-shot',
+    label: '商品实拍',
+    children: [
+      { key: '3d', label: '服装立体3D图', prompt: '请生成服装立体3D展示图，突出版型与立体感' },
+      { key: 'flat', label: '服装平铺图', prompt: '请生成服装平铺展示图，背景干净、构图规整' },
+      { key: 'detail', label: '服装细节图', prompt: '请生成服装细节特写图，突出工艺与材质纹理' },
+      { key: 'fabric', label: '服装面料图', prompt: '请生成服装面料质感展示图，强调织物纹理与光泽' },
+      { key: '360', label: '商品360°', prompt: '请生成商品360°展示方案，覆盖多角度呈现需求' },
+    ],
+  },
+  {
+    key: 'product-match',
+    label: '商品搭配',
+    children: [
+      { key: 'outfit', label: '整套搭配', prompt: '请根据图片给出整套穿搭搭配方案' },
+      { key: 'accessory', label: '配饰组合', prompt: '请推荐与图片商品协调的配饰组合' },
+      { key: 'display', label: '场景陈列', prompt: '请给出商品场景化陈列与布景建议' },
+    ],
+  },
+  {
+    key: 'model-pose',
+    label: '模特姿态',
+    children: [
+      { key: 'standing', label: '站姿展示', prompt: '请推荐适合该商品的模特站姿与肢体表现' },
+      { key: 'walking', label: '走步动态', prompt: '请推荐走步动态姿势，突出服装垂坠与动感' },
+      { key: 'closeup', label: '半身特写', prompt: '请推荐半身特写姿态，突出上身版型与细节' },
+    ],
+  },
+  {
+    key: 'model-tryon',
+    label: '模特试穿',
+    children: [
+      { key: 'fit', label: '合身效果', prompt: '请生成模特试穿合身效果展示方案' },
+      { key: 'layer', label: '叠穿展示', prompt: '请生成模特叠穿试穿效果展示方案' },
+      { key: 'compare', label: '尺码对比', prompt: '请给出不同尺码试穿对比展示建议' },
+    ],
+  },
+  {
+    key: 'digital-model',
+    label: '数字人模特',
+    children: [
+      { key: 'avatar', label: '虚拟形象', prompt: '请推荐适合该商品的数字人虚拟形象设定' },
+      { key: 'motion', label: '动作演绎', prompt: '请设计数字人模特动作演绎脚本' },
+      { key: 'scene', label: '场景融合', prompt: '请给出数字人模特与商品场景融合方案' },
+    ],
+  },
 ] as const
 
 export const IMAGE_DESIGN_WORKFLOW_TITLE = '工作流'
 export const IMAGE_DESIGN_WORKFLOW_MENU = [
-  { key: 'idea', label: '商品实拍' },
-  { key: 'product-caption', label: '种草图' },
-  { key: 'model-pose', label: '模特姿势' },
-  { key: 'model-tryon', label: '模特试穿' },
-  { key: 'digital-model', label: '数字人模特' },
+  {
+    key: 'idea',
+    label: '商品实拍',
+    children: [
+      { key: '3d', label: '服装立体3D图', prompt: '请根据图片分析设计灵感，给出可落地的创意方向' },
+      { key: 'flat', label: '服装平铺图', prompt: '请根据图片提炼整体风格，并说明适用场景与人群' },
+      { key: 'detail', label: '服装细节图', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+      { key: 'fabric', label: '服装面料图', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+      { key: '360', label: '商品360°', prompt: '请生成商品360°展示方案，覆盖多角度呈现需求' },
+    ],
+  },
+  {
+    key: 'product-caption',
+    label: '种草图',
+    children: [
+      { key: 'concept', label: '服装立体3D图', prompt: '请根据图片分析设计灵感，给出可落地的创意方向' },
+      { key: 'color', label: '服装细节图', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+      { key: 'color', label: '服装面料图', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+      { key: 'color', label: '详情页图', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+    ],
+  },
+  {
+    key: 'model-pose',
+    label: '模特姿势',
+    children: [
+      { key: 'front', label: '正面全身', prompt: '请根据图片分析设计灵感，给出可落地的创意方向' },
+      { key: 'back', label: '背面全身', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+      { key: 'color', label: '侧面45度', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+      { key: 'random', label: '随机姿势', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+    ],
+  },
+  {
+    key: 'model-tryon',
+    label: '模特试穿',
+    children: [
+      { key: 'female', label: '随机女性', prompt: '请根据图片分析设计灵感，给出可落地的创意方向' },
+      { key: 'male', label: '随机男性', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+      { key: 'child', label: '随机童模', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+      { key: 'my', label: '我的模特', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+    ],
+  },
+  {
+    key: 'digital-model',
+    label: '数字人模特',
+    children: [
+      { key: 'female', label: '图生数字人', prompt: '请根据图片分析设计灵感，给出可落地的创意方向' },
+      { key: 'face', label: '模特换脸', prompt: '请根据图片给出主色、辅色与点缀色搭配建议' },
+    ],
+  },
 ] as const
 
 export type CanvasProjectItem = {
