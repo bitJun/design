@@ -317,6 +317,15 @@ export const IMAGE_DESIGN_ADVISOR_MENU = [
   { key: 'digital-model', label: '数字人模特' },
 ] as const
 
+export const IMAGE_DESIGN_WORKFLOW_TITLE = '工作流'
+export const IMAGE_DESIGN_WORKFLOW_MENU = [
+  { key: 'idea', label: '商品实拍' },
+  { key: 'product-caption', label: '种草图' },
+  { key: 'model-pose', label: '模特姿势' },
+  { key: 'model-tryon', label: '模特试穿' },
+  { key: 'digital-model', label: '数字人模特' },
+] as const
+
 export type CanvasProjectItem = {
   id: string
   name: string

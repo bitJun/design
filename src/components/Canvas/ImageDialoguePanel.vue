@@ -44,18 +44,37 @@
 
     <div class="image-dialogue__footer">
       <div class="image-dialogue__tools">
-        <button type="button" class="image-dialogue__tool" title="图片">
-          <span class="image-dialogue__tool-icon" data-icon="image" aria-hidden="true" />
-        </button>
-        <button type="button" class="image-dialogue__tool" title="选择">
-          <span class="image-dialogue__tool-icon" data-icon="cursor" aria-hidden="true" />
-        </button>
-        <button type="button" class="image-dialogue__tool" title="定位">
-          <span class="image-dialogue__tool-icon" data-icon="pin" aria-hidden="true" />
-        </button>
-        <button type="button" class="image-dialogue__tool" title="编辑">
-          <span class="image-dialogue__tool-icon" data-icon="edit" aria-hidden="true" />
-        </button>
+        <div class="image-dialogue__gen-settings-wrap">
+          <button
+            type="button"
+            class="image-dialogue__auto"
+            :class="{ 'image-dialogue__auto--active': showGenWorkflow }"
+            @click="toggleWorkflow"
+          >
+            {{ genAspectRatio }}
+            <span class="image-dialogue__select-arrow" aria-hidden="true" />
+          </button>
+          <div
+            v-if="showGenWorkflow"
+            class="image-dialogue__advisor-menu"
+            @mousedown.stop
+          >
+            <div class="image-dialogue__advisor-title">
+              <span>{{ IMAGE_DESIGN_WORKFLOW_TITLE }}</span>
+              <span class="image-dialogue__advisor-title-arrow" aria-hidden="true" />
+            </div>
+            <button
+              v-for="item in IMAGE_DESIGN_WORKFLOW_MENU"
+              :key="item.key"
+              type="button"
+              class="image-dialogue__advisor-item"
+              @click="selectAdvisorItem"
+            >
+              <span>{{ item.label }}</span>
+              <span class="image-dialogue__advisor-arrow" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
       </div>
       <div class="image-dialogue__actions">
         <button type="button" class="image-dialogue__cube" title="模型">
@@ -138,6 +157,8 @@ import {
   IMAGE_DESIGN_ADVISOR_TITLE,
   IMAGE_DIALOGUE_GREETING,
   IMAGE_DIALOGUE_PLACEHOLDER,
+  IMAGE_DESIGN_WORKFLOW_TITLE,
+  IMAGE_DESIGN_WORKFLOW_MENU,
   type ImageGenAspectRatio,
   type ImageGenCount,
 } from './constants'
@@ -155,12 +176,17 @@ const { isLightTheme } = useCanvasBgTheme()
 const showAdvisorMenu = ref(false)
 const showColorPicker = ref(false)
 const showGenSettings = ref(false)
+const showGenWorkflow = ref(false)
 const selectedColor = ref(IMAGE_COLOR_DEFAULT)
 const genAspectRatio = ref<ImageGenAspectRatio>('auto')
 const genImageCount = ref<ImageGenCount>(1)
 
 function onInput(event: Event) {
   emit('update:modelValue', (event.target as HTMLTextAreaElement).value)
+}
+
+function toggleWorkflow() {
+  showGenWorkflow.value = !showGenWorkflow.value
 }
 
 function toggleGenSettings() {
