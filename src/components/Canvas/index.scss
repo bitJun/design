@@ -2069,3 +2069,14 @@
   border-color: #ffffff;
   background: #ffffff;
 }
+.canvas__add-menu--light {
+  background: #ffffff;
+  border-color: #ffffff;
+  .canvas__add-item-label {
+    color: #333333;
+  }
+  .canvas__add-icon,
+  .canvas__add-item:hover {
+    background: #0000000d;
+  }
+}

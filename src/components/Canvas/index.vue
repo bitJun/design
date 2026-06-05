@@ -701,7 +701,7 @@
     <div
       v-if="showAddMenu"
       class="canvas__add-menu"
-      :class="{ 'canvas__add-menu--floating': Boolean(addMenuDropPoint) }"
+      :class="{ 'canvas__add-menu--floating': Boolean(addMenuDropPoint) ,'canvas__add-menu--light': canvasBgTheme === 'light'}"
       :style="addMenuDropPoint ? { left: `${addMenuPos.left}px`, top: `${addMenuPos.top}px` } : undefined"
       @mousedown.stop
     >
@@ -973,7 +973,7 @@ const nodeCount = ref(0)
 const zoomLevel = ref(1)
 const showZoomMenu = ref(false)
 const gridVisible = ref(false)
-const canvasBgTheme = ref<CanvasBgTheme>('dark')
+const canvasBgTheme = ref<CanvasBgTheme>('light')
 const panMode = ref(true)
 const showShortcutsPanel = ref(false)
 const imagePreviewUrl = ref('')
