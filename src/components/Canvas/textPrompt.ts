@@ -76,19 +76,20 @@ export function mockImg2Prompt(
     mediaHeight?: number
   },
 ): Promise<string> {
-  const name = source.fileName?.replace(/\.[^.]+$/, '') ?? '图片'
+  void instruction
+  void source
   const body = [
-    `【主体】${name}，画面细节丰富，主体清晰`,
-    '【环境】背景层次分明，空间感强',
-    '【光影】明暗对比自然，高光与阴影过渡柔和',
-    '【镜头】中景构图，主体居中，景深适中',
-    '【风格】写实电影感，色彩统一',
+    '主体描述：画面主体清晰突出，造型完整、细节丰富，材质纹理与光泽质感真实，整体层次分明。',
+    '环境：背景空间层次清晰，元素布局协调，色调统一，营造出契合主体的氛围与景深。',
+    '光影：自然光照明，明暗对比柔和，高光与阴影过渡自然，立体感与质感表现到位。',
+    '镜头语言：中景构图，主体居中，视角平稳，景深适中，画面比例均衡。',
+    '风格关键词：写实、电影感、高质感、色彩统一、画面精致。',
   ].join('\n')
 
   return new Promise((resolve) => {
     window.setTimeout(() => {
-      resolve(`${body}\n\n${instruction.trim()}`)
-    }, 900)
+      resolve(body)
+    }, 2600)
   })
 }
 

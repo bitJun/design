@@ -30,7 +30,7 @@
     <div ref="graphRef" class="canvas__graph" />
 
     <CanvasNodeToolbar
-      v-if="showNodeToolbar && !showImageCrop"
+      v-if="showNodeToolbar && showToolbarFeatureButtons && !showImageCrop"
       :position="toolbarPos"
       :is-light="isLightNodeToolbar"
       :show-feature-buttons="showToolbarFeatureButtons"
@@ -263,6 +263,7 @@ import {
   ADD_NODE_GROUPS,
   CANVAS_PROJECTS,
   CONNECT_GENERATE_MENU,
+  IMG2PROMPT_EXAMPLE_FILENAME,
   CANVAS_MAX_ZOOM,
   CANVAS_MIN_ZOOM,
   ZOOM_MENU_PRESETS,
@@ -274,7 +275,12 @@ import {
   type VideoHdMagnification,
 } from './constants'
 import type { TextEditorApi } from './nodes/useTextEditorRegistry'
-import { applyImageGenTask as applyImageGenTaskToNode, spawnCroppedImageNode } from './imageGen'
+import exampleImage from '@assets/hero.png'
+import {
+  applyImageGenTask as applyImageGenTaskToNode,
+  connectGenEdge,
+  spawnCroppedImageNode,
+} from './imageGen'
 import {
   canOpenConnectMenu,
   createNodeFromConnectMenu,
@@ -462,8 +468,7 @@ const canvasBgThemeLabel = computed(
 const showPromptBar = computed(() => {
   const id = activePickerNodeId.value
   if (!id || nodeCount.value === 0 || showImageCrop.value) return false
-  const data = graph.value?.getCellById(id)?.getData() as CanvasNodeData | undefined
-  return data?.textGenState !== 'loading'
+  return true
 })
 const showImageGenPromptBar = computed(
   () => Boolean(activeImageGenPromptNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
@@ -829,24 +834,46 @@ async function submitTextPrompt() {
     if (modelType.value === 'img2prompt' || isImg2PromptTask.value) {
       const imageNode = findIncomingImageNode(g, nodeId)
       const imgData = imageNode?.getData() as CanvasNodeData | undefined
-      const loadingData = { ...(cell.getData() as CanvasNodeData), textGenState: 'loading' as const }
+      const loadingData = {
+        ...(cell.getData() as CanvasNodeData),
+        mode: 'editor' as const,
+        textGenState: 'loading' as const,
+        textGenProgress: 0,
+      }
       cell.setData(loadingData)
 
-      const result = await mockImg2Prompt(promptText.value, {
-        previewUrl: imgData?.previewUrl ?? promptSourcePreviewUrl.value,
-        fileName: imgData?.fileName ?? promptSourceFileName.value,
-        mediaWidth: imgData?.mediaWidth,
-        mediaHeight: imgData?.mediaHeight,
-      })
+      // 模拟生成进度：准备中 → 生成中 X%
+      let progress = 0
+      const timer = window.setInterval(() => {
+        progress = Math.min(95, progress + Math.round(8 + Math.random() * 12))
+        cell.setData({
+          ...(cell.getData() as CanvasNodeData),
+          textGenProgress: progress,
+        })
+      }, 280)
+
+      let result = ''
+      try {
+        result = await mockImg2Prompt(promptText.value, {
+          previewUrl: imgData?.previewUrl ?? promptSourcePreviewUrl.value,
+          fileName: imgData?.fileName ?? promptSourceFileName.value,
+          mediaWidth: imgData?.mediaWidth,
+          mediaHeight: imgData?.mediaHeight,
+        })
+      } finally {
+        window.clearInterval(timer)
+      }
 
       const data = { ...(cell.getData() as CanvasNodeData) }
       data.content = plainTextToEditorHtml(result)
       data.mode = 'editor'
       data.textPickerTask = ''
       data.textGenState = 'done'
+      data.textGenProgress = 100
       data.genPrompt = promptText.value
       cell.setData(data)
       selectedNodeId.value = nodeId
+      selectedKind.value = 'text'
       syncNodeSelectionHighlight(nodeId)
       activePickerNodeId.value = ''
       bumpToolbarRevision()
@@ -1379,19 +1406,43 @@ function handleTextPickerAction(key: string, nodeId: string) {
   if (key === 'img2prompt') {
     const cell = g.getCellById(nodeId)
     if (!cell?.isNode()) return
-    const node = cell as Node
-    syncTextNodeImageSource(g, node)
-    const data = { ...(node.getData() as CanvasNodeData) }
+    const textNode = cell as Node
+
+    const data = { ...(textNode.getData() as CanvasNodeData) }
+    data.mode = 'picker'
     data.textPickerTask = 'img2prompt'
+    data.textGenState = 'idle'
     if (!data.genPrompt?.trim()) {
       data.genPrompt = IMG2PROMPT_DEFAULT_INSTRUCTION
     }
-    node.setData(data)
+    textNode.setData(data)
+
+    // 若文本节点尚未连接图片，则在左侧自动生成一张默认示例图并连线（图片 → 文本）
+    let imageNode = findIncomingImageNode(g, nodeId)
+    if (!imageNode) {
+      const bbox = textNode.getBBox()
+      const point = { x: bbox.x - 160, y: bbox.y + bbox.height / 2 }
+      imageNode = addCanvasNode(g, 'image', point, {
+        mode: 'editor',
+        previewUrl: exampleImage,
+        fileName: IMG2PROMPT_EXAMPLE_FILENAME,
+        uploadState: 'done',
+      })
+      connectGenEdge(g, imageNode.id, nodeId)
+    }
+
+    syncTextNodeImageSource(g, textNode, imageNode)
     modelType.value = 'img2prompt'
-    activePickerNodeId.value = nodeId
-    loadPromptBarContext(nodeId)
+
+    // 与视频一致：生成图片节点后先选中图片节点（其工具栏出现），
+    // 待用户点击文本节点时再在其下方弹出提示词输入框
+    activePickerNodeId.value = ''
+    selectedNodeId.value = imageNode.id
+    selectedKind.value = 'image'
+    syncNodeSelectionHighlight(imageNode.id)
     bumpToolbarRevision()
     updateNodeToolbar()
+    scheduleHistoryPush()
     return
   }
 

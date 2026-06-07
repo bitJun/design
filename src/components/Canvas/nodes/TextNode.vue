@@ -32,20 +32,27 @@
       </button>
     </div>
 
-    <div v-if="data.mode === 'picker'" class="text-node__body text-node__body--picker">
-      <div v-if="data.textGenState === 'loading'" class="text-node__skeleton">
+    <div
+      v-if="data.textGenState === 'loading'"
+      class="text-node__body text-node__body--loading"
+    >
+      <div class="text-node__skeleton text-node__skeleton--lg">
+        <span v-for="n in 8" :key="n" />
+      </div>
+      <div class="text-node__gen-pill">{{ genPillText }}</div>
+    </div>
+
+    <div
+      v-else-if="data.mode === 'picker'"
+      class="text-node__body text-node__body--picker"
+    >
+      <div class="text-node__hero-icon">
         <span />
         <span />
         <span />
         <span />
       </div>
-      <template v-else>
-        <div class="text-node__hero-icon">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
+      <template v-if="data.textPickerTask !== 'img2prompt'">
         <p class="text-node__try">尝试：</p>
         <button
           v-for="action in TEXT_PICKER_ACTIONS"
@@ -84,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import type { Node } from '@antv/x6'
 import {
   TEXT_EDITOR_PLACEHOLDER,
@@ -109,6 +116,11 @@ const data = reactive<CanvasNodeData>({
   ...createEmptyNodeData(),
   kind: 'text',
   title: '文本节点',
+})
+
+const genPillText = computed(() => {
+  const p = data.textGenProgress ?? 0
+  return p < 1 ? '准备中...' : `生成中 ${p}%...`
 })
 
 let resizeState: {
@@ -390,6 +402,44 @@ onBeforeUnmount(() => {
     &:nth-child(3) { width: 80%; }
     &:nth-child(4) { width: 56%; }
   }
+}
+
+.text-node__body--loading {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 40px;
+}
+
+.text-node__skeleton--lg {
+  flex: 1;
+  padding: 4px 0;
+  gap: 12px;
+
+  span {
+    height: 12px;
+
+    &:nth-child(odd) { width: 92%; }
+    &:nth-child(even) { width: 78%; }
+    &:nth-child(3n) { width: 64%; }
+  }
+}
+
+.text-node__gen-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  padding: 4px 14px;
+  border: 1px solid #4b4b55;
+  border-radius: 999px;
+  background: #2a2a30;
+  color: #d1d5db;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 @keyframes text-node-shimmer {

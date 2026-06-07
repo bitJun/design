@@ -961,6 +961,52 @@
   }
 }
 
+.canvas__prompt-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.canvas__prompt-body .canvas__prompt-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.canvas__prompt-ref {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #3d3d45;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+}
+
+.canvas__prompt-ref-badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #6b7cff;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 600;
+}
+
 .canvas__text-format-anchor {
   position: absolute;
   z-index: 6;
@@ -1479,6 +1525,10 @@
     &::placeholder {
       color: #9ca3af;
     }
+  }
+
+  .canvas__prompt-ref {
+    border-color: #e5e7eb;
   }
 
   .canvas__prompt-icon {

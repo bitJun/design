@@ -10,13 +10,27 @@
     }"
     @mousedown.stop
   >
-    <textarea
-      :value="promptText"
-      class="canvas__prompt-input"
-      :placeholder="PROMPT_PLACEHOLDER"
-      rows="3"
-      @input="onPromptInput"
-    />
+    <div
+      class="canvas__prompt-body"
+      :class="{
+        'canvas__prompt-body--img2prompt': isImg2PromptTask && promptSourcePreviewUrl,
+      }"
+    >
+      <span
+        v-if="isImg2PromptTask && promptSourcePreviewUrl"
+        class="canvas__prompt-ref"
+      >
+        <img :src="promptSourcePreviewUrl" alt="" />
+        <span class="canvas__prompt-ref-badge">1</span>
+      </span>
+      <textarea
+        :value="promptText"
+        class="canvas__prompt-input"
+        :placeholder="PROMPT_PLACEHOLDER"
+        rows="3"
+        @input="onPromptInput"
+      />
+    </div>
     <div class="canvas__prompt-footer">
       <button type="button" class="canvas__prompt-model-chip">
         <span class="canvas__prompt-model-mark" aria-hidden="true" />
@@ -26,12 +40,6 @@
       <div class="canvas__prompt-actions">
         <button type="button" class="canvas__prompt-icon" title="翻译">文A</button>
         <span class="canvas__prompt-credits">⚡ 1</span>
-        <span
-          v-if="isImg2PromptTask && promptSourcePreviewUrl"
-          class="canvas__prompt-ref-sm"
-        >
-          <img :src="promptSourcePreviewUrl" alt="" />
-        </span>
         <button
           type="button"
           class="canvas__prompt-send"

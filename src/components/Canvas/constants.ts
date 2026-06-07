@@ -31,8 +31,13 @@ export interface CanvasNodeData {
   editorHeight?: number
   textPickerTask?: 'img2prompt' | 'text2video' | 'write' | ''
   textGenState?: 'idle' | 'loading' | 'done'
+  /** 图片反推提示词生成进度（0-100），loading 时用于显示「准备中 / 生成中 X%」 */
+  textGenProgress?: number
   linkedImageNodeId?: string
 }
+
+/** 图片反推提示词默认示例图文件名 */
+export const IMG2PROMPT_EXAMPLE_FILENAME = '示例图片.png'
 
 export const TEXT_EDITOR_PLACEHOLDER = '输入内容...'
 
