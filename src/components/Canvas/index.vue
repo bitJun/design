@@ -87,6 +87,7 @@
       :image-gen-prompt-text="imageGenPromptText"
       :image-gen-seed="imageGenSeed"
       :image-gen-source-preview-url="imageGenSourcePreviewUrl"
+      :image-gen-submitting="imageGenSubmitting"
       :video-gen-prompt-text="videoGenPromptText"
       :video-gen-active-tab="videoGenActiveTab"
       :image-dialogue-text="imageDialogueText"
@@ -97,6 +98,7 @@
       @submit-text-prompt="submitTextPrompt"
       @update:image-gen-prompt-text="imageGenPromptText = $event; persistImageGenPrompt()"
       @update:image-gen-seed="imageGenSeed = $event; persistImageGenPrompt()"
+      @generate-image="generateImageFromPrompt"
       @update:video-gen-prompt-text="videoGenPromptText = $event; persistVideoGenPrompt()"
       @update:video-gen-active-tab="videoGenActiveTab = $event; persistVideoGenPrompt()"
       @update:image-dialogue-text="imageDialogueText = $event"
@@ -392,6 +394,7 @@ const activeImageGenPromptNodeId = ref('')
 const imageGenPromptText = ref('')
 const imageGenSeed = ref(58)
 const imageGenSourcePreviewUrl = ref('')
+const imageGenSubmitting = ref(false)
 const activeVideoGenPromptNodeId = ref('')
 const videoGenPromptText = ref('')
 const videoGenActiveTab = ref('text2video')
@@ -898,6 +901,55 @@ async function submitTextPrompt() {
   }
 }
 
+async function generateImageFromPrompt() {
+  if (imageGenSubmitting.value) return
+  const g = graph.value
+  const nodeId = activeImageGenPromptNodeId.value
+  if (!g || !nodeId) return
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+
+  imageGenSubmitting.value = true
+  persistImageGenPrompt()
+
+  cell.setData({
+    ...(cell.getData() as CanvasNodeData),
+    imageGenState: 'loading',
+    imageGenProgress: 0,
+  })
+
+  let progress = 0
+  const timer = window.setInterval(() => {
+    progress = Math.min(95, progress + Math.round(7 + Math.random() * 12))
+    cell.setData({
+      ...(cell.getData() as CanvasNodeData),
+      imageGenProgress: progress,
+    })
+  }, 280)
+
+  try {
+    await new Promise((resolve) => window.setTimeout(resolve, 2600))
+  } finally {
+    window.clearInterval(timer)
+  }
+
+  cell.setData({
+    ...(cell.getData() as CanvasNodeData),
+    imageGenState: 'done',
+    imageGenProgress: 100,
+    previewUrl: exampleImage,
+    fileName: IMG2PROMPT_EXAMPLE_FILENAME,
+    uploadState: 'done',
+  })
+  imageGenSubmitting.value = false
+  selectedNodeId.value = nodeId
+  selectedKind.value = 'image'
+  syncNodeSelectionHighlight(nodeId)
+  bumpToolbarRevision()
+  updateNodeToolbar()
+  scheduleHistoryPush()
+}
+
 function openVideoGenPromptBar(nodeId: string, tab = 'text2video') {
   closeImageGenPromptBar()
 
@@ -1220,6 +1272,11 @@ function onConnectMenuItem(item: (typeof CONNECT_GENERATE_MENU)[number]) {
   }
 
   finishConnectSpawn(spawned)
+
+  // 文生图目标节点：在其下方打开图片生成提示栏，发送后图片进入加载
+  if (data.kind === 'image' && data.imageGenState) {
+    openImageGenPromptBar(spawned.id)
+  }
 }
 
 function openConnectMenuByNodeId(nodeId: string, releasePoint: { x: number; y: number }) {

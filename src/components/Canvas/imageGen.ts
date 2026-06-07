@@ -116,6 +116,26 @@ export function spawnImageGenNodeAtPoint(
   return node
 }
 
+/** 由文本/非图片节点连线生成「文生图」目标节点：干净占位 + 待生成态 */
+export function spawnText2ImgNode(
+  graph: Graph,
+  sourceNode: Node,
+  point: { x: number; y: number },
+) {
+  const overrides: Partial<CanvasNodeData> = {
+    kind: 'image',
+    mode: 'editor',
+    imageGenTask: 'picker',
+    imageGenState: 'idle',
+    title: '图片节点',
+    sourceNodeId: sourceNode.id,
+    genSeed: 58,
+  }
+  const node = addCanvasNode(graph, 'image', point, overrides)
+  connectGenEdge(graph, sourceNode.id, node.id)
+  return node
+}
+
 export function applyImageGenTask(node: Node, task: ImageGenTask) {
   const data = { ...(node.getData() as CanvasNodeData) }
   data.imageGenTask = task

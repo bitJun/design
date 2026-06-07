@@ -34,6 +34,10 @@ export interface CanvasNodeData {
   /** 图片反推提示词生成进度（0-100），loading 时用于显示「准备中 / 生成中 X%」 */
   textGenProgress?: number
   linkedImageNodeId?: string
+  /** 文生图节点生成态：idle 待生成 / loading 生成中 / done 已生成 */
+  imageGenState?: 'idle' | 'loading' | 'done'
+  /** 文生图生成进度（0-100） */
+  imageGenProgress?: number
 }
 
 /** 图片反推提示词默认示例图文件名 */

@@ -48,7 +48,16 @@
         title="随机种子"
         @input="onSeedInput"
       />
-      <button type="button" class="image-gen-prompt-panel__send" title="生成">↑</button>
+      <button
+        type="button"
+        class="image-gen-prompt-panel__send"
+        :class="{ 'image-gen-prompt-panel__send--disabled': submitting }"
+        :disabled="submitting"
+        title="生成"
+        @click="emit('generate')"
+      >
+        {{ submitting ? '…' : '↑' }}
+      </button>
     </div>
   </div>
 </template>
@@ -63,11 +72,13 @@ defineProps<{
   prompt: string
   seed: number
   sourcePreviewUrl?: string
+  submitting?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:prompt': [value: string]
   'update:seed': [value: number]
+  generate: []
 }>()
 
 function onPromptInput(event: Event) {
@@ -319,6 +330,11 @@ function onSeedInput(event: Event) {
 
   &:hover {
     background: #5b6cff;
+  }
+
+  &--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 </style>

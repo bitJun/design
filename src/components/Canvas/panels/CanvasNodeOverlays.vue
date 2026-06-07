@@ -67,8 +67,10 @@
       :prompt="imageGenPromptText"
       :seed="imageGenSeed"
       :source-preview-url="imageGenSourcePreviewUrl"
+      :submitting="imageGenSubmitting"
       @update:prompt="emit('update:imageGenPromptText', $event)"
       @update:seed="emit('update:imageGenSeed', $event)"
+      @generate="emit('generate-image')"
     />
   </div>
 
@@ -221,6 +223,7 @@ defineProps<{
   imageGenPromptText: string
   imageGenSeed: number
   imageGenSourcePreviewUrl: string
+  imageGenSubmitting: boolean
   videoGenPromptText: string
   videoGenActiveTab: string
   imageDialogueText: string
@@ -239,6 +242,7 @@ const emit = defineEmits<{
   'update:videoHdMagnification': [value: VideoHdMagnification]
   'persist-prompt-bar-draft': []
   'submit-text-prompt': []
+  'generate-image': []
   'close-image-crop': []
   'image-crop-complete': [payload: { dataUrl: string; width: number; height: number }]
   'reset-video-hd-panel': []

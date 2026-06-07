@@ -15,7 +15,7 @@
       +
     </button>
     <button
-      v-if="data.imageGenTask === 'picker' && data.sourceNodeId"
+      v-if="data.imageGenTask === 'picker' && data.sourceNodeId && !data.imageGenState"
       type="button"
       class="image-gen-node__upload-btn"
       @mousedown.stop
@@ -45,7 +45,30 @@
 
     <div class="image-gen-node__body">
       <div
-        v-if="data.imageGenTask === 'picker' || data.imageGenTask === 'img2img'"
+        v-if="data.imageGenState === 'loading'"
+        class="image-gen-node__picker"
+      >
+        <div class="image-gen-node__preview image-gen-node__preview--empty">
+          <span class="image-gen-node__spinner" aria-hidden="true" />
+        </div>
+        <p class="image-gen-node__hd-hint">{{ genHintText }}</p>
+      </div>
+
+      <div
+        v-else-if="data.imageGenState"
+        class="image-gen-node__picker"
+      >
+        <div
+          class="image-gen-node__preview"
+          :class="data.previewUrl ? 'image-gen-node__preview--output' : 'image-gen-node__preview--empty'"
+        >
+          <img v-if="data.previewUrl" :src="data.previewUrl" :alt="data.fileName" />
+          <span v-else class="image-gen-node__placeholder-icon" aria-hidden="true" />
+        </div>
+      </div>
+
+      <div
+        v-else-if="data.imageGenTask === 'picker' || data.imageGenTask === 'img2img'"
         class="image-gen-node__picker"
       >
         <div
@@ -106,6 +129,11 @@ const headerTitle = computed(() => {
   if (data.imageGenTask === 'img2img') return '图生图'
   if (data.imageGenTask === 'hd') return '图片高清'
   return data.title
+})
+
+const genHintText = computed(() => {
+  const p = data.imageGenProgress ?? 0
+  return p < 1 ? '准备中...' : `生成中 ${p}%...`
 })
 
 function triggerUpload() {
@@ -337,5 +365,18 @@ onMounted(() => {
   font-size: 12px;
   color: #6b7280;
   text-align: center;
+}
+
+.image-gen-node__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(107, 124, 255, 0.25);
+  border-top-color: #6b7cff;
+  border-radius: 50%;
+  animation: image-gen-spin 0.8s linear infinite;
+}
+
+@keyframes image-gen-spin {
+  to { transform: rotate(360deg); }
 }
 </style>

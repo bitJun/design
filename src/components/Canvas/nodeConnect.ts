@@ -1,6 +1,11 @@
 import type { Graph, Node } from '@antv/x6'
 import type { CanvasNodeData, ConnectMenuKey, NodeKind } from './constants'
-import { connectGenEdge, spawnImageGenNode, spawnImageGenNodeAtPoint } from './imageGen'
+import {
+  connectGenEdge,
+  spawnImageGenNode,
+  spawnImageGenNodeAtPoint,
+  spawnText2ImgNode,
+} from './imageGen'
 import { addCanvasNode, graphLocalToContainerOffset } from './graph'
 
 export const CONNECT_MENU_WIDTH = 200
@@ -64,7 +69,7 @@ export function createNodeFromConnectMenu(
       if (sourceData.kind === 'image' && !sourceData.imageGenTask) {
         return spawnImageGenNodeAtPoint(graph, sourceNode, point)
       }
-      return spawnLinkedNode(graph, sourceNode, point, 'image', { mode: 'editor' })
+      return spawnText2ImgNode(graph, sourceNode, point)
     case 'video':
       return spawnLinkedNode(graph, sourceNode, point, 'video', { mode: 'picker' })
     case 'compose':
