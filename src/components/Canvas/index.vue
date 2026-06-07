@@ -175,15 +175,6 @@
       />
     </div>
 
-    <CanvasBottomDock
-      :show-history-panel="showHistoryPanel"
-      :show-shortcuts-panel="showShortcutsPanel"
-      :show-connect-hint="showConnectMenu"
-      @toggle-add-menu="toggleAddMenu"
-      @toggle-history-panel="toggleHistoryPanel"
-      @toggle-shortcuts="toggleShortcutsPanel"
-    />
-
     <button
       v-if="showTextDownload"
       type="button"
@@ -265,7 +256,6 @@ import CanvasAssetsPanel from './panels/CanvasAssetsPanel.vue'
 import CanvasNodeToolbar from './panels/CanvasNodeToolbar.vue'
 import CanvasNodeOverlays from './panels/CanvasNodeOverlays.vue'
 import CanvasBottomControls from './panels/CanvasBottomControls.vue'
-import CanvasBottomDock from './panels/CanvasBottomDock.vue'
 import CanvasImagePreview from './panels/CanvasImagePreview.vue'
 import TextFormatToolbar from './TextFormatToolbar.vue'
 import type { UserMenuKey } from './panels/CanvasHeader.vue'
@@ -295,6 +285,8 @@ import {
   addCanvasNode,
   bindGraphInteraction,
   createGraph,
+  ensureInfiniteCanvasArea,
+  getViewportCenterLocal,
   getNodeCropOverlayPosition,
   getNodeDialoguePosition,
   getNodeImageGenPromptPosition,
@@ -1447,9 +1439,8 @@ function syncZoom(scale?: number) {
 
 function getGraphCenter() {
   const g = graph.value
-  if (!g || !graphRef.value) return { x: 400, y: 320 }
-  const { width, height } = graphRef.value.getBoundingClientRect()
-  return g.clientToLocal(width / 2, height / 2)
+  if (!g) return { x: 400, y: 320 }
+  return getViewportCenterLocal(g)
 }
 
 function syncNodeSelectionHighlight(nodeId: string) {
@@ -2140,6 +2131,9 @@ onMounted(() => {
   bindScrollerScrollListener(instance)
   bindKeyboard()
 
+  // 挂载即把全画布各层背景刷成当前主题色，避免拖拽到内容区外露出建图时的深色底（视图分层感）
+  applyCanvasBgTheme(instance, canvasBgTheme.value, gridVisible.value)
+
   instance.on('blank:dblclick', handleBlankDblClick)
   instance.on('scale', ({ sx }) => {
     syncZoom(sx)
@@ -2189,6 +2183,7 @@ onMounted(() => {
   nextTick(() => {
     syncAllNodeSizes(instance)
     refreshCanvasNodeViews(instance)
+    ensureInfiniteCanvasArea(instance, { recenter: true })
   })
 
   if (showMinimap.value) {

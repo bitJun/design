@@ -1,4 +1,4 @@
-import { Graph, Shape, type Node } from '@antv/x6'
+import { Graph, Shape, type Node, type TransformManager } from '@antv/x6'
 import { Scroller } from '@antv/x6-plugin-scroller'
 import '@antv/x6-plugin-scroller/es/index.css'
 import { Selection } from '@antv/x6-plugin-selection'
@@ -29,7 +29,29 @@ import {
 
 type ScrollerImplLike = {
   localToBackgroundPoint(x: number, y: number): { x: number; y: number }
+  clientToLocalPoint(x: number, y: number): { x: number; y: number }
   container: HTMLDivElement
+}
+
+/**
+ * 当前可视视口中心对应的图坐标。
+ * scroller 模式下必须用 scrollerImpl.clientToLocalPoint（已计入 scrollLeft/padding/缩放），
+ * 直接用 graph.clientToLocal 会忽略滚动偏移，导致新建节点落点偏移很大。
+ */
+export function getViewportCenterLocal(graph: Graph): { x: number; y: number } {
+  const scroller = getScroller(graph)
+  const impl = scroller
+    ? (scroller as unknown as { scrollerImpl?: ScrollerImplLike }).scrollerImpl
+    : undefined
+
+  if (scroller && impl) {
+    const el = scroller.container
+    const p = impl.clientToLocalPoint(el.clientWidth / 2, el.clientHeight / 2)
+    return { x: p.x, y: p.y }
+  }
+
+  const rect = graph.container.getBoundingClientRect()
+  return graph.clientToLocal(rect.width / 2, rect.height / 2)
 }
 
 /**
@@ -280,6 +302,54 @@ export function getScroller(graph: Graph): Scroller | null {
   return graph.getPlugin<Scroller>('scroller') ?? null
 }
 
+/** 无限画布：最小可滚动区域（像素，未乘缩放），足够大以营造"无限"拖拽体验 */
+const INFINITE_CANVAS_MIN_SIZE = 12000
+
+function getInfiniteCanvasResizeOptions(
+  scroller: Scroller,
+): TransformManager.FitToContentFullOptions {
+  const { clientWidth, clientHeight } = scroller.container
+  const vw = clientWidth || 800
+  const vh = clientHeight || 600
+  const padX = Math.max(2400, vw)
+  const padY = Math.max(2400, vh)
+
+  return {
+    allowNewOrigin: 'any',
+    minWidth: INFINITE_CANVAS_MIN_SIZE,
+    minHeight: INFINITE_CANVAS_MIN_SIZE,
+    padding: { top: padY, bottom: padY, left: padX, right: padX },
+  }
+}
+
+/**
+ * 扩展 Scroller 可滚动区域。
+ * resize() 会触发 fitToContent（allowNewOrigin:'any'）重算原点并平移视图，
+ * 因此默认在 resize 前后保持可视中心不变，避免新建/移动节点时视图突然跳动、节点被甩到角落。
+ * 首次初始化传 recenter:true 时主动居中（有内容→内容居中，空画布→原点居中）。
+ */
+export function ensureInfiniteCanvasArea(
+  graph: Graph,
+  options?: { recenter?: boolean },
+) {
+  const scroller = getScroller(graph)
+  if (!scroller) return
+
+  if (options?.recenter) {
+    scroller.resize()
+    if (graph.getNodes().length > 0) {
+      scroller.centerContent()
+    } else {
+      scroller.centerPoint(0, 0)
+    }
+    return
+  }
+
+  const before = getViewportCenterLocal(graph)
+  scroller.resize()
+  scroller.centerPoint(before.x, before.y)
+}
+
 export function createGraph(container: HTMLElement): CanvasGraph {
   registerShapes()
 
@@ -357,6 +427,9 @@ export function createGraph(container: HTMLElement): CanvasGraph {
     pageVisible: false,
     pageBreak: false,
     autoResize: true,
+    autoResizeOptions(scroller) {
+      return getInfiniteCanvasResizeOptions(scroller)
+    },
     padding: { top: 80, bottom: 80, left: 120, right: 120 },
   })
 
@@ -410,6 +483,16 @@ export function addCanvasNode(
 export function bindGraphInteraction(graph: Graph) {
   bindFlowEdgeInteraction(graph)
 
+  let infiniteResizeRaf = 0
+  const scheduleInfiniteResize = () => {
+    if (infiniteResizeRaf) cancelAnimationFrame(infiniteResizeRaf)
+    infiniteResizeRaf = requestAnimationFrame(() => {
+      infiniteResizeRaf = 0
+      // 保持可视中心不变地扩展区域，避免新建节点后视图跳动/节点偏移
+      ensureInfiniteCanvasArea(graph)
+    })
+  }
+
   graph.on('node:change:data', ({ node }) => {
     const data = node.getData() as CanvasNodeData
     syncNodeShapeFromData(node)
@@ -417,13 +500,9 @@ export function bindGraphInteraction(graph: Graph) {
     node.resize(size.width, size.height)
   })
 
-  graph.on('node:added', () => {
-    getScroller(graph)?.resize()
-  })
-
-  graph.on('node:removed', () => {
-    getScroller(graph)?.resize()
-  })
+  graph.on('node:added', scheduleInfiniteResize)
+  graph.on('node:removed', scheduleInfiniteResize)
+  graph.on('node:moved', scheduleInfiniteResize)
 }
 
 function getNodeToolbarAnchorY(node: Node) {
