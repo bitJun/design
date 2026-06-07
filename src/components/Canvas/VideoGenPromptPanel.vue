@@ -49,9 +49,26 @@
     />
 
     <div class="video-gen-prompt-panel__footer">
-      <button type="button" class="video-gen-prompt-panel__chip video-gen-prompt-panel__chip--vip">
-        ◆ Seedance 2.0 VIP ▾
-      </button>
+      <a-dropdown>
+        <button type="button" class="video-gen-prompt-panel__chip" @click.prevent>
+          Cascading menu
+          <DownOutlined />
+        </button>
+        <template #overlay>
+          <a-menu>
+            <a-menu-item>1st menu item</a-menu-item>
+            <a-menu-item>2nd menu item</a-menu-item>
+            <a-sub-menu key="sub1" title="sub menu">
+              <a-menu-item>3rd menu item</a-menu-item>
+              <a-menu-item>4th menu item</a-menu-item>
+            </a-sub-menu>
+            <a-sub-menu key="sub2" title="disabled sub menu" disabled>
+              <a-menu-item>5d menu item</a-menu-item>
+              <a-menu-item>6th menu item</a-menu-item>
+            </a-sub-menu>
+          </a-menu>
+        </template>
+      </a-dropdown>
       <button type="button" class="video-gen-prompt-panel__chip">16:9 · 720P · 5s 🔊 ▾</button>
       <span class="video-gen-prompt-panel__tools">
         <button type="button" class="video-gen-prompt-panel__tool" title="翻译">文</button>
