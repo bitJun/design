@@ -1,609 +1,112 @@
 <template>
   <div ref="canvasRef" class="canvas" :class="`canvas--bg-${canvasBgTheme}`">
-    <header class="canvas__header">
-      <div :class="`canvas__brand ${canvasBgTheme === 'light' ? 'bg_white' : ''}`">
-        <img
-          :src="canvasBgTheme === 'light' ? logoBlack : logoWhite"
-          class="canvas__brand-magic"
-          @click="onGoHome()"
-        />
-        <!-- <button
-          type="button"
-          class="canvas__brand-magic"
-          title="AI 创作"
-          @click="onGoHome()"
-        >
-          <span class="canvas__brand-magic-icon" aria-hidden="true" />
-        </button> -->
-        <div class="canvas__brand-project-wrap">
-          <button
-            type="button"
-            class="canvas__brand-project"
-            :class="{ 'canvas__brand-project--active': showProjectMenu }"
-            @click="toggleProjectMenu"
-          >
-            <span class="canvas__brand-project-name">{{ currentProjectName }}</span>
-            <span class="canvas__brand-project-arrow" aria-hidden="true" />
-          </button>
-          <div
-            v-if="showProjectMenu"
-            class="canvas__project-menu"
-            @mousedown.stop
-          >
-            <div class="canvas__project-menu-head">
-              <span class="canvas__project-menu-title">我的创作</span>
-              <div class="canvas__project-menu-legend">
-                <span class="canvas__project-menu-legend-item">
-                  <i class="canvas__project-status canvas__project-status--saved" aria-hidden="true" />
-                  已存
-                </span>
-                <span class="canvas__project-menu-legend-item">
-                  <i class="canvas__project-status canvas__project-status--unsaved" aria-hidden="true" />
-                  未存
-                </span>
-              </div>
-            </div>
-            <button
-              v-for="project in canvasProjects"
-              :key="project.id"
-              type="button"
-              class="canvas__project-item"
-              :class="{ 'canvas__project-item--active': project.id === activeProjectId }"
-              @click="selectProject(project.id)"
-            >
-              <span
-                class="canvas__project-doc"
-                :class="{ 'canvas__project-doc--active': project.id === activeProjectId }"
-                aria-hidden="true"
-              />
-              <i
-                class="canvas__project-status"
-                :class="project.saved ? 'canvas__project-status--saved' : 'canvas__project-status--unsaved'"
-                aria-hidden="true"
-              />
-              <span class="canvas__project-name">{{ project.name }}</span>
-              <span
-                v-if="project.id === activeProjectId"
-                class="canvas__project-check"
-                aria-hidden="true"
-              />
-            </button>
-          </div>
-        </div>
-        <button type="button" class="canvas__brand-add" title="新建">+</button>
-        <span class="canvas__brand-divider" aria-hidden="true" />
-        <div class="canvas__brand-group">
-          <button
-            type="button"
-            class="canvas__brand-icon-btn"
-            title="撤销"
-            :disabled="!canUndo"
-            @click="handleUndo"
-          >
-            <span class="canvas__brand-icon canvas__brand-icon--undo" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            class="canvas__brand-icon-btn"
-            title="重做"
-            :disabled="!canRedo"
-            @click="handleRedo"
-          >
-            <span class="canvas__brand-icon canvas__brand-icon--redo" aria-hidden="true" />
-          </button>
-        </div>
-        <span class="canvas__brand-divider" aria-hidden="true" />
-        <div class="canvas__brand-group">
-          <button type="button" class="canvas__brand-icon-btn" title="保存" @click="handleSaveCanvas">
-            <span class="canvas__brand-icon canvas__brand-icon--save" aria-hidden="true" />
-          </button>
-          <button type="button" class="canvas__brand-icon-btn" title="打开文件夹">
-            <span class="canvas__brand-icon canvas__brand-icon--folder" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-      <div class="canvas__header-actions">
-        <button type="button" class="canvas__header-pill" @click="handleExportCanvas">
-          <span class="canvas__header-pill-icon canvas__header-pill-icon--share" aria-hidden="true" />
-          导出
-        </button>
-        <div class="canvas__header-user-wrap">
-          <button
-            type="button"
-            class="canvas__header-pill canvas__header-pill--credits"
-            :class="{ 'canvas__header-pill--active': showUserMenu }"
-            @click="toggleUserMenu"
-          >
-            <span class="canvas__header-pill-icon canvas__header-pill-icon--star" aria-hidden="true" />
-            <span class="canvas__header-credits-value">{{ canvasCredits }}</span>
-            <span class="canvas__header-avatar" aria-hidden="true" />
-          </button>
-
-          <div v-if="showUserMenu" class="canvas__user-menu" @mousedown.stop>
-            <button type="button" class="canvas__user-menu-profile" @click="goUserCenter">
-              <span class="canvas__user-menu-avatar" aria-hidden="true" />
-              <span class="canvas__user-menu-profile-main">
-                <span class="canvas__user-menu-name">{{ userMenuName }}</span>
-                <span class="canvas__user-menu-badge">
-                  <span class="canvas__user-menu-vip" aria-hidden="true">VIP</span>
-                  {{ userMenuRole }}
-                </span>
-              </span>
-              <span class="canvas__user-menu-chevron" aria-hidden="true" />
-            </button>
-
-            <div class="canvas__user-menu-balance">
-              <span class="canvas__user-menu-balance-left">
-                <span class="canvas__user-menu-balance-icon" aria-hidden="true" />
-                <span class="canvas__user-menu-balance-value">{{ userMenuPoints }}</span>
-              </span>
-              <button type="button" class="canvas__user-menu-buy" @click="openComboModal">
-                购买
-              </button>
-            </div>
-
-            <nav class="canvas__user-menu-nav" aria-label="用户菜单">
-              <button
-                v-for="item in USER_MENU_ITEMS"
-                :key="item.key"
-                type="button"
-                class="canvas__user-menu-item"
-                @click="handleUserMenuAction(item.key)"
-              >
-                <span
-                  class="canvas__user-menu-item-icon"
-                  :class="`canvas__user-menu-item-icon--${item.key}`"
-                  aria-hidden="true"
-                />
-                <span>{{ item.label }}</span>
-              </button>
-            </nav>
-
-            <div class="canvas__user-menu-divider" aria-hidden="true" />
-
-            <button type="button" class="canvas__user-menu-logout" @click="handleLogout">
-              <span class="canvas__user-menu-logout-icon" aria-hidden="true" />
-              退出登录
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
+    <CanvasHeader
+      :canvas-bg-theme="canvasBgTheme"
+      :current-project-name="currentProjectName"
+      :can-undo="canUndo"
+      :can-redo="canRedo"
+      :credits="canvasCredits"
+      :show-project-menu="showProjectMenu"
+      :show-user-menu="showUserMenu"
+      :projects="canvasProjects"
+      :active-project-id="activeProjectId"
+      :user-name="userMenuName"
+      :user-role="userMenuRole"
+      :user-points="userMenuPoints"
+      @go-home="onGoHome"
+      @toggle-project-menu="toggleProjectMenu"
+      @select-project="selectProject"
+      @undo="handleUndo"
+      @redo="handleRedo"
+      @save="handleSaveCanvas"
+      @export="handleExportCanvas"
+      @toggle-user-menu="toggleUserMenu"
+      @go-user-center="goUserCenter"
+      @open-combo="openComboModal"
+      @user-menu-action="handleUserMenuAction"
+      @logout="handleLogout"
+    />
 
     <div ref="graphRef" class="canvas__graph" />
-    <div
+
+    <CanvasNodeToolbar
       v-if="showNodeToolbar && !showImageCrop"
-      class="canvas__node-toolbar"
-      :class="{ 'canvas__node-toolbar--image': isLightNodeToolbar }"
-      :style="{ left: `${toolbarPos.left}px`, top: `${toolbarPos.top}px` }"
-      @mousedown.stop
-    >
-      <template v-if="showToolbarFeatureButtons">
-        <template v-if="selectedKind === 'image'">
-          <template v-if="showImageToolbarMore">
-            <button
-              type="button"
-              class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon"
-              title="返回"
-              @click="closeImageToolbarMore"
-            >
-              <span class="canvas__node-toolbar-icon" data-icon="back" aria-hidden="true" />
-            </button>
-            <span class="canvas__node-toolbar-divider" aria-hidden="true" />
-            <div class="canvas__node-toolbar-group">
-              <template v-for="item in IMAGE_NODE_TOOLBAR_MORE.actions" :key="item.key">
-                <div v-if="item.key === 'more'" class="canvas__node-toolbar-more">
-                  <button
-                    type="button"
-                    class="canvas__node-toolbar-btn"
-                    :class="{ 'canvas__node-toolbar-btn--active': showImageToolbarMoreMenu }"
-                    @click="toggleImageToolbarMoreMenu"
-                  >
-                    <span
-                      v-if="item.icon"
-                      class="canvas__node-toolbar-icon"
-                      :data-icon="item.icon"
-                      aria-hidden="true"
-                    />
-                    {{ item.label }}
-                  </button>
-                  <div
-                    v-if="showImageToolbarMoreMenu"
-                    class="canvas__node-toolbar-menu"
-                    @mousedown.stop
-                  >
-                    <button
-                      v-for="menuItem in IMAGE_NODE_TOOLBAR_MORE_MENU"
-                      :key="menuItem.key"
-                      type="button"
-                      class="canvas__node-toolbar-menu-item"
-                    >
-                      <span
-                        class="canvas__node-toolbar-icon"
-                        :data-icon="menuItem.icon"
-                        aria-hidden="true"
-                      />
-                      <span class="canvas__node-toolbar-menu-label">{{ menuItem.label }}</span>
-                      <span
-                        v-if="menuItem.hasSubmenu"
-                        class="canvas__node-toolbar-menu-arrow"
-                        aria-hidden="true"
-                      />
-                    </button>
-                  </div>
-                </div>
-                <div v-else class="canvas__node-toolbar-hover">
-                  <button type="button" class="canvas__node-toolbar-btn">
-                    <span
-                      v-if="item.icon"
-                      class="canvas__node-toolbar-icon"
-                      :data-icon="item.icon"
-                      aria-hidden="true"
-                    />
-                    {{ item.label }}
-                  </button>
-                  <span
-                    v-if="getImageToolbarMoreHover(item.key)?.tooltip"
-                    class="canvas__node-toolbar-tooltip-label"
-                  >
-                    {{ getImageToolbarMoreHover(item.key)?.tooltip }}
-                  </span>
-                  <div
-                    v-if="getImageToolbarMoreHover(item.key)?.menu?.length"
-                    class="canvas__node-toolbar-dropdown-menu"
-                    @mousedown.stop
-                  >
-                    <button
-                      v-for="menuLabel in getImageToolbarMoreHover(item.key)?.menu"
-                      :key="menuLabel"
-                      type="button"
-                      class="canvas__node-toolbar-dropdown-item"
-                    >
-                      {{ menuLabel }}
-                    </button>
-                  </div>
-                </div>
-              </template>
-            </div>
-            <span class="canvas__node-toolbar-divider" aria-hidden="true" />
-            <button type="button" class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon" title="下载">
-              <span class="canvas__node-toolbar-icon" data-icon="download" aria-hidden="true" />
-            </button>
-          </template>
-          <template v-else>
-            <div class="canvas__node-toolbar-group">
-              <button
-                type="button"
-                class="canvas__node-toolbar-btn"
-                :class="{ 'canvas__node-toolbar-btn--active': showImageDialogue }"
-                @click="toggleImageDialogue"
-              >
-                <span class="canvas__node-toolbar-icon" data-icon="chat" aria-hidden="true" />
-                {{ IMAGE_NODE_TOOLBAR.chat.label }}
-              </button>
-            </div>
-            <span class="canvas__node-toolbar-divider" aria-hidden="true" />
-            <div class="canvas__node-toolbar-group">
-              <template v-for="item in IMAGE_NODE_TOOLBAR.actions" :key="item.key">
-                <div v-if="item.key === 'cutout'" class="canvas__node-toolbar-dropdown">
-                  <button type="button" class="canvas__node-toolbar-btn">
-                    <span
-                      class="canvas__node-toolbar-icon"
-                      data-icon="cutout"
-                      aria-hidden="true"
-                    />
-                    {{ item.label }}
-                  </button>
-                  <div class="canvas__node-toolbar-dropdown-menu" @mousedown.stop>
-                    <button
-                      v-for="mode in IMAGE_CUTOUT_MODES"
-                      :key="mode"
-                      type="button"
-                      class="canvas__node-toolbar-dropdown-item"
-                    >
-                      {{ mode }}
-                    </button>
-                  </div>
-                </div>
-                <div v-else-if="item.key === 'hd'" class="canvas__node-toolbar-hd">
-                  <button
-                    type="button"
-                    class="canvas__node-toolbar-btn"
-                    :class="{ 'canvas__node-toolbar-btn--active': showImageHdMenu }"
-                    @click="toggleImageHdMenu"
-                  >
-                    {{ item.label }}
-                  </button>
-                  <div
-                    v-if="showImageHdMenu"
-                    class="canvas__node-toolbar-hd-menu"
-                    @mousedown.stop
-                  >
-                    <button
-                      v-for="resolution in IMAGE_HD_RESOLUTIONS"
-                      :key="resolution"
-                      type="button"
-                      class="canvas__node-toolbar-hd-item"
-                    >
-                      {{ resolution }}
-                    </button>
-                  </div>
-                </div>
-                <div v-else-if="item.key === 'inpaint'" class="canvas__node-toolbar-tooltip">
-                  <button type="button" class="canvas__node-toolbar-btn">
-                    <span
-                      class="canvas__node-toolbar-icon"
-                      data-icon="edit"
-                      aria-hidden="true"
-                    />
-                    {{ item.label }}
-                  </button>
-                  <span class="canvas__node-toolbar-tooltip-label">{{ item.label }}</span>
-                </div>
-                <button
-                  v-else
-                  type="button"
-                  class="canvas__node-toolbar-btn"
-                  :class="{ 'canvas__node-toolbar-btn--active': item.key === 'crop' && showImageCrop }"
-                  @click="onImageToolbarAction(item.key)"
-                >
-                  <span
-                    v-if="item.icon"
-                    class="canvas__node-toolbar-icon"
-                    :data-icon="item.icon"
-                    aria-hidden="true"
-                  />
-                  {{ item.label }}
-                </button>
-              </template>
-            </div>
-            <span class="canvas__node-toolbar-divider" aria-hidden="true" />
-            <button type="button" class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon" title="下载">
-              <span class="canvas__node-toolbar-icon" data-icon="download" aria-hidden="true" />
-            </button>
-          </template>
-        </template>
-        <template v-else-if="selectedKind === 'video'">
-          <div class="canvas__node-toolbar-group">
-            <button
-              type="button"
-              class="canvas__node-toolbar-btn"
-              :class="{ 'canvas__node-toolbar-btn--active': showVideoDialogue }"
-              @click="toggleVideoDialogue"
-            >
-              <span class="canvas__node-toolbar-icon" data-icon="chat" aria-hidden="true" />
-              {{ VIDEO_NODE_TOOLBAR.chat.label }}
-            </button>
-          </div>
-          <span class="canvas__node-toolbar-divider" aria-hidden="true" />
-          <div class="canvas__node-toolbar-group">
-            <template v-for="item in VIDEO_NODE_TOOLBAR.actions" :key="item.key">
-              <button
-                v-if="item.key === 'hd'"
-                type="button"
-                class="canvas__node-toolbar-btn"
-                :class="{ 'canvas__node-toolbar-btn--active': showVideoHdPanel }"
-                @click="toggleVideoHdPanel"
-              >
-                <span
-                  class="canvas__node-toolbar-icon"
-                  data-icon="video-hd"
-                  aria-hidden="true"
-                />
-                {{ item.label }}
-              </button>
-              <button
-                v-else-if="item.key === 'frames'"
-                type="button"
-                class="canvas__node-toolbar-btn"
-                :class="{ 'canvas__node-toolbar-btn--active': showVideoFramesPanel }"
-                @click="toggleVideoFramesPanel"
-              >
-                <span
-                  class="canvas__node-toolbar-icon"
-                  data-icon="frames"
-                  aria-hidden="true"
-                />
-                {{ item.label }}
-              </button>
-              <button v-else type="button" class="canvas__node-toolbar-btn">
-                <span
-                  v-if="item.icon"
-                  class="canvas__node-toolbar-icon"
-                  :data-icon="item.icon"
-                  aria-hidden="true"
-                />
-                {{ item.label }}
-              </button>
-            </template>
-          </div>
-          <span class="canvas__node-toolbar-divider" aria-hidden="true" />
-          <button type="button" class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon" title="下载">
-            <span class="canvas__node-toolbar-icon" data-icon="download" aria-hidden="true" />
-          </button>
-        </template>
-      </template>
-      <!-- <button
-        v-if="selectedKind !== 'image' && selectedKind !== 'video'"
-        type="button"
-        class="canvas__node-toolbar-btn canvas__node-toolbar-btn--danger"
-        title="删除节点"
-        @click="removeSelectedNode"
-      >
-        🗑
-      </button> -->
-    </div>
+      :position="toolbarPos"
+      :is-light="isLightNodeToolbar"
+      :show-feature-buttons="showToolbarFeatureButtons"
+      :selected-kind="selectedKind"
+      :show-image-toolbar-more="showImageToolbarMore"
+      :show-image-toolbar-more-menu="showImageToolbarMoreMenu"
+      :show-image-hd-menu="showImageHdMenu"
+      :show-image-dialogue="showImageDialogue"
+      :show-image-crop="showImageCrop"
+      :show-video-dialogue="showVideoDialogue"
+      :show-video-hd-panel="showVideoHdPanel"
+      :show-video-frames-panel="showVideoFramesPanel"
+      @close-image-toolbar-more="closeImageToolbarMore"
+      @toggle-image-toolbar-more-menu="toggleImageToolbarMoreMenu"
+      @toggle-image-hd-menu="toggleImageHdMenu"
+      @toggle-image-dialogue="toggleImageDialogue"
+      @image-toolbar-action="onImageToolbarAction"
+      @toggle-video-dialogue="toggleVideoDialogue"
+      @toggle-video-hd-panel="toggleVideoHdPanel"
+      @toggle-video-frames-panel="toggleVideoFramesPanel"
+    />
 
-    <aside v-if="showAssetsPanel" class="canvas__assets" @mousedown.stop>
-      <div class="canvas__assets-head">
-        <button
-          type="button"
-          :class="{ 'is-active': assetsTab === 'all' }"
-          @click="assetsTab = 'all'"
-        >
-          全部
-        </button>
-        <button
-          type="button"
-          :class="{ 'is-active': assetsTab === 'mine' }"
-          @click="assetsTab = 'mine'"
-        >
-          我的素材
-        </button>
-        <button type="button" class="canvas__assets-close" @click="showAssetsPanel = false">×</button>
-      </div>
-      <div class="canvas__assets-body">
-        <div v-if="assetsLoading" class="canvas__assets-loading">
-          <span class="canvas__spinner" />
-          <span>加载中...</span>
-        </div>
-        <p v-else class="canvas__assets-empty">暂无素材，上传后将显示在这里</p>
-      </div>
-    </aside>
+    <CanvasAssetsPanel
+      v-if="showAssetsPanel"
+      :tab="assetsTab"
+      :loading="assetsLoading"
+      @update:tab="assetsTab = $event"
+      @close="showAssetsPanel = false"
+    />
 
-    <div
-      v-if="showImageCrop && selectedKind === 'image'"
-      class="canvas__image-crop"
-      :style="{
-        left: `${imageCropPos.left}px`,
-        top: `${imageCropPos.top}px`,
-        width: `${imageCropPos.width}px`,
-        height: `${imageCropPos.height}px`,
-      }"
-      @mousedown.stop
-    >
-      <ImageCropOverlay
-        v-if="imageCropSource"
-        :image-url="imageCropSource.previewUrl"
-        :natural-width="imageCropSource.mediaWidth"
-        :natural-height="imageCropSource.mediaHeight"
-        @cancel="closeImageCrop"
-        @complete="onImageCropComplete"
-      />
-    </div>
-
-    <div
-      v-if="showImageDialogue && selectedKind === 'image'"
-      class="canvas__node-dialogue"
-      :style="{
-        left: `${dialoguePos.left}px`,
-        top: `${dialoguePos.top}px`,
-        width: `${dialoguePos.width}px`,
-      }"
-      @mousedown.stop
-    >
-      <ImageDialoguePanel v-model="imageDialogueText" />
-    </div>
-
-    <div
-      v-if="showVideoDialogue && selectedKind === 'video'"
-      class="canvas__node-dialogue"
-      :style="{
-        left: `${dialoguePos.left}px`,
-        top: `${dialoguePos.top}px`,
-        width: `${dialoguePos.width}px`,
-      }"
-      @mousedown.stop
-    >
-      <VideoDialoguePanel v-model="videoDialogueText" />
-    </div>
-
-    <div
-      v-if="showVideoHdPanel && selectedKind === 'video'"
-      class="canvas__node-side-panel"
-      :style="{
-        left: `${videoHdPos.left}px`,
-        top: `${videoHdPos.top}px`,
-        width: `${videoHdPos.width}px`,
-      }"
-      @mousedown.stop
-    >
-      <VideoHdPanel
-        v-model="videoHdMagnification"
-        @close="resetVideoHdPanel"
-        @cancel="resetVideoHdPanel"
-        @start="onVideoHdStart"
-      />
-    </div>
-
-    <div
-      v-if="showVideoFramesPanel && selectedKind === 'video'"
-      class="canvas__node-dialogue"
-      :style="{
-        left: `${dialoguePos.left}px`,
-        top: `${dialoguePos.top}px`,
-        width: `${dialoguePos.width}px`,
-      }"
-      @mousedown.stop
-    >
-      <VideoFramesPanel />
-    </div>
-
-    <div
-      v-if="showVideoGenPromptBar"
-      class="canvas__video-gen-prompt"
-      :style="{
-        left: `${videoGenPromptPos.left}px`,
-        top: `${videoGenPromptPos.top}px`,
-        width: `${videoGenPromptPos.width}px`,
-      }"
-    >
-      <VideoGenPromptPanel
-        v-model:prompt="videoGenPromptText"
-        v-model:active-tab="videoGenActiveTab"
-        @update:prompt="persistVideoGenPrompt"
-        @update:active-tab="persistVideoGenPrompt"
-      />
-    </div>
-
-    <div
-      v-if="showImageGenPromptBar"
-      class="canvas__img2img-prompt"
-      :style="{
-        left: `${imageGenPromptPos.left}px`,
-        top: `${imageGenPromptPos.top}px`,
-        width: `${imageGenPromptPos.width}px`,
-      }"
-    >
-      <ImageGenPromptPanel
-        v-model:prompt="imageGenPromptText"
-        v-model:seed="imageGenSeed"
-        :source-preview-url="imageGenSourcePreviewUrl"
-        @update:prompt="persistImageGenPrompt"
-        @update:seed="persistImageGenPrompt"
-      />
-    </div>
-
-    <div
-      v-if="showPromptBar"
-      class="canvas__prompt"
-      :style="{
-        left: `${promptPos.left}px`,
-        top: `${promptPos.top}px`,
-        width: `${promptPos.width}px`,
-      }"
-      @mousedown.stop
-    >
-      <textarea
-        v-model="promptText"
-        class="canvas__prompt-input"
-        :placeholder="modelPrompt[modelType as keyof typeof modelPrompt]"
-        rows="3"
-      />
-      <div class="canvas__prompt-footer">
-        <a-select
-          placeholder="选择"
-          v-model="modelType"
-          :options="promptModelOptions"
-          style="width: 140px;"
-        />
-        <div class="canvas__prompt-actions">
-          <button type="button" class="canvas__prompt-icon" title="翻译">文</button>
-          <span class="canvas__prompt-count">+ 1</span>
-          <button type="button" class="canvas__prompt-send" title="发送">↑</button>
-        </div>
-      </div>
-    </div>
+    <CanvasNodeOverlays
+      :canvas-bg-theme="canvasBgTheme"
+      :show-prompt-bar="showPromptBar"
+      :show-image-gen-prompt-bar="showImageGenPromptBar"
+      :show-video-gen-prompt-bar="showVideoGenPromptBar"
+      :prompt-pos="promptPos"
+      :image-gen-prompt-pos="imageGenPromptPos"
+      :video-gen-prompt-pos="videoGenPromptPos"
+      :image-crop-pos="imageCropPos"
+      :dialogue-pos="dialoguePos"
+      :video-hd-pos="videoHdPos"
+      :selected-kind="selectedKind"
+      :show-image-crop="showImageCrop"
+      :show-image-dialogue="showImageDialogue"
+      :show-video-dialogue="showVideoDialogue"
+      :show-video-hd-panel="showVideoHdPanel"
+      :show-video-frames-panel="showVideoFramesPanel"
+      :image-crop-source="imageCropSource"
+      :prompt-text="promptText"
+      :prompt-source-preview-url="promptSourcePreviewUrl"
+      :prompt-submitting="promptSubmitting"
+      :can-submit-text-prompt="canSubmitTextPrompt"
+      :is-img2-prompt-task="isImg2PromptTask"
+      :image-gen-prompt-text="imageGenPromptText"
+      :image-gen-seed="imageGenSeed"
+      :image-gen-source-preview-url="imageGenSourcePreviewUrl"
+      :video-gen-prompt-text="videoGenPromptText"
+      :video-gen-active-tab="videoGenActiveTab"
+      :image-dialogue-text="imageDialogueText"
+      :video-dialogue-text="videoDialogueText"
+      :video-hd-magnification="videoHdMagnification"
+      @update:prompt-text="promptText = $event"
+      @persist-prompt-bar-draft="persistPromptBarDraft"
+      @submit-text-prompt="submitTextPrompt"
+      @update:image-gen-prompt-text="imageGenPromptText = $event; persistImageGenPrompt()"
+      @update:image-gen-seed="imageGenSeed = $event; persistImageGenPrompt()"
+      @update:video-gen-prompt-text="videoGenPromptText = $event; persistVideoGenPrompt()"
+      @update:video-gen-active-tab="videoGenActiveTab = $event; persistVideoGenPrompt()"
+      @update:image-dialogue-text="imageDialogueText = $event"
+      @update:video-dialogue-text="videoDialogueText = $event"
+      @update:video-hd-magnification="videoHdMagnification = $event"
+      @close-image-crop="closeImageCrop"
+      @image-crop-complete="onImageCropComplete"
+      @reset-video-hd-panel="resetVideoHdPanel"
+      @video-hd-start="onVideoHdStart"
+    />
 
     <input
       ref="fileInputRef"
@@ -621,121 +124,29 @@
       <CanvasHistoryPanel @close="closeHistoryPanel" />
     </div>
 
-    <div :class="`canvas__toolbar canvas__toolbar--left  ${canvasBgTheme === 'light' ? 'bg_white' : ''}`">
-      <button
-        type="button"
-        class="canvas__tool-btn"
-        :class="{ 'canvas__tool-btn--active': showAddMenu }"
-        title="添加节点"
-        @click="toggleAddMenu"
-      >
-        +
-      </button>
-      <button
-        type="button"
-        class="canvas__tool-btn"
-        :class="{ 'canvas__tool-btn--active': showAssetsPanel }"
-        title="我的素材"
-        @click="toggleAssetsPanel"
-      >
-        ▤
-      </button>
-      <button
-        type="button"
-        class="canvas__tool-btn"
-        title="工作流"
-      >
-        ⎔
-      </button>
-      <button
-        type="button"
-        class="canvas__tool-btn"
-        :class="{ 'canvas__tool-btn--active': showHistoryPanel }"
-        title="历史记录"
-        @click="toggleHistoryPanel"
-      >
-        <span class="canvas__history-icon" aria-hidden="true" />
-      </button>
-      <a-popover placement="right">
-        <template #content>
-          <span>使用教程</span>
-        </template>
-        <button
-          type="button"
-          class="canvas__tool-btn"
-          title="帮助"
-        >
-          ?
-        </button>
-      </a-popover>
-    </div>
+    <CanvasLeftToolbar
+      :canvas-bg-theme="canvasBgTheme"
+      :show-add-menu="showAddMenu"
+      :show-assets-panel="showAssetsPanel"
+      :show-history-panel="showHistoryPanel"
+      @toggle-add-menu="toggleAddMenu"
+      @toggle-assets-panel="toggleAssetsPanel"
+      @toggle-history-panel="toggleHistoryPanel"
+    />
 
-    <div
+    <CanvasConnectMenu
       v-if="showConnectMenu"
-      class="canvas__connect-menu canvas__connect-menu--floating"
-      :style="{ left: `${connectMenuPos.left}px`, top: `${connectMenuPos.top}px` }"
-      @mousedown.stop
-    >
-      <h4 class="canvas__connect-title">引用该节点生成</h4>
-      <button
-        v-for="item in CONNECT_GENERATE_MENU"
-        :key="item.key"
-        type="button"
-        class="canvas__connect-item"
-        :class="{ 'canvas__connect-item--disabled': item.disabled }"
-        :disabled="item.disabled"
-        @click="onConnectMenuItem(item)"
-      >
-        <span class="canvas__connect-icon" :data-icon="item.icon" />
-        <span class="canvas__connect-label">
-          {{ item.label }}
-          <em
-            v-if="item.badge"
-            class="canvas__connect-badge"
-            :class="{
-              'canvas__connect-badge--new': item.badge === 'NEW',
-              'canvas__connect-badge--beta': item.badge === 'Beta',
-            }"
-          >
-            {{ item.badge }}
-          </em>
-        </span>
-      </button>
-    </div>
+      :position="connectMenuPos"
+      @select="onConnectMenuItem"
+    />
 
-    <div
+    <CanvasAddMenu
       v-if="showAddMenu"
-      class="canvas__add-menu"
-      :class="{ 'canvas__add-menu--floating': Boolean(addMenuDropPoint) ,'canvas__add-menu--light': canvasBgTheme === 'light'}"
-      :style="addMenuDropPoint ? { left: `${addMenuPos.left}px`, top: `${addMenuPos.top}px` } : undefined"
-      @mousedown.stop
-    >
-      <section v-for="group in ADD_NODE_GROUPS" :key="group.title" class="canvas__add-group">
-        <h4 class="canvas__add-title">{{ group.title }}</h4>
-        <button
-          v-for="item in group.items"
-          :key="`${group.title}-${item.label}`"
-          type="button"
-          class="canvas__add-item"
-          @click="onMenuItem(item)"
-        >
-          <span class="canvas__add-icon" :data-icon="item.icon" />
-          <span class="canvas__add-item-label">
-            {{ item.label }}
-            <em
-              v-if="'badge' in item && item.badge"
-              class="canvas__add-badge"
-              :class="{
-                'canvas__add-badge--new': item.badge === 'NEW',
-                'canvas__add-badge--beta': item.badge === 'Beta',
-              }"
-            >
-              {{ item.badge }}
-            </em>
-          </span>
-        </button>
-      </section>
-    </div>
+      :canvas-bg-theme="canvasBgTheme"
+      :drop-point="addMenuDropPoint"
+      :position="addMenuPos"
+      @select="onMenuItem"
+    />
 
     <div class="canvas__bottom-left">
       <div
@@ -743,122 +154,82 @@
         ref="minimapContainerRef"
         class="canvas__minimap-host"
       />
-      <div class="canvas__toolbar canvas__toolbar--bottom">
-        <button
-          type="button"
-          class="canvas__tool-btn canvas__tool-btn--theme"
-          @click="toggleCanvasBgTheme"
-        >
-          <span class="canvas__theme-icon" aria-hidden="true" />
-          <span class="canvas__theme-tooltip">画布背景：{{ canvasBgThemeLabel }}</span>
-        </button>
-        <button
-          type="button"
-          class="canvas__tool-btn canvas__tool-btn--tidy"
-          title="整理画布"
-          @click="handleTidyCanvas"
-        >
-          <span class="canvas__tidy-icon" aria-hidden="true">
-            <i /><i /><i /><i />
-          </span>
-        </button>
-        <button
-          type="button"
-          class="canvas__tool-btn"
-          :class="{ 'canvas__tool-btn--active': showMinimap }"
-          title="画布小地图"
-          @click="toggleMinimap"
-        >
-          <span class="canvas__minimap-icon" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="canvas__tool-btn"
-          :class="{ 'canvas__tool-btn--active': gridVisible }"
-          title="网格"
-          @click="toggleGrid"
-        >
-          ▦
-        </button>
-        <button
-          type="button"
-          class="canvas__tool-btn"
-          :class="{ 'canvas__tool-btn--active': showShortcutsPanel }"
-          title="快捷键"
-          @click="toggleShortcutsPanel"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--libtv pointer-events-none " width="16" height="16" viewBox="0 0 16 16" style="color: var(--canvas-controls-icon);"><g transform="translate(0 1.4681) scale(0.880669)"><path d="M15.751 0C17.0855 0.000175557 18.168 1.08241 18.168 2.41699V12.417C18.168 13.7516 17.0855 14.8338 15.751 14.834H2.41699C1.08245 14.8338 1.60011e-07 13.7516 0 12.417V2.41699C0 1.08241 1.08245 0.00017602 2.41699 0H15.751ZM2.41699 1.50098C1.91088 1.50115 1.50098 1.91084 1.50098 2.41699V12.417C1.50098 12.9231 1.91088 13.3328 2.41699 13.333H15.751C16.2571 13.3328 16.667 12.9231 16.667 12.417V2.41699C16.667 1.91084 16.2571 1.50115 15.751 1.50098H2.41699ZM13.251 10C13.6649 10.0002 14.0008 10.336 14.001 10.75C14.001 11.1641 13.665 11.5008 13.251 11.501H4.91699C4.50293 11.5008 4.16699 11.1641 4.16699 10.75C4.16717 10.336 4.50304 10.0002 4.91699 10H13.251ZM5.75879 6.66699C6.173 6.66699 6.50879 7.00278 6.50879 7.41699C6.50879 7.83121 6.173 8.16699 5.75879 8.16699H5.75098C5.33676 8.16699 5 7.83121 5 7.41699C5 7.00278 5.33676 6.66699 5.75098 6.66699H5.75879ZM9.0918 6.66699C9.50601 6.66699 9.84277 7.00278 9.84277 7.41699C9.84277 7.83121 9.50601 8.16699 9.0918 8.16699H9.08398C8.66977 8.16699 8.33398 7.83121 8.33398 7.41699C8.33398 7.00278 8.66977 6.66699 9.08398 6.66699H9.0918ZM12.4258 6.66699C12.8398 6.66717 13.1758 7.00289 13.1758 7.41699C13.1758 7.8311 12.8398 8.16682 12.4258 8.16699H12.417C12.0029 8.16682 11.667 7.8311 11.667 7.41699C11.667 7.00289 12.0029 6.66717 12.417 6.66699H12.4258ZM4.0918 3.33301C4.50601 3.33301 4.84277 3.66977 4.84277 4.08398C4.8426 4.49805 4.5059 4.83398 4.0918 4.83398H4.08398C3.66988 4.83398 3.33416 4.49805 3.33398 4.08398C3.33398 3.66977 3.66977 3.33301 4.08398 3.33301H4.0918ZM7.42578 3.33301C7.83985 3.33318 8.17578 3.66988 8.17578 4.08398C8.17561 4.49794 7.83974 4.83381 7.42578 4.83398H7.41699C7.00304 4.83381 6.66717 4.49794 6.66699 4.08398C6.66699 3.66988 7.00293 3.33318 7.41699 3.33301H7.42578ZM10.7588 3.33301C11.173 3.33301 11.5088 3.66977 11.5088 4.08398C11.5086 4.49805 11.1729 4.83398 10.7588 4.83398H10.751C10.3369 4.83398 10.0002 4.49805 10 4.08398C10 3.66977 10.3368 3.33301 10.751 3.33301H10.7588ZM14.0918 3.33301C14.506 3.33301 14.8428 3.66977 14.8428 4.08398C14.8426 4.49805 14.5059 4.83398 14.0918 4.83398H14.084C13.6699 4.83398 13.3342 4.49805 13.334 4.08398C13.334 3.66977 13.6698 3.33301 14.084 3.33301H14.0918Z" fill="currentColor"></path></g></svg>
-        </button>
-        <button
-          type="button"
-          class="canvas__tool-btn"
-          :class="{ 'canvas__tool-btn--active': panMode }"
-          title="拖动画布"
-          @click="togglePanMode"
-        >
-          ✋
-        </button>
-        <div class="canvas__zoom">
-          <button type="button" class="canvas__tool-btn" title="缩小" @click="zoomOut">−</button>
-          <div class="canvas__zoom-trigger-wrap">
-            <button
-              type="button"
-              class="canvas__zoom-value-btn"
-              :class="{ 'canvas__zoom-value-btn--active': showZoomMenu }"
-              :title="`当前缩放 ${zoomPercent}`"
-              @click.stop="toggleZoomMenu"
-            >
-              {{ zoomPercent }}
-            </button>
-            <div
-              v-if="showZoomMenu"
-              class="canvas__zoom-menu"
-              role="menu"
-              @mousedown.stop
-            >
-              <button
-                type="button"
-                class="canvas__zoom-menu-item"
-                role="menuitem"
-                @click="onZoomMenuAction('in')"
-              >
-                <span>放大</span>
-                <kbd class="canvas__zoom-menu-kbd">⌘ +</kbd>
-              </button>
-              <button
-                type="button"
-                class="canvas__zoom-menu-item"
-                role="menuitem"
-                @click="onZoomMenuAction('out')"
-              >
-                <span>缩小</span>
-                <kbd class="canvas__zoom-menu-kbd">⌘ -</kbd>
-              </button>
-              <button
-                type="button"
-                class="canvas__zoom-menu-item"
-                role="menuitem"
-                @click="onZoomMenuAction('fit')"
-              >
-                <span>适合屏幕</span>
-                <kbd class="canvas__zoom-menu-kbd">⇧ 1</kbd>
-              </button>
-              <div class="canvas__zoom-menu-divider" role="separator" />
-              <button
-                v-for="preset in ZOOM_MENU_PRESETS"
-                :key="preset"
-                type="button"
-                class="canvas__zoom-menu-item"
-                role="menuitem"
-                @click="onZoomMenuAction('preset', preset)"
-              >
-                <span>缩放至{{ Math.round(preset * 100) }}%</span>
-              </button>
-            </div>
-          </div>
-          <button type="button" class="canvas__tool-btn" title="放大" @click="zoomIn">+</button>
-        </div>
+      <CanvasBottomControls
+        :show-minimap="showMinimap"
+        :grid-visible="gridVisible"
+        :show-shortcuts-panel="showShortcutsPanel"
+        :pan-mode="panMode"
+        :show-zoom-menu="showZoomMenu"
+        :zoom-percent="zoomPercent"
+        :theme-label="canvasBgThemeLabel"
+        @toggle-theme="toggleCanvasBgTheme"
+        @tidy="handleTidyCanvas"
+        @toggle-minimap="toggleMinimap"
+        @toggle-grid="toggleGrid"
+        @toggle-shortcuts="toggleShortcutsPanel"
+        @toggle-pan="togglePanMode"
+        @toggle-zoom-menu="toggleZoomMenu"
+        @zoom-in="zoomIn"
+        @zoom-out="zoomOut"
+        @zoom-menu-action="onZoomMenuAction"
+      />
+    </div>
+
+    <CanvasBottomDock
+      :show-history-panel="showHistoryPanel"
+      :show-shortcuts-panel="showShortcutsPanel"
+      :show-connect-hint="showConnectMenu"
+      @toggle-add-menu="toggleAddMenu"
+      @toggle-history-panel="toggleHistoryPanel"
+      @toggle-shortcuts="toggleShortcutsPanel"
+    />
+
+    <button
+      v-if="showTextDownload"
+      type="button"
+      class="canvas__text-download"
+      :class="{ 'canvas__text-download--light': canvasBgTheme === 'light' }"
+      :style="{
+        left: `${textDownloadPos.left}px`,
+        top: `${textDownloadPos.top}px`,
+      }"
+      title="下载文本"
+      @mousedown.stop
+      @click="downloadSelectedTextNode"
+    >
+      <span class="canvas__node-toolbar-icon" data-icon="download" aria-hidden="true" />
+    </button>
+
+    <div
+      v-if="showTextFormatToolbar"
+      class="canvas__text-format-anchor"
+      :style="{
+        left: `${textFormatToolbarPos.left}px`,
+        top: `${textFormatToolbarPos.top}px`,
+        width: `${textFormatToolbarPos.width}px`,
+      }"
+      @mousedown.stop
+    >
+      <TextFormatToolbar @command="onTextFormatAction" />
+    </div>
+
+    <div
+      v-if="textExpandOpen"
+      class="canvas__text-expand"
+      :class="{ 'canvas__text-expand--light': canvasBgTheme === 'light' }"
+      @mousedown.stop
+    >
+      <div class="canvas__text-expand-head">
+        <span>{{ textExpandTitle }}</span>
+        <button type="button" class="canvas__text-expand-close" @click="closeTextExpand">×</button>
       </div>
+      <div
+        ref="textExpandEditorRef"
+        class="canvas__text-expand-body"
+        contenteditable="true"
+        :data-placeholder="TEXT_EDITOR_PLACEHOLDER"
+        @input="onTextExpandInput"
+      />
     </div>
 
     <Transition name="canvas-shortcuts-fade">
@@ -871,56 +242,48 @@
       </div>
     </Transition>
 
-    <div
+    <CanvasImagePreview
       v-if="imagePreviewUrl"
-      class="canvas__image-preview"
-      role="dialog"
-      aria-label="图片预览"
-      @mousedown.self="closeImagePreview"
-      @click.self="closeImagePreview"
-    >
-      <img :src="imagePreviewUrl" alt="预览" @click.stop />
-    </div>
+      :url="imagePreviewUrl"
+      @close="closeImagePreview"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import logoWhite from '@assets/images/logo_white.png'
-import logoBlack from '@assets/images/logo_black.png'
 import { useModalStore } from '@stores/useModal'
 import { useRouter } from 'vue-router'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
 import type { Edge, Graph, Node } from '@antv/x6'
 import CanvasShortcutsPanel from './CanvasShortcutsPanel.vue'
 import CanvasHistoryPanel from './CanvasHistoryPanel.vue'
-import ImageGenPromptPanel from './ImageGenPromptPanel.vue'
-import VideoGenPromptPanel from './VideoGenPromptPanel.vue'
-import ImageDialoguePanel from './ImageDialoguePanel.vue'
-import { setSharedCanvasBgTheme } from './useCanvasBgTheme'
-import ImageCropOverlay from './ImageCropOverlay.vue'
-import VideoDialoguePanel from './VideoDialoguePanel.vue'
-import VideoHdPanel from './VideoHdPanel.vue'
-import VideoFramesPanel from './VideoFramesPanel.vue'
+import CanvasHeader from './panels/CanvasHeader.vue'
+import CanvasLeftToolbar from './panels/CanvasLeftToolbar.vue'
+import CanvasConnectMenu from './panels/CanvasConnectMenu.vue'
+import CanvasAddMenu from './panels/CanvasAddMenu.vue'
+import CanvasAssetsPanel from './panels/CanvasAssetsPanel.vue'
+import CanvasNodeToolbar from './panels/CanvasNodeToolbar.vue'
+import CanvasNodeOverlays from './panels/CanvasNodeOverlays.vue'
+import CanvasBottomControls from './panels/CanvasBottomControls.vue'
+import CanvasBottomDock from './panels/CanvasBottomDock.vue'
+import CanvasImagePreview from './panels/CanvasImagePreview.vue'
+import TextFormatToolbar from './TextFormatToolbar.vue'
+import type { UserMenuKey } from './panels/CanvasHeader.vue'
 import {
   ADD_NODE_GROUPS,
   CANVAS_PROJECTS,
   CONNECT_GENERATE_MENU,
-  IMAGE_NODE_TOOLBAR,
-  IMAGE_NODE_TOOLBAR_MORE,
-  IMAGE_NODE_TOOLBAR_MORE_MENU,
-  IMAGE_HD_RESOLUTIONS,
-  IMAGE_CUTOUT_MODES,
-  getImageToolbarMoreHover,
   CANVAS_MAX_ZOOM,
   CANVAS_MIN_ZOOM,
-  PROMPT_PLACEHOLDER,
   ZOOM_MENU_PRESETS,
-  VIDEO_NODE_TOOLBAR,
+  TEXT_EDITOR_PLACEHOLDER,
   type CanvasNodeData,
   type ImageGenTask,
   type NodeKind,
+  type TextFormatCommand,
   type VideoHdMagnification,
 } from './constants'
+import type { TextEditorApi } from './nodes/useTextEditorRegistry'
 import { applyImageGenTask as applyImageGenTaskToNode, spawnCroppedImageNode } from './imageGen'
 import {
   canOpenConnectMenu,
@@ -935,8 +298,11 @@ import {
   getNodeCropOverlayPosition,
   getNodeDialoguePosition,
   getNodeImageGenPromptPosition,
+  getNodeVideoGenPromptPosition,
   getNodePromptPosition,
   getNodeSidePanelPosition,
+  getNodeTextDownloadPosition,
+  getNodeTextFormatToolbarPosition,
   getNodeToolbarPosition,
   getScroller,
   graphLocalToContainerOffset,
@@ -950,6 +316,12 @@ import {
   type CanvasBgTheme,
 } from './canvasTheme'
 import { tidyCanvas } from './layout'
+import {
+  findIncomingImageNode,
+  IMG2PROMPT_DEFAULT_INSTRUCTION,
+  mockImg2Prompt,
+  syncTextNodeImageSource,
+} from './textPrompt'
 import { createMinimap, destroyMinimap } from './minimap'
 import { runUploadSimulation } from './upload'
 import {
@@ -958,27 +330,16 @@ import {
   type CanvasSnapshot,
 } from './canvasSnapshot'
 import { createCanvasHistory } from './canvasHistory'
+import { setSharedCanvasBgTheme } from './useCanvasBgTheme'
+import { useCanvasKeyboard } from './composables/useCanvasKeyboard'
+
 const router = useRouter()
 const modalStore = useModalStore()
 
-const USER_MENU_ITEMS = [
-  { key: 'assets', label: '账户管理' },
-  { key: 'projects', label: '用户协议' },
-  { key: 'materials', label: '隐私政策' },
-] as const
-
-type UserMenuKey = (typeof USER_MENU_ITEMS)[number]['key']
-const modelType = ref('img2prompt');
-const modelPrompt = ref({
-  'img2prompt': '根据图片生成提示词',
-  'text2xhs': '根据文字生成小红书种草文案',
-  'free': '自由编辑文案',
-});
-const promptModelOptions = [
-  { label: '反推提示词', value: 'img2prompt' },
-  { label: '小红书种草文案', value: 'text2xhs' },
-  { label: '自由编辑', value: 'free' },
-]
+const modelType = ref<'img2prompt' | 'text2xhs' | 'free'>('free')
+const promptSourcePreviewUrl = ref('')
+const promptSourceFileName = ref('')
+const promptSubmitting = ref(false)
 const userMenuName = ref('李阳')
 const userMenuRole = ref('普通用户')
 const userMenuPoints = ref(3)
@@ -998,6 +359,7 @@ watch(canvasBgTheme, (theme) => {
   const g = graph.value
   if (g) refreshCanvasNodeViews(g)
 }, { immediate: true })
+
 const panMode = ref(true)
 const showShortcutsPanel = ref(false)
 const imagePreviewUrl = ref('')
@@ -1007,10 +369,8 @@ const nodeClipboard = ref<Record<string, unknown> | null>(null)
 
 let canvasHistory: ReturnType<typeof createCanvasHistory> | null = null
 let historyPushTimer: ReturnType<typeof setTimeout> | null = null
-let spacePanActive = false
-let spacePanWasEnabled = false
-let spaceKeyDownAt = 0
-let altVoiceTimer: ReturnType<typeof setTimeout> | null = null
+let scrollerScrollTarget: HTMLElement | null = null
+
 const showMinimap = ref(false)
 const showProjectMenu = ref(false)
 const showUserMenu = ref(false)
@@ -1060,6 +420,13 @@ const imageDialogueText = ref('')
 const videoDialogueText = ref('')
 const videoHdMagnification = ref<VideoHdMagnification>('2')
 const canvasCredits = ref(12003)
+const textFormatToolbarPos = ref({ left: 0, top: 0, width: 420 })
+const textDownloadPos = ref({ left: 0, top: 0 })
+const textExpandOpen = ref(false)
+const textExpandNodeId = ref('')
+const textExpandTitle = ref('')
+const textExpandEditorRef = ref<HTMLElement | null>(null)
+const textEditorApis = new Map<string, TextEditorApi>()
 
 function toggleUserMenu() {
   showUserMenu.value = !showUserMenu.value
@@ -1085,15 +452,6 @@ function handleUserMenuAction(key: UserMenuKey) {
     router.push({ name: 'project' })
     return
   }
-  if (key === 'center') {
-    goUserCenter()
-    return
-  }
-  if (key === 'service') {
-    closeUserMenu()
-    modalStore.openModal('combo')
-    return
-  }
   closeUserMenu()
 }
 
@@ -1109,15 +467,40 @@ const currentProjectName = computed(
 const canvasBgThemeLabel = computed(
   () => getCanvasBgThemeMeta(canvasBgTheme.value).label,
 )
-const showPromptBar = computed(
-  () => Boolean(activePickerNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
-)
+const showPromptBar = computed(() => {
+  const id = activePickerNodeId.value
+  if (!id || nodeCount.value === 0 || showImageCrop.value) return false
+  const data = graph.value?.getCellById(id)?.getData() as CanvasNodeData | undefined
+  return data?.textGenState !== 'loading'
+})
 const showImageGenPromptBar = computed(
   () => Boolean(activeImageGenPromptNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
 )
 const showVideoGenPromptBar = computed(
   () => Boolean(activeVideoGenPromptNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
 )
+const showTextFormatToolbar = computed(() => {
+  void toolbarRevision.value
+  if (!selectedNodeId.value || showImageCrop.value || textExpandOpen.value) return false
+  const data = getSelectedNodeData()
+  return data?.kind === 'text' && data.mode === 'editor'
+})
+const showTextDownload = computed(() => showTextFormatToolbar.value)
+
+const isImg2PromptTask = computed(() => {
+  void toolbarRevision.value
+  const id = activePickerNodeId.value
+  if (!id) return false
+  const data = graph.value?.getCellById(id)?.getData() as CanvasNodeData | undefined
+  return data?.textPickerTask === 'img2prompt'
+})
+
+const canSubmitTextPrompt = computed(() => {
+  if (isImg2PromptTask.value) {
+    return Boolean(promptSourcePreviewUrl.value) && !promptSubmitting.value
+  }
+  return Boolean(promptText.value.trim()) && !promptSubmitting.value
+})
 
 const imageCropSource = computed(() => {
   const data = getSelectedNodeData()
@@ -1397,6 +780,103 @@ function persistVideoGenPrompt() {
   data.genPrompt = videoGenPromptText.value
   data.videoGenTab = videoGenActiveTab.value
   cell.setData(data)
+}
+
+function loadPromptBarContext(nodeId: string) {
+  const g = graph.value
+  if (!g) return
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+
+  const synced = syncTextNodeImageSource(g, cell as Node)
+  promptSourcePreviewUrl.value = synced.sourcePreviewUrl ?? ''
+  promptSourceFileName.value = synced.sourceFileName ?? ''
+
+  if (synced.textPickerTask === 'img2prompt') {
+    modelType.value = 'img2prompt'
+    promptText.value = synced.genPrompt?.trim() || IMG2PROMPT_DEFAULT_INSTRUCTION
+    return
+  }
+
+  modelType.value = 'free'
+  promptText.value = synced.genPrompt ?? ''
+}
+
+function persistPromptBarDraft() {
+  const g = graph.value
+  const nodeId = activePickerNodeId.value
+  if (!g || !nodeId) return
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+  const data = { ...(cell.getData() as CanvasNodeData) }
+  data.genPrompt = promptText.value
+  cell.setData(data)
+}
+
+function plainTextToEditorHtml(text: string) {
+  return text
+    .split('\n')
+    .map((line) => `<p>${line || '<br>'}</p>`)
+    .join('')
+}
+
+async function submitTextPrompt() {
+  if (!canSubmitTextPrompt.value || promptSubmitting.value) return
+
+  const g = graph.value
+  const nodeId = activePickerNodeId.value
+  if (!g || !nodeId) return
+
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+
+  promptSubmitting.value = true
+  persistPromptBarDraft()
+
+  try {
+    if (modelType.value === 'img2prompt' || isImg2PromptTask.value) {
+      const imageNode = findIncomingImageNode(g, nodeId)
+      const imgData = imageNode?.getData() as CanvasNodeData | undefined
+      const loadingData = { ...(cell.getData() as CanvasNodeData), textGenState: 'loading' as const }
+      cell.setData(loadingData)
+
+      const result = await mockImg2Prompt(promptText.value, {
+        previewUrl: imgData?.previewUrl ?? promptSourcePreviewUrl.value,
+        fileName: imgData?.fileName ?? promptSourceFileName.value,
+        mediaWidth: imgData?.mediaWidth,
+        mediaHeight: imgData?.mediaHeight,
+      })
+
+      const data = { ...(cell.getData() as CanvasNodeData) }
+      data.content = plainTextToEditorHtml(result)
+      data.mode = 'editor'
+      data.textPickerTask = ''
+      data.textGenState = 'done'
+      data.genPrompt = promptText.value
+      cell.setData(data)
+      selectedNodeId.value = nodeId
+      syncNodeSelectionHighlight(nodeId)
+      activePickerNodeId.value = ''
+      bumpToolbarRevision()
+      updateNodeToolbar()
+      scheduleHistoryPush()
+      return
+    }
+
+    const data = { ...(cell.getData() as CanvasNodeData) }
+    data.content = plainTextToEditorHtml(promptText.value.trim())
+    data.mode = 'editor'
+    data.textPickerTask = ''
+    cell.setData(data)
+    selectedNodeId.value = nodeId
+    syncNodeSelectionHighlight(nodeId)
+    activePickerNodeId.value = ''
+    bumpToolbarRevision()
+    updateNodeToolbar()
+    scheduleHistoryPush()
+  } finally {
+    promptSubmitting.value = false
+  }
 }
 
 function openVideoGenPromptBar(nodeId: string, tab = 'text2video') {
@@ -1715,6 +1195,9 @@ function onConnectMenuItem(item: (typeof CONNECT_GENERATE_MENU)[number]) {
   const data = spawned.getData() as CanvasNodeData
   if (data.mode === 'picker' && (data.kind === 'text' || data.kind === 'audio')) {
     activePickerNodeId.value = spawned.id
+    if (data.kind === 'text') {
+      loadPromptBarContext(spawned.id)
+    }
   }
 
   finishConnectSpawn(spawned)
@@ -1751,10 +1234,22 @@ function handleEdgeConnected({
 }) {
   if (!isNew) return
 
-  if (currentCell?.isNode?.()) return
-
   const g = graph.value
   if (!g) return
+
+  if (currentCell?.isNode?.()) {
+    const target = currentCell as Node
+    const targetData = target.getData() as CanvasNodeData
+    if (targetData.kind === 'text') {
+      syncTextNodeImageSource(g, target)
+      if (activePickerNodeId.value === target.id) {
+        loadPromptBarContext(target.id)
+      }
+      bumpToolbarRevision()
+      scheduleHistoryPush()
+    }
+    return
+  }
 
   const source = edge.getSourceCell()
   if (!source?.isNode() || !canOpenConnectMenu(source as Node)) {
@@ -1780,6 +1275,7 @@ function removeNodeById(nodeId: string) {
   if (!cell?.isNode()) return
 
   g.removeCell(cell)
+  textEditorApis.delete(nodeId)
   if (selectedNodeId.value === nodeId) {
     selectedNodeId.value = ''
     selectedKind.value = null
@@ -1799,6 +1295,137 @@ function removeNodeById(nodeId: string) {
 }
 
 provide('deleteCanvasNode', removeNodeById)
+
+function openTextExpand(nodeId: string) {
+  const g = graph.value
+  if (!g) return
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+  const data = cell.getData() as CanvasNodeData
+  textExpandNodeId.value = nodeId
+  textExpandTitle.value = data.title || '文本节点'
+  textExpandOpen.value = true
+  nextTick(() => {
+    const el = textExpandEditorRef.value
+    if (!el) return
+    el.innerHTML = data.content || ''
+    el.focus()
+  })
+}
+
+function closeTextExpand() {
+  persistTextExpandContent()
+  textExpandOpen.value = false
+  textExpandNodeId.value = ''
+}
+
+function onTextExpandInput() {
+  persistTextExpandContent()
+}
+
+function persistTextExpandContent() {
+  const g = graph.value
+  const nodeId = textExpandNodeId.value
+  const el = textExpandEditorRef.value
+  if (!g || !nodeId || !el) return
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+  const data = { ...(cell.getData() as CanvasNodeData), content: el.innerHTML }
+  cell.setData(data)
+}
+
+function onTextFormatAction(cmd: TextFormatCommand) {
+  const api = textEditorApis.get(selectedNodeId.value)
+  if (!api) return
+  if (cmd === 'expand') {
+    openTextExpand(selectedNodeId.value)
+    return
+  }
+  api.execFormat(cmd)
+}
+
+function downloadSelectedTextNode() {
+  const api = textEditorApis.get(selectedNodeId.value)
+  const text = api?.getPlainText() ?? ''
+  if (!text.trim()) return
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${getSelectedNodeData()?.title || '文本节点'}.txt`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function handleTextPickerAction(key: string, nodeId: string) {
+  const g = graph.value
+  if (!g) return
+
+  selectedNodeId.value = nodeId
+  selectedKind.value = 'text'
+  syncNodeSelectionHighlight(nodeId)
+
+  if (key === 'text2video') {
+    activePickerNodeId.value = nodeId
+    const source = g.getCellById(nodeId)
+    if (!source?.isNode()) return
+    const bbox = (source as Node).getBBox()
+    const spawned = createNodeFromConnectMenu(
+      g,
+      source as Node,
+      { x: bbox.x + bbox.width + 100, y: bbox.y + bbox.height / 2 },
+      'video',
+    )
+    if (spawned) {
+      finishConnectSpawn(spawned)
+      openVideoGenPromptBar(spawned.id, 'text2video')
+    }
+    updateNodeToolbar()
+    return
+  }
+
+  if (key === 'img2prompt') {
+    const cell = g.getCellById(nodeId)
+    if (!cell?.isNode()) return
+    const node = cell as Node
+    syncTextNodeImageSource(g, node)
+    const data = { ...(node.getData() as CanvasNodeData) }
+    data.textPickerTask = 'img2prompt'
+    if (!data.genPrompt?.trim()) {
+      data.genPrompt = IMG2PROMPT_DEFAULT_INSTRUCTION
+    }
+    node.setData(data)
+    modelType.value = 'img2prompt'
+    activePickerNodeId.value = nodeId
+    loadPromptBarContext(nodeId)
+    bumpToolbarRevision()
+    updateNodeToolbar()
+    return
+  }
+
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+  const data = { ...(cell.getData() as CanvasNodeData) }
+  data.content = ''
+  data.mode = 'editor'
+  cell.setData(data)
+  bumpToolbarRevision()
+  updateNodeToolbar()
+}
+
+function handleTextNodeEdgeLinked(textNodeId: string) {
+  const g = graph.value
+  if (!g) return
+  const cell = g.getCellById(textNodeId)
+  if (!cell?.isNode()) return
+  syncTextNodeImageSource(g, cell as Node)
+  if (activePickerNodeId.value === textNodeId) {
+    loadPromptBarContext(textNodeId)
+  }
+  bumpToolbarRevision()
+  updateNodeToolbar()
+  scheduleHistoryPush()
+}
 
 function syncNodeCount() {
   nodeCount.value = graph.value?.getNodes().length ?? 0
@@ -1849,6 +1476,21 @@ function updatePromptBarPosition() {
   promptPos.value = getNodePromptPosition(g, cell as Node, overlayRoot)
 }
 
+function updateTextFormatToolbarPosition() {
+  const g = graph.value
+  const overlayRoot = canvasRef.value
+  const id = selectedNodeId.value
+  if (!g || !overlayRoot || !id) return
+
+  const cell = g.getCellById(id)
+  if (!cell?.isNode()) return
+  const data = cell.getData() as CanvasNodeData
+  if (data.kind !== 'text' || data.mode !== 'editor') return
+
+  textFormatToolbarPos.value = getNodeTextFormatToolbarPosition(g, cell as Node, overlayRoot)
+  textDownloadPos.value = getNodeTextDownloadPosition(g, cell as Node, overlayRoot)
+}
+
 function updateImageGenPromptBarPosition() {
   const g = graph.value
   const overlayRoot = canvasRef.value
@@ -1870,11 +1512,12 @@ function updateVideoGenPromptBarPosition() {
   const cell = g.getCellById(id)
   if (!cell?.isNode()) return
 
-  videoGenPromptPos.value = getNodeImageGenPromptPosition(g, cell as Node, overlayRoot)
+  videoGenPromptPos.value = getNodeVideoGenPromptPosition(g, cell as Node, overlayRoot)
 }
 
 function updateNodeToolbar() {
   updatePromptBarPosition()
+  updateTextFormatToolbarPosition()
   updateImageGenPromptBarPosition()
   updateVideoGenPromptBarPosition()
   updateAddMenuPosition()
@@ -1911,6 +1554,9 @@ function addNode(kind: NodeKind, point?: { x: number; y: number }) {
 
   if (data.mode === 'picker' && (kind === 'text' || kind === 'audio')) {
     activePickerNodeId.value = node.id
+    if (kind === 'text') {
+      loadPromptBarContext(node.id)
+    }
   }
 
   selectedNodeId.value = node.id
@@ -1990,6 +1636,14 @@ function toggleAddMenu() {
   }
 
   addMenuDropPoint.value = null
+  const overlayRoot = canvasRef.value
+  if (overlayRoot) {
+    const rect = overlayRoot.getBoundingClientRect()
+    addMenuPos.value = {
+      left: rect.width / 2,
+      top: rect.height - 120,
+    }
+  }
   showAddMenu.value = true
   showAssetsPanel.value = false
   closeHistoryPanel()
@@ -2168,6 +1822,9 @@ function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
     closeVideoGenPromptBar()
     activePickerNodeId.value =
       data.mode === 'picker' && (data.kind === 'text' || data.kind === 'audio') ? node.id : ''
+    if (activePickerNodeId.value && data.kind === 'text') {
+      loadPromptBarContext(node.id)
+    }
   }
 
   syncNodeSelectionHighlight(node.id)
@@ -2203,6 +1860,7 @@ function handleBlankClick() {
   resetVideoFramesPanel()
   closeImageGenPromptBar()
   closeVideoGenPromptBar()
+  closeTextExpand()
   syncNodeSelectionHighlight('')
 }
 
@@ -2211,17 +1869,15 @@ function handleNodeDataChange({ node }: { node: Node }) {
   if (data.mode === 'editor' && activePickerNodeId.value === node.id) {
     activePickerNodeId.value = ''
   }
+  if (activePickerNodeId.value === node.id && data.kind === 'text') {
+    promptSourcePreviewUrl.value = data.sourcePreviewUrl ?? ''
+    promptSourceFileName.value = data.sourceFileName ?? ''
+  }
   if (selectedNodeId.value === node.id) {
     selectedKind.value = data.kind
     bumpToolbarRevision()
     updateNodeToolbar()
   }
-}
-
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false
-  const tag = target.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable
 }
 
 function getHistoryMeta() {
@@ -2415,165 +2071,34 @@ function cancelCurrentOperation() {
   return false
 }
 
-function beginSpacePan() {
-  const scroller = graph.value ? getScroller(graph.value) : null
-  if (!scroller || spacePanActive) return
-  spacePanActive = true
-  spacePanWasEnabled = panMode.value
-  if (!panMode.value) scroller.togglePanning(true)
-}
-
-function endSpacePan() {
-  const scroller = graph.value ? getScroller(graph.value) : null
-  if (!scroller || !spacePanActive) return
-  spacePanActive = false
-  scroller.togglePanning(spacePanWasEnabled || panMode.value)
-}
-
 function triggerCanvasUploadShortcut() {
   pendingUploadNodeId.value = ''
   addMenuDropPoint.value = getGraphCenter()
   fileInputRef.value?.click()
 }
 
-function handleKeydown(event: KeyboardEvent) {
-  const target = event.target
-  if (isEditableTarget(target)) return
-
-  const mod = event.metaKey || event.ctrlKey
-  const key = event.key
-
-  if (key === 'Escape') {
-    if (cancelCurrentOperation()) {
-      event.preventDefault()
-    }
-    return
-  }
-
-  if (key === ' ' && !mod && !event.altKey) {
-    if (!event.repeat) {
-      spaceKeyDownAt = Date.now()
-      beginSpacePan()
-    }
-    event.preventDefault()
-    return
-  }
-
-  if (mod && (key === '=' || key === '+')) {
-    event.preventDefault()
-    zoomIn()
-    return
-  }
-  if (mod && key === '-') {
-    event.preventDefault()
-    zoomOut()
-    return
-  }
-  if (mod && key === '0') {
-    event.preventDefault()
-    zoomToScale(1)
-    return
-  }
-  if (event.shiftKey && key === '1' && !mod && !event.altKey) {
-    event.preventDefault()
-    zoomFitToScreen()
-    return
-  }
-  if (event.shiftKey && (key === 'a' || key === 'A') && !mod && !event.altKey) {
-    event.preventDefault()
-    triggerCanvasUploadShortcut()
-    return
-  }
-
-  if (mod && (key === 's' || key === 'S')) {
-    event.preventDefault()
-    handleSaveCanvas()
-    return
-  }
-  if (mod && (key === 'c' || key === 'C')) {
-    event.preventDefault()
-    copySelectedNode()
-    return
-  }
-  if (mod && (key === 'v' || key === 'V')) {
-    event.preventDefault()
-    pasteNode()
-    return
-  }
-  if (mod && event.shiftKey && (key === 'z' || key === 'Z')) {
-    event.preventDefault()
-    handleRedo()
-    return
-  }
-  if (mod && (key === 'z' || key === 'Z') && !event.shiftKey) {
-    event.preventDefault()
-    handleUndo()
-    return
-  }
-
-  if (!mod && !event.altKey && !event.shiftKey) {
-    if (key === ']') {
-      event.preventDefault()
-      moveNodeLayer('front')
-      return
-    }
-    if (key === '[') {
-      event.preventDefault()
-      moveNodeLayer('back')
-      return
-    }
-  }
-
-  if (mod && key === ']') {
-    event.preventDefault()
-    moveNodeLayer('forward')
-    return
-  }
-  if (mod && key === '[') {
-    event.preventDefault()
-    moveNodeLayer('backward')
-    return
-  }
-
-  if (key === 'Alt' && !event.repeat) {
-    const node = getSelectedNode()
-    if (!node) return
-    const data = node.getData() as CanvasNodeData
-    if (data.kind !== 'image') return
-    if (altVoiceTimer) clearTimeout(altVoiceTimer)
-    altVoiceTimer = setTimeout(() => {
-      openImageDialogue(node.id)
-      altVoiceTimer = null
-    }, 420)
-    return
-  }
-
-  if (key !== 'Delete' && key !== 'Backspace') return
-  if (!selectedNodeId.value) return
-  event.preventDefault()
-  removeSelectedNode()
-}
-
-function handleKeyup(event: KeyboardEvent) {
-  if (isEditableTarget(event.target)) return
-
-  if (event.key === ' ') {
-    const heldMs = Date.now() - spaceKeyDownAt
-    endSpacePan()
-    if (heldMs < 220 && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      openImagePreview()
-    }
-    event.preventDefault()
-    return
-  }
-
-  if (event.key === 'Alt' && altVoiceTimer) {
-    clearTimeout(altVoiceTimer)
-    altVoiceTimer = null
-  }
-}
-
-let scrollerScrollTarget: HTMLElement | null = null
+const { altVoiceTimer, bindKeyboard, unbindKeyboard, endSpacePan } = useCanvasKeyboard({
+  graph,
+  panMode,
+  selectedNodeId,
+  cancelCurrentOperation,
+  zoomIn,
+  zoomOut,
+  zoomToScale,
+  zoomFitToScreen,
+  handleSaveCanvas,
+  copySelectedNode,
+  pasteNode,
+  handleUndo,
+  handleRedo,
+  moveNodeLayer,
+  openImageDialogue,
+  getSelectedNode,
+  removeSelectedNode,
+  openImagePreview,
+  triggerCanvasUploadShortcut,
+  getScroller,
+})
 
 function bindScrollerScrollListener(g: Graph) {
   const scroller = getScroller(g)
@@ -2594,9 +2119,26 @@ onMounted(() => {
   const instance = createGraph(graphRef.value) as CanvasGraph
   instance.__openConnectMenu = openConnectMenuByNodeId
   instance.__openImageDialogue = openImageDialogue
+  instance.__deleteCanvasNode = removeNodeById
+  instance.__requestTextExpand = openTextExpand
+  instance.__onTextPickerAction = handleTextPickerAction
+  instance.__onTextNodeEdgeLinked = handleTextNodeEdgeLinked
+  instance.__notifyTextNodeUpdated = bumpToolbarRevision
+  instance.__textEditorRegistry = {
+    register(nodeId: string, api: TextEditorApi) {
+      textEditorApis.set(nodeId, api)
+    },
+    unregister(nodeId: string) {
+      textEditorApis.delete(nodeId)
+    },
+    get(nodeId: string) {
+      return textEditorApis.get(nodeId)
+    },
+  }
   graph.value = instance
   bindGraphInteraction(instance)
   bindScrollerScrollListener(instance)
+  bindKeyboard()
 
   instance.on('blank:dblclick', handleBlankDblClick)
   instance.on('scale', ({ sx }) => {
@@ -2616,6 +2158,15 @@ onMounted(() => {
     const data = node.getData() as CanvasNodeData
     if (data.kind === 'image') {
       handleImageNodeDblClick({ node })
+      return
+    }
+    if (data.kind === 'text' && data.mode === 'picker') {
+      node.setData({ ...data, mode: 'editor' })
+      selectedNodeId.value = node.id
+      selectedKind.value = 'text'
+      syncNodeSelectionHighlight(node.id)
+      bumpToolbarRevision()
+      updateNodeToolbar()
     }
   })
   instance.on('blank:click', () => {
@@ -2624,9 +2175,6 @@ onMounted(() => {
   })
   instance.on('node:change:data', handleNodeDataChange)
   instance.on('edge:connected', handleEdgeConnected)
-
-  window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('keyup', handleKeyup)
 
   canvasHistory = createCanvasHistory(getHistoryMeta)
   canvasHistory.seed(instance)
@@ -2649,10 +2197,9 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('keyup', handleKeyup)
+  unbindKeyboard()
   if (historyPushTimer) clearTimeout(historyPushTimer)
-  if (altVoiceTimer) clearTimeout(altVoiceTimer)
+  if (altVoiceTimer.value) clearTimeout(altVoiceTimer.value)
   endSpacePan()
   canvasHistory = null
   unbindScrollerScrollListener()
@@ -2662,6 +2209,7 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style lang="scss">
+/* 子组件在 panels/ 中，样式须为非 scoped 才能作用于子组件 DOM */
 @import './index.scss';
 </style>

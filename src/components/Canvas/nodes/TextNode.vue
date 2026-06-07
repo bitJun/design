@@ -5,6 +5,8 @@
       'text-node--selected': data.isSelected,
       'text-node--light': isLightTheme,
       'text-node--picker-card': data.mode === 'picker',
+      'text-node--editor': data.mode === 'editor',
+      'text-node--loading': data.textGenState === 'loading',
     }"
   >
     <button
@@ -15,6 +17,7 @@
     >
       +
     </button>
+
     <div v-if="data.mode !== 'picker'" class="text-node__title canvas-node__meta">
       <span class="text-node__title-icon">T</span>
       <span class="text-node__title-text">{{ data.title }}</span>
@@ -30,90 +33,267 @@
     </div>
 
     <div v-if="data.mode === 'picker'" class="text-node__body text-node__body--picker">
-      <div class="text-node__hero-icon">
+      <div v-if="data.textGenState === 'loading'" class="text-node__skeleton">
         <span />
         <span />
         <span />
         <span />
       </div>
-      <p class="text-node__try">尝试：</p>
-      <button
-        v-for="action in TEXT_PICKER_ACTIONS"
-        :key="action.key"
-        type="button"
-        class="text-node__action"
-        @mousedown.stop
-        @click="onAction(action.key)"
-      >
-        <span class="text-node__action-icon" :data-icon="action.icon" />
-        {{ action.label }}
-      </button>
+      <template v-else>
+        <div class="text-node__hero-icon">
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+        <p class="text-node__try">尝试：</p>
+        <button
+          v-for="action in TEXT_PICKER_ACTIONS"
+          :key="action.key"
+          type="button"
+          class="text-node__action"
+          :class="{ 'text-node__action--active': data.textPickerTask === action.key }"
+          @mousedown.stop
+          @click="onAction(action.key)"
+        >
+          <span class="text-node__action-icon" :data-icon="action.icon" />
+          {{ action.label }}
+        </button>
+      </template>
     </div>
 
     <div v-else class="text-node__body text-node__body--editor">
-      <div class="text-node__format">
-        <button type="button" class="text-node__format-btn">H1</button>
-        <button type="button" class="text-node__format-btn">H2</button>
-        <button type="button" class="text-node__format-btn">H3</button>
-        <span class="text-node__format-divider" />
-        <button type="button" class="text-node__format-btn">B</button>
-        <button type="button" class="text-node__format-btn">I</button>
-        <button type="button" class="text-node__format-btn">≡</button>
-        <button type="button" class="text-node__format-btn">🔗</button>
-      </div>
-      <textarea
-        v-model="data.content"
-        class="text-node__textarea"
-        placeholder="输入文本内容..."
-        @input="syncData"
+      <div
+        ref="editorRef"
+        class="text-node__editor"
+        contenteditable="true"
+        :data-placeholder="TEXT_EDITOR_PLACEHOLDER"
+        @input="onEditorInput"
+        @blur="onEditorBlur"
+        @focus="onEditorFocus"
         @mousedown.stop
+        @pointerdown.stop
+      />
+      <span
+        class="text-node__resize"
+        title="拖拽调整大小"
+        @mousedown.stop.prevent="onResizeStart"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, reactive } from 'vue'
+import { inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import type { Node } from '@antv/x6'
-import { TEXT_PICKER_ACTIONS } from '../constants'
-import type { CanvasNodeData } from '../constants'
+import {
+  TEXT_EDITOR_PLACEHOLDER,
+  TEXT_PICKER_ACTIONS,
+  type CanvasNodeData,
+  type TextFormatCommand,
+} from '../constants'
 import { createEmptyNodeData } from '../constants'
+import type { CanvasGraph } from '../graph'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
 import { useCanvasBgTheme } from '../useCanvasBgTheme'
+import type { TextEditorApi } from './useTextEditorRegistry'
 
 const getNode = inject<() => Node>('getNode')!
 const { isLightTheme } = useCanvasBgTheme()
 const { removeSelf } = useNodeDelete()
 const { onPlusPointerDown } = useNodeConnect()
 
+const editorRef = ref<HTMLElement | null>(null)
 const data = reactive<CanvasNodeData>({
   ...createEmptyNodeData(),
   kind: 'text',
   title: '文本节点',
 })
 
-function syncData() {
+let resizeState: {
+  startX: number
+  startY: number
+  startW: number
+  startH: number
+} | null = null
+
+function canvasGraph(): CanvasGraph {
+  return getNode().model?.graph as CanvasGraph
+}
+
+function syncData(patch: Partial<CanvasNodeData> = {}) {
+  Object.assign(data, patch)
   getNode().setData({ ...data })
+  canvasGraph().__notifyTextNodeUpdated?.()
+}
+
+function syncEditorHtml() {
+  const el = editorRef.value
+  if (!el) return
+  const html = data.content || ''
+  if (el.innerHTML !== html) {
+    el.innerHTML = html
+  }
+}
+
+function onEditorInput() {
+  const el = editorRef.value
+  if (!el) return
+  data.content = el.innerHTML
+  getNode().setData({ ...data })
+}
+
+function onEditorFocus() {
+  canvasGraph().__textEditorRegistry?.get(getNode().id)?.focus()
+}
+
+function onEditorBlur() {
+  onEditorInput()
+}
+
+function execFormat(cmd: TextFormatCommand) {
+  const el = editorRef.value
+  if (!el) return
+  el.focus()
+
+  switch (cmd) {
+    case 'clear':
+      document.execCommand('removeFormat')
+      break
+    case 'h1':
+      document.execCommand('formatBlock', false, 'h1')
+      break
+    case 'h2':
+      document.execCommand('formatBlock', false, 'h2')
+      break
+    case 'h3':
+      document.execCommand('formatBlock', false, 'h3')
+      break
+    case 'paragraph':
+      document.execCommand('formatBlock', false, 'p')
+      break
+    case 'bold':
+      document.execCommand('bold')
+      break
+    case 'italic':
+      document.execCommand('italic')
+      break
+    case 'bullet':
+      document.execCommand('insertUnorderedList')
+      break
+    case 'ordered':
+      document.execCommand('insertOrderedList')
+      break
+    case 'hr':
+      document.execCommand('insertHorizontalRule')
+      break
+    case 'copy':
+      void copyContent()
+      return
+    case 'expand':
+      canvasGraph().__requestTextExpand?.(getNode().id)
+      return
+    default:
+      break
+  }
+
+  onEditorInput()
+}
+
+async function copyContent() {
+  const text = editorRef.value?.innerText ?? ''
+  if (!text.trim()) return
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    // ignore clipboard errors
+  }
+}
+
+function getPlainText() {
+  return editorRef.value?.innerText ?? ''
+}
+
+function focusEditor() {
+  editorRef.value?.focus()
+}
+
+function onResizeStart(event: MouseEvent) {
+  const node = getNode()
+  const { width, height } = node.getSize()
+  resizeState = {
+    startX: event.clientX,
+    startY: event.clientY,
+    startW: width,
+    startH: height,
+  }
+
+  const onMove = (moveEvent: MouseEvent) => {
+    if (!resizeState) return
+    const scale = node.getData()?.viewScale ?? 1
+    const dx = (moveEvent.clientX - resizeState.startX) / scale
+    const dy = (moveEvent.clientY - resizeState.startY) / scale
+    const nextW = Math.max(220, Math.round(resizeState.startW + dx))
+    const nextH = Math.max(140, Math.round(resizeState.startH + dy))
+    data.editorWidth = nextW
+    data.editorHeight = nextH
+    node.resize(nextW, nextH)
+    node.setData({ ...data })
+    canvasGraph().__notifyTextNodeUpdated?.()
+  }
+
+  const onUp = () => {
+    resizeState = null
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+  }
+
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
 }
 
 function onAction(key: string) {
   if (key === 'write') {
     data.mode = 'editor'
     syncData()
+    nextTickFocus()
     return
   }
-  data.content = TEXT_PICKER_ACTIONS.find((item) => item.key === key)?.label ?? ''
-  data.mode = 'editor'
-  syncData()
+  canvasGraph().__onTextPickerAction?.(key, getNode().id)
 }
+
+function nextTickFocus() {
+  requestAnimationFrame(() => {
+    syncEditorHtml()
+    focusEditor()
+  })
+}
+
+let editorApi: TextEditorApi | undefined
 
 onMounted(() => {
   const node = getNode()
   Object.assign(data, node.getData() as CanvasNodeData)
+  syncEditorHtml()
+
+  editorApi = {
+    execFormat,
+    copyContent,
+    requestExpand: () => canvasGraph().__requestTextExpand?.(node.id),
+    focus: focusEditor,
+    getPlainText,
+  }
+  canvasGraph().__textEditorRegistry?.register(node.id, editorApi)
+
   node.on('change:data', ({ current }) => {
     Object.assign(data, current as CanvasNodeData)
+    syncEditorHtml()
   })
+})
+
+onBeforeUnmount(() => {
+  canvasGraph().__textEditorRegistry?.unregister(getNode().id)
 })
 </script>
 
@@ -121,6 +301,7 @@ onMounted(() => {
 @import './node-delete.scss';
 @import './node-port-plus.scss';
 @import './node-light-theme.scss';
+
 .text-node {
   position: relative;
   display: flex;
@@ -142,6 +323,13 @@ onMounted(() => {
   }
 }
 
+.text-node--editor {
+  .text-node__body--editor {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
 .text-node__title {
   align-items: center;
   gap: 6px;
@@ -152,17 +340,6 @@ onMounted(() => {
 
 .text-node__title-icon {
   flex-shrink: 0;
-}
-
-.text-node__title-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.text-node__title-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -175,6 +352,14 @@ onMounted(() => {
   color: #d1d5db;
 }
 
+.text-node__title-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .text-node__body {
   border: 1px solid #4b4b55;
   border-radius: 14px;
@@ -184,6 +369,32 @@ onMounted(() => {
 
 .text-node__body--picker {
   padding: 16px 12px 12px;
+}
+
+.text-node__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 4px;
+
+  span {
+    display: block;
+    height: 10px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #2a2a30 25%, #3d3d45 50%, #2a2a30 75%);
+    background-size: 200% 100%;
+    animation: text-node-shimmer 1.2s infinite;
+
+    &:nth-child(1) { width: 88%; }
+    &:nth-child(2) { width: 72%; }
+    &:nth-child(3) { width: 80%; }
+    &:nth-child(4) { width: 56%; }
+  }
+}
+
+@keyframes text-node-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .text-node__hero-icon {
@@ -228,7 +439,8 @@ onMounted(() => {
   cursor: pointer;
   transition: background 0.15s;
 
-  &:hover {
+  &:hover,
+  &--active {
     background: #2a2a30;
   }
 }
@@ -247,53 +459,82 @@ onMounted(() => {
 }
 
 .text-node__body--editor {
+  position: relative;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
-.text-node__format {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 8px;
-  border-bottom: 1px solid #3d3d45;
-  background: #252528;
-}
+.text-node__editor {
+  flex: 1;
+  min-height: 0;
+  padding: 12px 14px 20px;
+  overflow: auto;
+  outline: none;
+  color: #f3f4f6;
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
 
-.text-node__format-btn {
-  min-width: 28px;
-  height: 26px;
-  padding: 0 6px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #d1d5db;
-  font-size: 12px;
-  cursor: pointer;
+  &:empty::before {
+    content: attr(data-placeholder);
+    color: #6b7280;
+    pointer-events: none;
+  }
 
-  &:hover {
-    background: #3d3d45;
+  :deep(h1) {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  :deep(h2) {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  :deep(h3) {
+    margin: 0 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  :deep(p) {
+    margin: 0 0 6px;
+  }
+
+  :deep(ul),
+  :deep(ol) {
+    margin: 0 0 6px;
+    padding-left: 20px;
+  }
+
+  :deep(hr) {
+    margin: 8px 0;
+    border: none;
+    border-top: 1px solid #4b4b55;
   }
 }
 
-.text-node__format-divider {
-  width: 1px;
-  height: 16px;
-  margin: 0 4px;
-  background: #3d3d45;
-}
+.text-node__resize {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+  opacity: 0.45;
 
-.text-node__textarea {
-  width: 100%;
-  min-height: 120px;
-  padding: 12px 14px;
-  border: none;
-  background: transparent;
-  color: #f3f4f6;
-  font-size: 14px;
-  line-height: 1.5;
-  resize: none;
-  outline: none;
-  box-sizing: border-box;
+  &::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid #9ca3af;
+    border-bottom: 2px solid #9ca3af;
+  }
 }
 </style>

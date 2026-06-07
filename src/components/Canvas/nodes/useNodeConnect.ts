@@ -68,6 +68,7 @@ export function useNodeConnect() {
       if (targetNode?.isNode()) {
         edge.setTarget({ cell: targetNode.id, port: 'left' })
         ;(g as CanvasGraph).__connectPreviewEdgeId = ''
+        ;(g as CanvasGraph).__onTextNodeEdgeLinked?.(targetNode.id)
         return
       }
 

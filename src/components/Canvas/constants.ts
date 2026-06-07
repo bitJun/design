@@ -27,7 +27,53 @@ export interface CanvasNodeData {
   genSeed?: number
   videoGenTab?: string
   viewScale?: number
+  editorWidth?: number
+  editorHeight?: number
+  textPickerTask?: 'img2prompt' | 'text2video' | 'write' | ''
+  textGenState?: 'idle' | 'loading' | 'done'
+  linkedImageNodeId?: string
 }
+
+export const TEXT_EDITOR_PLACEHOLDER = '输入内容...'
+
+export type TextFormatCommand =
+  | 'clear'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'paragraph'
+  | 'bold'
+  | 'italic'
+  | 'bullet'
+  | 'ordered'
+  | 'hr'
+  | 'copy'
+  | 'expand'
+
+export const TEXT_FORMAT_TOOLBAR: Array<{
+  key: TextFormatCommand
+  label: string
+  title: string
+  dividerAfter?: boolean
+}> = [
+  { key: 'clear', label: '⊘', title: '清除格式' },
+  { key: 'h1', label: 'H1', title: '一级标题' },
+  { key: 'h2', label: 'H2', title: '二级标题' },
+  { key: 'h3', label: 'H3', title: '三级标题' },
+  { key: 'paragraph', label: '¶', title: '正文', dividerAfter: true },
+  { key: 'bold', label: 'B', title: '加粗' },
+  { key: 'italic', label: 'I', title: '斜体', dividerAfter: true },
+  { key: 'bullet', label: '≡', title: '无序列表' },
+  { key: 'ordered', label: '1.', title: '有序列表' },
+  { key: 'hr', label: '—', title: '分割线', dividerAfter: true },
+  { key: 'copy', label: '⎘', title: '复制' },
+  { key: 'expand', label: '⤢', title: '全屏编辑' },
+]
+
+export const TEXT_PROMPT_MODEL_LABEL = 'GVLM 3.1'
+
+export const TEXT_PROMPT_PLACEHOLDER =
+  '写下你想讲的故事、场景或角色设定。例如：一个来自未来的机器人，在城市屋顶看星星。'
 
 export function createEmptyNodeData(): CanvasNodeData {
   return {
@@ -59,6 +105,9 @@ export function nodeCardSize2x3(width = NODE_DEFAULT_WIDTH) {
 
 /** 文本/音频 picker 底部输入框距节点底边的垂直间距 */
 export const PROMPT_BAR_TOP_GAP = 62
+
+/** 视频节点与文生视频面板间距（约为 PROMPT_BAR_TOP_GAP 的 1/3） */
+export const VIDEO_GEN_PROMPT_TOP_GAP = Math.round(PROMPT_BAR_TOP_GAP / 3)
 
 export const CANVAS_MIN_ZOOM = 0.35
 export const CANVAS_MAX_ZOOM = 2
@@ -104,11 +153,6 @@ export const CONNECT_GENERATE_MENU: Array<{
   { key: 'text', label: '文本', icon: 'text' },
   { key: 'image', label: '图片', icon: 'image' },
   { key: 'video', label: '视频', icon: 'video' },
-  // { key: 'compose', label: '视频合成', icon: 'compose', badge: 'Beta' },
-  // { key: 'director', label: '导演台', icon: 'director', badge: 'NEW' },
-  // { key: 'audio', label: '音频', icon: 'audio', disabled: true },
-  // { key: 'script', label: '脚本', icon: 'script', badge: 'Beta' },
-  { key: 'reference', label: '参考节点', icon: 'link', disabled: true },
 ]
 
 export const ADD_NODE_GROUPS = [
@@ -118,17 +162,13 @@ export const ADD_NODE_GROUPS = [
       { kind: 'text' as const, label: '文本', desc: '脚本、广告词、品牌文案', icon: 'text' as MenuIcon },
       { kind: 'image' as const, label: '图片', desc: '海报、封面、素材图', icon: 'image' as MenuIcon },
       { kind: 'video' as const, label: '视频', desc: '短视频、动画片段', icon: 'video' as MenuIcon },
-      // { kind: 'video' as const, label: '视频合成', desc: '多段素材合成', badge: 'Beta', icon: 'compose' as MenuIcon },
-      // { kind: 'text' as const, label: '导演台', desc: '镜头与分镜控image.png制', badge: 'NEW', icon: 'director' as MenuIcon },
-      // { kind: 'audio' as const, label: '音频', desc: '配音、音效、背景音乐', icon: 'audio' as MenuIcon },
-      // { kind: 'text' as const, label: '脚本', desc: '结构化拍摄脚本', badge: 'Beta', icon: 'script' as MenuIcon },
     ],
   },
   {
     title: '添加资源',
     items: [
       { kind: 'image' as const, label: '上传', desc: '本地图片或视频', icon: 'upload' as MenuIcon, action: 'upload' as const },
-      { kind: 'image' as const, label: '从生成历史选择', desc: '复用历史结果', icon: 'history' as MenuIcon, action: 'history' as const },
+      // { kind: 'image' as const, label: '从生成历史选择', desc: '复用历史结果', icon: 'history' as MenuIcon, action: 'history' as const },
     ],
   },
 ]

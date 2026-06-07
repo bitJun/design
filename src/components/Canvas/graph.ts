@@ -18,6 +18,7 @@ import {
   createEmptyNodeData,
   IMAGE_NODE_META_HEIGHT,
   PROMPT_BAR_TOP_GAP,
+  VIDEO_GEN_PROMPT_TOP_GAP,
   KIND_LABEL,
   NODE_SIZE,
   type CanvasNodeData,
@@ -95,10 +96,24 @@ export type ConnectMenuOpener = (
   releasePoint: { x: number; y: number },
 ) => void
 
+import type { TextEditorApi } from './nodes/useTextEditorRegistry'
+
+export type TextEditorRegistry = {
+  register: (nodeId: string, api: TextEditorApi) => void
+  unregister: (nodeId: string) => void
+  get: (nodeId: string) => TextEditorApi | undefined
+}
+
 export type CanvasGraph = Graph & {
   __scroller?: Scroller
   __openConnectMenu?: ConnectMenuOpener
   __openImageDialogue?: (nodeId: string) => void
+  __deleteCanvasNode?: (nodeId: string) => void
+  __textEditorRegistry?: TextEditorRegistry
+  __requestTextExpand?: (nodeId: string) => void
+  __onTextPickerAction?: (key: string, nodeId: string) => void
+  __onTextNodeEdgeLinked?: (textNodeId: string) => void
+  __notifyTextNodeUpdated?: () => void
   __suppressBlankCloseForConnect?: boolean
   __connectPreviewEdgeId?: string
 }
@@ -149,7 +164,14 @@ export function getBaseNodeSize(
   const h = data?.mediaHeight ?? 0
 
   if (kind === 'text' || kind === 'audio') {
-    return mode === 'editor' ? NODE_SIZE.text.editor : NODE_SIZE.text.picker
+    if (mode === 'editor') {
+      const base = NODE_SIZE.text.editor
+      return {
+        width: data?.editorWidth ?? base.width,
+        height: data?.editorHeight ?? base.height,
+      }
+    }
+    return NODE_SIZE.text.picker
   }
   if (kind === 'video') {
     if (mode === 'picker' || !data?.previewUrl) return NODE_SIZE.video.picker
@@ -435,6 +457,35 @@ export function getNodeToolbarPosition(graph: Graph, node: Node, container: HTML
   }
 }
 
+export function getNodeTextFormatToolbarPosition(
+  graph: Graph,
+  node: Node,
+  container: HTMLElement,
+) {
+  const bbox = node.getBBox()
+  const box = getNodeScreenBox(graph, node, container)
+  const anchorOffset = graphLocalToContainerOffset(
+    graph,
+    bbox.x + bbox.width / 2,
+    bbox.y,
+    container,
+  )
+
+  return {
+    left: box.centerX,
+    top: anchorOffset.top - 10,
+    width: Math.max(box.width, 420),
+  }
+}
+
+export function getNodeTextDownloadPosition(graph: Graph, node: Node, container: HTMLElement) {
+  const formatPos = getNodeTextFormatToolbarPosition(graph, node, container)
+  return {
+    left: formatPos.left,
+    top: formatPos.top - 44,
+  }
+}
+
 export function getNodeDialoguePosition(graph: Graph, node: Node, container: HTMLElement) {
   const box = getNodeScreenBox(graph, node, container)
 
@@ -472,6 +523,23 @@ export function getNodeImageGenPromptPosition(
     left: box.centerX,
     top: box.bottom + PROMPT_BAR_TOP_GAP,
     width: Math.min(maxWidth, Math.max(box.width, 480)),
+  }
+}
+
+/** 文生视频底部面板：间距较图生图/文本提示栏更紧凑 */
+export function getNodeVideoGenPromptPosition(
+  graph: Graph,
+  node: Node,
+  container: HTMLElement,
+) {
+  const box = getNodeScreenBox(graph, node, container)
+  const containerRect = container.getBoundingClientRect()
+  const maxWidth = Math.min(720, containerRect.width - 48)
+
+  return {
+    left: box.centerX,
+    top: box.bottom + VIDEO_GEN_PROMPT_TOP_GAP,
+    width: Math.min(maxWidth, Math.max(box.width, 520)),
   }
 }
 
