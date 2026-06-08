@@ -86,9 +86,12 @@
     <VideoGenPromptPanel
       :prompt="videoGenPromptText"
       :active-tab="videoGenActiveTab"
+      :source-refs="videoGenSourceRefs"
+      :element-select-mode="elementSelectMode"
       @update:prompt="emit('update:videoGenPromptText', $event)"
       @update:active-tab="emit('update:videoGenActiveTab', $event)"
       @drag-start="emit('video-gen-drag-start', $event)"
+      @quick-action="emit('video-gen-quick-action', $event)"
     />
   </div>
 
@@ -193,6 +196,7 @@ import {
   type VideoHdMagnification,
 } from '../constants'
 import type { CanvasBgTheme } from '../canvasTheme'
+import type { VideoSourceRef } from '../videoGen'
 
 defineProps<{
   canvasBgTheme: CanvasBgTheme
@@ -227,6 +231,8 @@ defineProps<{
   imageGenSubmitting: boolean
   videoGenPromptText: string
   videoGenActiveTab: string
+  videoGenSourceRefs: VideoSourceRef[]
+  elementSelectMode: boolean
   imageDialogueText: string
   videoDialogueText: string
   videoHdMagnification: VideoHdMagnification
@@ -249,6 +255,7 @@ const emit = defineEmits<{
   'reset-video-hd-panel': []
   'video-hd-start': []
   'video-gen-drag-start': [event: MouseEvent]
+  'video-gen-quick-action': [key: string]
 }>()
 
 function onPromptInput(event: Event) {

@@ -135,6 +135,7 @@ export type CanvasGraph = Graph & {
   __requestTextExpand?: (nodeId: string) => void
   __onTextPickerAction?: (key: string, nodeId: string) => void
   __onTextNodeEdgeLinked?: (textNodeId: string) => void
+  __onNodeEdgeLinked?: (targetNodeId: string) => void
   __notifyTextNodeUpdated?: () => void
   __notifyNodeDragMove?: () => void
   __notifyNodeDragEnd?: () => void

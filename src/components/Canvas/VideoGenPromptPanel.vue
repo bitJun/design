@@ -4,8 +4,12 @@
     :class="{ 'video-gen-prompt-panel--light': isLightTheme }"
     @mousedown="onPanelMouseDown"
   >
-    <p v-if="showConnectHint" class="video-gen-prompt-panel__hint">
-      需要连接图片节点（1~9个）
+    <p
+      v-if="validationHint"
+      class="video-gen-prompt-panel__hint"
+      :class="{ 'video-gen-prompt-panel__hint--error': validationError }"
+    >
+      {{ validationHint }}
     </p>
 
     <div class="video-gen-prompt-panel__tabs">
@@ -32,12 +36,30 @@
           :key="action.key"
           type="button"
           class="video-gen-prompt-panel__action"
+          :class="{ 'video-gen-prompt-panel__action--active': action.key === 'mark' && elementSelectMode }"
+          @click="emit('quick-action', action.key)"
         >
           <span class="video-gen-prompt-panel__action-icon" :data-icon="action.icon" />
           {{ action.label }}
         </button>
       </div>
       <button type="button" class="video-gen-prompt-panel__expand" title="展开">⤢</button>
+    </div>
+
+    <div
+      v-if="showSourceRefs"
+      class="video-gen-prompt-panel__refs"
+    >
+      <div
+        v-for="ref in displayRefs"
+        :key="ref.nodeId"
+        class="video-gen-prompt-panel__ref"
+        :class="{ 'video-gen-prompt-panel__ref--invalid': validationError }"
+      >
+        <img :src="ref.previewUrl" alt="" />
+        <span v-if="ref.badge" class="video-gen-prompt-panel__ref-badge">{{ ref.badge }}</span>
+        <span v-else class="video-gen-prompt-panel__ref-index">{{ ref.index }}</span>
+      </div>
     </div>
 
     <textarea
@@ -49,34 +71,25 @@
     />
 
     <div class="video-gen-prompt-panel__footer">
-      <a-dropdown>
-        <button type="button" class="video-gen-prompt-panel__chip" @click.prevent>
-          Cascading menu
-          <DownOutlined />
-        </button>
-        <template #overlay>
-          <a-menu>
-            <a-menu-item>1st menu item</a-menu-item>
-            <a-menu-item>2nd menu item</a-menu-item>
-            <a-sub-menu key="sub1" title="sub menu">
-              <a-menu-item>3rd menu item</a-menu-item>
-              <a-menu-item>4th menu item</a-menu-item>
-            </a-sub-menu>
-            <a-sub-menu key="sub2" title="disabled sub menu" disabled>
-              <a-menu-item>5d menu item</a-menu-item>
-              <a-menu-item>6th menu item</a-menu-item>
-            </a-sub-menu>
-          </a-menu>
-        </template>
-      </a-dropdown>
+      <button type="button" class="video-gen-prompt-panel__chip video-gen-prompt-panel__chip--vip">
+        Seedance 2.0 VIP
+      </button>
       <button type="button" class="video-gen-prompt-panel__chip">16:9 · 720P · 5s 🔊 ▾</button>
       <span class="video-gen-prompt-panel__tools">
         <button type="button" class="video-gen-prompt-panel__tool" title="翻译">文</button>
         <button type="button" class="video-gen-prompt-panel__tool" title="设置">☰</button>
       </span>
       <button type="button" class="video-gen-prompt-panel__chip">1个 ▾</button>
-      <span class="video-gen-prompt-panel__credits">⚡ 135</span>
-      <button type="button" class="video-gen-prompt-panel__send" title="生成">↑</button>
+      <span class="video-gen-prompt-panel__credits">⚡ 122/135</span>
+      <button
+        type="button"
+        class="video-gen-prompt-panel__send"
+        :class="{ 'video-gen-prompt-panel__send--disabled': Boolean(validationError) }"
+        :disabled="Boolean(validationError)"
+        title="生成"
+      >
+        ↑
+      </button>
     </div>
   </div>
 </template>
@@ -89,18 +102,23 @@ import {
   VIDEO_GEN_QUICK_ACTIONS,
   VIDEO_GEN_TABS,
 } from './constants'
+import { getVideoGenTabValidation } from './videoGen'
+import type { VideoSourceRef } from './videoGen'
 
 const { isLightTheme } = useCanvasBgTheme()
 
 const props = defineProps<{
   prompt: string
   activeTab: string
+  sourceRefs?: VideoSourceRef[]
+  elementSelectMode?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:prompt': [value: string]
   'update:activeTab': [value: string]
   'drag-start': [event: MouseEvent]
+  'quick-action': [key: string]
 }>()
 
 const DRAG_IGNORE_SELECTOR =
@@ -113,9 +131,36 @@ function onPanelMouseDown(event: MouseEvent) {
   emit('drag-start', event)
 }
 
-const showConnectHint = computed(
-  () => props.activeTab === 'frames' || props.activeTab === 'first',
-)
+const sourceCount = computed(() => props.sourceRefs?.length ?? 0)
+
+const validationHint = computed(() => {
+  return getVideoGenTabValidation(props.activeTab, sourceCount.value)
+})
+
+const validationError = computed(() => {
+  const hint = validationHint.value
+  if (!hint) return false
+  return sourceCount.value > 0
+})
+
+const showSourceRefs = computed(() => {
+  if (props.activeTab === 'text2video') return false
+  return (props.sourceRefs?.length ?? 0) > 0
+})
+
+const displayRefs = computed(() => {
+  const refs = props.sourceRefs ?? []
+  if (props.activeTab === 'frames') {
+    return refs.slice(0, 2).map((ref, index) => ({
+      ...ref,
+      badge: index === 0 ? '首帧' : '尾帧',
+    }))
+  }
+  if (props.activeTab === 'imageRef' && refs.length === 1) {
+    return refs.map((ref) => ({ ...ref, badge: '首帧' }))
+  }
+  return refs.map((ref) => ({ ...ref, badge: '' }))
+})
 
 function selectTab(key: string) {
   const tab = VIDEO_GEN_TABS.find((item) => item.key === key)
@@ -155,9 +200,19 @@ function onPromptInput(event: Event) {
   font-size: 12px;
   text-align: center;
 
+  &--error {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+  }
+
   .video-gen-prompt-panel--light & {
     background: #f3f4f6;
     color: #6b7280;
+
+    &--error {
+      background: rgba(239, 68, 68, 0.08);
+      color: #dc2626;
+    }
   }
 }
 
@@ -248,7 +303,8 @@ function onPromptInput(event: Event) {
   font-size: 11px;
   cursor: pointer;
 
-  &:hover {
+  &:hover,
+  &--active {
     background: #2a2a30;
     color: #e5e7eb;
   }
@@ -256,7 +312,8 @@ function onPromptInput(event: Event) {
   .video-gen-prompt-panel--light & {
     color: #6b7280;
 
-    &:hover {
+    &:hover,
+    &--active {
       background: #f3f4f6;
       color: #374151;
     }
@@ -329,6 +386,62 @@ function onPromptInput(event: Event) {
       color: #374151;
     }
   }
+}
+
+.video-gen-prompt-panel__refs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.video-gen-prompt-panel__ref {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  background: #2a2a30;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  &--invalid {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .video-gen-prompt-panel--light & {
+    background: #f3f4f6;
+  }
+}
+
+.video-gen-prompt-panel__ref-badge,
+.video-gen-prompt-panel__ref-index {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.video-gen-prompt-panel__ref-index {
+  left: auto;
+  right: 4px;
+  min-width: 16px;
+  text-align: center;
+  border-radius: 50%;
+  padding: 1px 0;
 }
 
 .video-gen-prompt-panel__input {
@@ -448,13 +561,23 @@ function onPromptInput(event: Event) {
   height: 36px;
   border: none;
   border-radius: 50%;
-  background: #6b7cff;
+  background: #111827;
   color: #fff;
   font-size: 18px;
   cursor: pointer;
 
-  &:hover {
-    background: #5b6cff;
+  &:hover:not(:disabled) {
+    background: #1f2937;
+  }
+
+  &--disabled,
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .video-gen-prompt-panel--light & {
+    background: #111827;
   }
 }
 </style>

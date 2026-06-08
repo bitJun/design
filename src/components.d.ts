@@ -25,6 +25,7 @@ declare module 'vue' {
     CanvasBottomControls: typeof import('./components/Canvas/panels/CanvasBottomControls.vue')['default']
     CanvasBottomDock: typeof import('./components/Canvas/panels/CanvasBottomDock.vue')['default']
     CanvasConnectMenu: typeof import('./components/Canvas/panels/CanvasConnectMenu.vue')['default']
+    CanvasElementSelectBar: typeof import('./components/Canvas/panels/CanvasElementSelectBar.vue')['default']
     CanvasHeader: typeof import('./components/Canvas/panels/CanvasHeader.vue')['default']
     CanvasHistoryPanel: typeof import('./components/Canvas/CanvasHistoryPanel.vue')['default']
     CanvasImagePreview: typeof import('./components/Canvas/panels/CanvasImagePreview.vue')['default']

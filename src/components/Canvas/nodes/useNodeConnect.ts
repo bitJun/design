@@ -2,10 +2,12 @@ import { inject, ref } from 'vue'
 import type { Node } from '@antv/x6'
 import type { CanvasGraph } from '../graph'
 import { getFlowEdgeAttrs } from '../edgeStyle'
+import type { CanvasNodeData } from '../constants'
 import {
   canOpenConnectMenu,
   removeSourcePreviewEdges,
 } from '../nodeConnect'
+import { canLinkImageToNode } from '../videoGen'
 
 let activeEdgeId: string | null = null
 
@@ -66,9 +68,21 @@ export function useNodeConnect() {
       const targetNode = targetView?.cell
 
       if (targetNode?.isNode()) {
+        const sourceData = node.getData() as CanvasNodeData
+        const targetData = targetNode.getData() as CanvasNodeData
+        const canLink =
+          sourceData.kind === 'image' &&
+          sourceData.previewUrl &&
+          canLinkImageToNode(targetData)
+
+        if (!canLink) {
+          g.removeCell(edge)
+          return
+        }
+
         edge.setTarget({ cell: targetNode.id, port: 'left' })
         ;(g as CanvasGraph).__connectPreviewEdgeId = ''
-        ;(g as CanvasGraph).__onTextNodeEdgeLinked?.(targetNode.id)
+        ;(g as CanvasGraph).__onNodeEdgeLinked?.(targetNode.id)
         return
       }
 

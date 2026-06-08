@@ -120,6 +120,10 @@ export const PROMPT_BAR_TOP_GAP = 21
 /** 视频节点与文生视频面板间距 */
 export const VIDEO_GEN_PROMPT_TOP_GAP = 21
 
+/** 连线/操作生成的新节点与源节点之间的默认间距（边到边） */
+export const NODE_SPAWN_GAP_X = 150
+export const NODE_SPAWN_GAP_Y = 80
+
 export const CANVAS_MIN_ZOOM = 0.35
 export const CANVAS_MAX_ZOOM = 2
 
@@ -171,7 +175,7 @@ export const ADD_NODE_GROUPS = [
     title: '添加节点',
     items: [
       { kind: 'text' as const, label: '文本', desc: '脚本、广告词、品牌文案', icon: 'text' as MenuIcon },
-      { kind: 'image' as const, label: '图片', desc: '海报、封面、素材图', icon: 'image' as MenuIcon },
+      { kind: 'image' as const, label: '图片', desc: '海报、封面、素材图', icon: 'image' as MenuIcon, action: 'upload-image' as const },
       { kind: 'video' as const, label: '视频', desc: '短视频、动画片段', icon: 'video' as MenuIcon },
     ],
   },
@@ -198,10 +202,10 @@ export const VIDEO_PICKER_ACTIONS = [
 
 export const VIDEO_GEN_TABS: Array<{ key: string; label: string; disabled?: boolean }> = [
   { key: 'text2video', label: '文生视频' },
-  { key: 'reference', label: '全能参考', disabled: true },
-  { key: 'img2video', label: '图生视频', disabled: true },
-  { key: 'frames', label: '首尾帧', disabled: true },
-  { key: 'imageRef', label: '图片参考', disabled: true },
+  { key: 'reference', label: '全能参考' },
+  { key: 'img2video', label: '图生视频' },
+  { key: 'frames', label: '首尾帧' },
+  { key: 'imageRef', label: '图片参考' },
 ]
 
 export const VIDEO_GEN_QUICK_ACTIONS = [
@@ -264,6 +268,8 @@ export type ImageToolbarIcon =
   | 'frames'
   | 'replicate'
   | 'watermark'
+  | 'rotate'
+  | 'flip'
   | 'subtitle'
 
 export type ImageToolbarAction = {
@@ -300,6 +306,23 @@ export const IMAGE_NODE_TOOLBAR_MORE = {
     { key: 'search', label: '搜同款', icon: 'search' },
     { key: 'parse', label: '解析', icon: 'parse' },
     { key: 'more', label: '更多', icon: 'more' },
+  ] satisfies ImageToolbarAction[],
+} as const
+
+export const IMAGE_NODE_CREATIVE_TOOLBAR = {
+  actions: [
+    { key: 'panorama', label: '全景', badge: 'NEW' },
+    { key: 'multi-angle', label: '多角度' },
+    { key: 'lighting', label: '打光' },
+    { key: 'grid', label: '九宫格' },
+    { key: 'hd', label: '高清' },
+    { key: 'grid-split', label: '宫格切分' },
+  ],
+  icons: [
+    { key: 'rotate', label: '旋转', icon: 'rotate' },
+    { key: 'flip', label: '翻转', icon: 'flip' },
+    { key: 'download', label: '下载', icon: 'download' },
+    { key: 'expand', label: '展开', icon: 'expand' },
   ] satisfies ImageToolbarAction[],
 } as const
 

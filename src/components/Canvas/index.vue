@@ -29,12 +29,19 @@
 
     <div ref="graphRef" class="canvas__graph" />
 
+    <CanvasElementSelectBar
+      v-if="showElementSelectMode"
+      @return-node="returnFromElementSelect"
+      @exit="exitElementSelectMode"
+    />
+
     <CanvasNodeToolbar
       v-if="showNodeToolbar && showToolbarFeatureButtons && !showImageCrop"
       :position="toolbarPos"
       :is-light="isLightNodeToolbar"
       :show-feature-buttons="showToolbarFeatureButtons"
       :selected-kind="selectedKind"
+      :show-image-creative-toolbar="showImageCreativeToolbar"
       :show-image-toolbar-more="showImageToolbarMore"
       :show-image-toolbar-more-menu="showImageToolbarMoreMenu"
       :show-image-hd-menu="showImageHdMenu"
@@ -90,6 +97,8 @@
       :image-gen-submitting="imageGenSubmitting"
       :video-gen-prompt-text="videoGenPromptText"
       :video-gen-active-tab="videoGenActiveTab"
+      :video-gen-source-refs="videoGenSourceRefs"
+      :element-select-mode="showElementSelectMode"
       :image-dialogue-text="imageDialogueText"
       :video-dialogue-text="videoDialogueText"
       :video-hd-magnification="videoHdMagnification"
@@ -109,13 +118,15 @@
       @reset-video-hd-panel="resetVideoHdPanel"
       @video-hd-start="onVideoHdStart"
       @video-gen-drag-start="onVideoGenPromptDragStart"
+      @video-gen-quick-action="onVideoGenQuickAction"
     />
 
     <input
       ref="fileInputRef"
       type="file"
       class="canvas__file-input"
-      accept="image/*,video/*"
+      :accept="fileInputAccept"
+      :multiple="fileInputMultiple"
       @change="onFileSelected"
     />
 
@@ -257,6 +268,7 @@ import CanvasConnectMenu from './panels/CanvasConnectMenu.vue'
 import CanvasAddMenu from './panels/CanvasAddMenu.vue'
 import CanvasAssetsPanel from './panels/CanvasAssetsPanel.vue'
 import CanvasNodeToolbar from './panels/CanvasNodeToolbar.vue'
+import CanvasElementSelectBar from './panels/CanvasElementSelectBar.vue'
 import CanvasNodeOverlays from './panels/CanvasNodeOverlays.vue'
 import CanvasBottomControls from './panels/CanvasBottomControls.vue'
 import CanvasImagePreview from './panels/CanvasImagePreview.vue'
@@ -269,6 +281,7 @@ import {
   IMG2PROMPT_EXAMPLE_FILENAME,
   CANVAS_MAX_ZOOM,
   CANVAS_MIN_ZOOM,
+  NODE_SPAWN_GAP_Y,
   ZOOM_MENU_PRESETS,
   TEXT_EDITOR_PLACEHOLDER,
   type CanvasNodeData,
@@ -288,6 +301,8 @@ import {
   canOpenConnectMenu,
   createNodeFromConnectMenu,
   getConnectMenuPosition,
+  getLinkedSpawnPoint,
+  resolveConnectSpawnPoint,
 } from './nodeConnect'
 import type { ConnectMenuKey } from './constants'
 import {
@@ -305,6 +320,7 @@ import {
   getNodeTextDownloadPosition,
   getNodeTextFormatToolbarPosition,
   getNodeToolbarPosition,
+  getNodeSize,
   getScroller,
   graphLocalToContainerOffset,
   refreshCanvasNodeViews,
@@ -332,6 +348,7 @@ import {
   type CanvasSnapshot,
 } from './canvasSnapshot'
 import { createCanvasHistory } from './canvasHistory'
+import { getVideoSourceRefs } from './videoGen'
 import { setSharedCanvasBgTheme } from './useCanvasBgTheme'
 import { useCanvasKeyboard } from './composables/useCanvasKeyboard'
 
@@ -385,7 +402,6 @@ const connectReleasePoint = ref<{ x: number; y: number } | null>(null)
 const addMenuPos = ref({ left: 0, top: 0 })
 const addMenuDropPoint = ref<{ x: number; y: number } | null>(null)
 const connectSourceNodeId = ref('')
-const connectDropPoint = ref<{ x: number; y: number } | null>(null)
 const showAssetsPanel = ref(false)
 const showHistoryPanel = ref(false)
 const assetsTab = ref<'all' | 'mine'>('mine')
@@ -402,12 +418,16 @@ const videoGenPromptText = ref('')
 const videoGenActiveTab = ref('text2video')
 const selectedNodeId = ref('')
 const pendingUploadNodeId = ref('')
+const fileInputAccept = ref('image/*,video/*')
+const fileInputMultiple = ref(true)
 const toolbarPos = ref({ left: 0, top: 0 })
 const dialoguePos = ref({ left: 0, top: 0, width: 360 })
 const promptPos = ref({ left: 0, top: 0, width: 360 })
 const imageGenPromptPos = ref({ left: 0, top: 0, width: 480 })
 const videoGenPromptPos = ref({ left: 0, top: 0, width: 520 })
 const videoGenPromptDragOffset = ref({ x: 0, y: 0 })
+const showElementSelectMode = ref(false)
+const elementSelectReturnNodeId = ref('')
 const imageCropPos = ref({ left: 0, top: 0, width: 360, height: 420 })
 const videoHdPos = ref({ left: 0, top: 0, width: 320 })
 const selectedKind = ref<NodeKind | null>(null)
@@ -482,6 +502,21 @@ const showImageGenPromptBar = computed(
 const showVideoGenPromptBar = computed(
   () => Boolean(activeVideoGenPromptNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
 )
+
+const videoGenSourceRefs = computed(() => {
+  void toolbarRevision.value
+  const g = graph.value
+  const id = activeVideoGenPromptNodeId.value
+  if (!g || !id) return []
+  return getVideoSourceRefs(g, id)
+})
+
+const showImageCreativeToolbar = computed(() => {
+  void toolbarRevision.value
+  if (!showElementSelectMode.value) return false
+  if (selectedKind.value !== 'image' || !selectedNodeId.value) return false
+  return canShowImageToolbar(getSelectedNodeData())
+})
 const showTextFormatToolbar = computed(() => {
   void toolbarRevision.value
   if (!selectedNodeId.value || showImageCrop.value || textExpandOpen.value) return false
@@ -738,7 +773,12 @@ function resetVideoDialogue() {
 }
 
 function requestCanvasUpload(nodeId: string) {
+  const g = graph.value
+  const cell = g?.getCellById(nodeId)
+  const data = cell?.getData() as CanvasNodeData | undefined
   pendingUploadNodeId.value = nodeId
+  fileInputAccept.value = data?.kind === 'video' ? 'video/*' : 'image/*'
+  fileInputMultiple.value = false
   fileInputRef.value?.click()
 }
 
@@ -1038,6 +1078,40 @@ function closeVideoGenPromptBar() {
   activeVideoGenPromptNodeId.value = ''
 }
 
+function enterElementSelectMode() {
+  elementSelectReturnNodeId.value = activeVideoGenPromptNodeId.value
+  showElementSelectMode.value = true
+}
+
+function exitElementSelectMode() {
+  showElementSelectMode.value = false
+  elementSelectReturnNodeId.value = ''
+}
+
+function returnFromElementSelect() {
+  const returnId = elementSelectReturnNodeId.value
+  exitElementSelectMode()
+  if (!returnId) return
+  const g = graph.value
+  const cell = g?.getCellById(returnId)
+  if (!cell?.isNode()) return
+  selectedNodeId.value = returnId
+  selectedKind.value = 'video'
+  syncNodeSelectionHighlight(returnId)
+  openVideoGenPromptBar(returnId, videoGenActiveTab.value)
+  updateNodeToolbar()
+}
+
+function onVideoGenQuickAction(key: string) {
+  if (key === 'mark') {
+    if (showElementSelectMode.value) {
+      exitElementSelectMode()
+      return
+    }
+    enterElementSelectMode()
+  }
+}
+
 function openImageGenPromptBar(nodeId: string) {
   closeVideoGenPromptBar()
 
@@ -1117,7 +1191,6 @@ function closeConnectMenu() {
   removeConnectPreviewEdge()
   showConnectMenu.value = false
   connectSourceNodeId.value = ''
-  connectDropPoint.value = null
   connectReleasePoint.value = null
 }
 
@@ -1284,13 +1357,12 @@ function openConnectMenu(source: Node, releasePoint: { x: number; y: number }) {
   closeAddMenu()
   connectSourceNodeId.value = source.id
   connectReleasePoint.value = releasePoint
-  const { left, top, dropPoint } = getConnectMenuPosition(
+  const { left, top } = getConnectMenuPosition(
     g,
     source,
     overlayRoot,
     releasePoint,
   )
-  connectDropPoint.value = dropPoint
   connectMenuPos.value = { left, top }
   showConnectMenu.value = true
   ;(g as CanvasGraph).__suppressBlankCloseForConnect = true
@@ -1309,12 +1381,21 @@ function onConnectMenuItem(item: (typeof CONNECT_GENERATE_MENU)[number]) {
   if (item.disabled) return
 
   const g = graph.value
+  const overlayRoot = canvasRef.value
   const sourceId = connectSourceNodeId.value
-  const point = connectDropPoint.value
-  if (!g || !sourceId || !point) return
+  if (!g || !overlayRoot || !sourceId) return
 
   const source = g.getCellById(sourceId)
   if (!source?.isNode()) return
+
+  const point = resolveConnectSpawnPoint(
+    g,
+    overlayRoot,
+    source as Node,
+    connectMenuPos.value,
+    item.key as ConnectMenuKey,
+  )
+  if (!point) return
 
   const spawned = createNodeFromConnectMenu(
     g,
@@ -1377,13 +1458,10 @@ function handleEdgeConnected({
   if (currentCell?.isNode?.()) {
     const target = currentCell as Node
     const targetData = target.getData() as CanvasNodeData
-    if (targetData.kind === 'text') {
-      syncTextNodeImageSource(g, target)
-      if (activePickerNodeId.value === target.id) {
-        loadPromptBarContext(target.id)
-      }
-      bumpToolbarRevision()
-      scheduleHistoryPush()
+    if (targetData.kind === 'text' || targetData.kind === 'video') {
+      handleNodeEdgeLinked(target.id)
+    } else {
+      g.removeEdge(edge.id)
     }
     return
   }
@@ -1506,11 +1584,10 @@ function handleTextPickerAction(key: string, nodeId: string) {
     activePickerNodeId.value = nodeId
     const source = g.getCellById(nodeId)
     if (!source?.isNode()) return
-    const bbox = (source as Node).getBBox()
     const spawned = createNodeFromConnectMenu(
       g,
       source as Node,
-      { x: bbox.x + bbox.width + 100, y: bbox.y + bbox.height / 2 },
+      getLinkedSpawnPoint(source as Node, 'video', { mode: 'picker' }),
       'video',
     )
     if (spawned) {
@@ -1574,15 +1651,20 @@ function handleTextPickerAction(key: string, nodeId: string) {
   updateNodeToolbar()
 }
 
-function handleTextNodeEdgeLinked(textNodeId: string) {
+function handleNodeEdgeLinked(targetNodeId: string) {
   const g = graph.value
   if (!g) return
-  const cell = g.getCellById(textNodeId)
+  const cell = g.getCellById(targetNodeId)
   if (!cell?.isNode()) return
-  syncTextNodeImageSource(g, cell as Node)
-  if (activePickerNodeId.value === textNodeId) {
-    loadPromptBarContext(textNodeId)
+  const data = cell.getData() as CanvasNodeData
+
+  if (data.kind === 'text') {
+    syncTextNodeImageSource(g, cell as Node)
+    if (activePickerNodeId.value === targetNodeId) {
+      loadPromptBarContext(targetNodeId)
+    }
   }
+
   bumpToolbarRevision()
   updateNodeToolbar()
   scheduleHistoryPush()
@@ -1768,10 +1850,34 @@ function addFromMenu(kind: NodeKind) {
   })
 }
 
+function openFileUploadPicker(accept = 'image/*,video/*', multiple = true) {
+  pendingUploadNodeId.value = ''
+  fileInputAccept.value = accept
+  fileInputMultiple.value = multiple
+  fileInputRef.value?.click()
+}
+
+function getMultiUploadSpawnPoint(
+  base: { x: number; y: number },
+  index: number,
+  kind: NodeKind,
+) {
+  if (index === 0) return base
+  const size = getNodeSize(kind, 'editor')
+  return {
+    x: base.x,
+    y: base.y + index * (size.height + NODE_SPAWN_GAP_Y),
+  }
+}
+
 function onMenuItem(item: (typeof ADD_NODE_GROUPS)[number]['items'][number]) {
+  if ('action' in item && item.action === 'upload-image') {
+    openFileUploadPicker('image/*')
+    showAddMenu.value = false
+    return
+  }
   if ('action' in item && item.action === 'upload') {
-    pendingUploadNodeId.value = ''
-    fileInputRef.value?.click()
+    openFileUploadPicker('image/*,video/*')
     showAddMenu.value = false
     return
   }
@@ -1785,33 +1891,49 @@ function onMenuItem(item: (typeof ADD_NODE_GROUPS)[number]['items'][number]) {
 
 function onFileSelected(event: Event) {
   const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
+  const files = Array.from(input.files ?? [])
   input.value = ''
-  if (!file || !graph.value) return
+  if (!files.length || !graph.value) return
 
-  const isVideo = file.type.startsWith('video/')
-  const kind: NodeKind = isVideo ? 'video' : 'image'
+  const g = graph.value
+  const basePoint = addMenuDropPoint.value ?? getGraphCenter()
+  const pendingId = pendingUploadNodeId.value
+  let lastNodeId = ''
+  let lastKind: NodeKind = 'image'
 
-  let node: Node | undefined
-  if (pendingUploadNodeId.value) {
-    const cell = graph.value.getCellById(pendingUploadNodeId.value)
-    if (cell?.isNode()) node = cell as Node
-  }
+  files.forEach((file, index) => {
+    const isVideo = file.type.startsWith('video/')
+    const kind: NodeKind = isVideo ? 'video' : 'image'
 
-  if (!node) {
-    const created = addNode(kind, addMenuDropPoint.value ?? undefined)
-    if (!created) return
-    node = created
-  } else {
-    const data = { ...(node.getData() as CanvasNodeData) }
-    data.mode = 'editor'
-    node.setData(data)
-  }
+    let node: Node | undefined
+    if (index === 0 && pendingId) {
+      const cell = g.getCellById(pendingId)
+      if (cell?.isNode()) node = cell as Node
+    }
+
+    if (!node) {
+      const point = getMultiUploadSpawnPoint(basePoint, index, kind)
+      node = addCanvasNode(g, kind, point)
+    } else {
+      const data = { ...(node.getData() as CanvasNodeData) }
+      data.mode = 'editor'
+      node.setData(data)
+    }
+
+    runUploadSimulation(node, file)
+    lastNodeId = node.id
+    lastKind = kind
+  })
 
   pendingUploadNodeId.value = ''
   addMenuDropPoint.value = null
-  selectedNodeId.value = node.id
-  runUploadSimulation(node, file)
+  closeAddMenu()
+  syncNodeCount()
+  if (lastNodeId) {
+    selectedNodeId.value = lastNodeId
+    selectedKind.value = lastKind
+    syncNodeSelectionHighlight(lastNodeId)
+  }
   updateNodeToolbar()
   scheduleHistoryPush()
 }
@@ -1991,6 +2113,12 @@ function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
   resetVideoFramesPanel()
   bumpToolbarRevision()
 
+  if (showElementSelectMode.value && data.kind === 'image' && data.previewUrl) {
+    syncNodeSelectionHighlight(node.id)
+    updateNodeToolbar()
+    return
+  }
+
   const showImageGenPrompt =
     data.kind === 'image' &&
     data.imageGenTask === 'img2img'
@@ -2051,6 +2179,7 @@ function handleBlankClick() {
   closeImageGenPromptBar()
   closeVideoGenPromptBar()
   closeTextExpand()
+  exitElementSelectMode()
   syncNodeSelectionHighlight('')
 }
 
@@ -2266,9 +2395,8 @@ function cancelCurrentOperation() {
 }
 
 function triggerCanvasUploadShortcut() {
-  pendingUploadNodeId.value = ''
   addMenuDropPoint.value = getGraphCenter()
-  fileInputRef.value?.click()
+  openFileUploadPicker('image/*,video/*')
 }
 
 const { altVoiceTimer, bindKeyboard, unbindKeyboard, endSpacePan } = useCanvasKeyboard({
@@ -2316,7 +2444,8 @@ onMounted(() => {
   instance.__deleteCanvasNode = removeNodeById
   instance.__requestTextExpand = openTextExpand
   instance.__onTextPickerAction = handleTextPickerAction
-  instance.__onTextNodeEdgeLinked = handleTextNodeEdgeLinked
+  instance.__onTextNodeEdgeLinked = handleNodeEdgeLinked
+  instance.__onNodeEdgeLinked = handleNodeEdgeLinked
   instance.__notifyTextNodeUpdated = bumpToolbarRevision
   instance.__notifyNodeDragMove = updateNodeToolbar
   instance.__notifyNodeDragEnd = () => {

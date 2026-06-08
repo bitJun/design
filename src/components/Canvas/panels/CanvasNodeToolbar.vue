@@ -7,7 +7,30 @@
   >
     <template v-if="showFeatureButtons">
       <template v-if="selectedKind === 'image'">
-        <template v-if="showImageToolbarMore">
+        <template v-if="showImageCreativeToolbar">
+          <div class="canvas__node-toolbar-group">
+            <button
+              v-for="item in IMAGE_NODE_CREATIVE_TOOLBAR.actions"
+              :key="item.key"
+              type="button"
+              class="canvas__node-toolbar-btn"
+            >
+              {{ item.label }}
+              <span v-if="'badge' in item && item.badge" class="canvas__node-toolbar-badge">{{ item.badge }}</span>
+            </button>
+          </div>
+          <span class="canvas__node-toolbar-divider" aria-hidden="true" />
+          <button
+            v-for="item in IMAGE_NODE_CREATIVE_TOOLBAR.icons"
+            :key="item.key"
+            type="button"
+            class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon"
+            :title="item.label"
+          >
+            <span class="canvas__node-toolbar-icon" :data-icon="item.icon" aria-hidden="true" />
+          </button>
+        </template>
+        <template v-else-if="showImageToolbarMore">
           <button
             type="button"
             class="canvas__node-toolbar-btn canvas__node-toolbar-btn--icon"
@@ -258,6 +281,7 @@ import {
   IMAGE_NODE_TOOLBAR,
   IMAGE_NODE_TOOLBAR_MORE,
   IMAGE_NODE_TOOLBAR_MORE_MENU,
+  IMAGE_NODE_CREATIVE_TOOLBAR,
   IMAGE_HD_RESOLUTIONS,
   IMAGE_CUTOUT_MODES,
   getImageToolbarMoreHover,
@@ -270,6 +294,7 @@ defineProps<{
   isLight: boolean
   showFeatureButtons: boolean
   selectedKind: NodeKind | null
+  showImageCreativeToolbar: boolean
   showImageToolbarMore: boolean
   showImageToolbarMoreMenu: boolean
   showImageHdMenu: boolean

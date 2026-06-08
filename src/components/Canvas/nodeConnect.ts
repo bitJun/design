@@ -1,12 +1,12 @@
 import type { Graph, Node } from '@antv/x6'
-import type { CanvasNodeData, ConnectMenuKey, NodeKind } from './constants'
+import { createEmptyNodeData, NODE_SPAWN_GAP_X, NODE_SPAWN_GAP_Y, type CanvasNodeData, type ConnectMenuKey, type NodeKind } from './constants'
 import {
   connectGenEdge,
   spawnImageGenNode,
   spawnImageGenNodeAtPoint,
   spawnText2ImgNode,
 } from './imageGen'
-import { addCanvasNode, graphLocalToContainerOffset } from './graph'
+import { addCanvasNode, getNodeSize, graphLocalToContainerOffset } from './graph'
 
 export const CONNECT_MENU_WIDTH = 200
 export const CONNECT_MENU_HEIGHT = 360
@@ -96,14 +96,38 @@ export function createNodeFromConnectMenu(
   }
 }
 
-/** 点击节点 + 时，在默认位置打开菜单（与拖线落点菜单一致） */
-export function getDefaultConnectPoint(sourceNode: Node) {
+/** 在源节点右侧/下方生成目标节点时的中心坐标（间距为边到边） */
+export function getAdjacentSpawnPoint(
+  sourceNode: Node,
+  targetSize: { width: number; height: number },
+  direction: 'right' | 'bottom' = 'right',
+) {
   const bbox = sourceNode.getBBox()
-  const gap = 56
+  if (direction === 'bottom') {
+    return {
+      x: bbox.x + bbox.width / 2,
+      y: bbox.y + bbox.height + NODE_SPAWN_GAP_Y + targetSize.height / 2,
+    }
+  }
   return {
-    x: bbox.x + bbox.width + gap,
+    x: bbox.x + bbox.width + NODE_SPAWN_GAP_X + targetSize.width / 2,
     y: bbox.y + bbox.height / 2,
   }
+}
+
+export function getLinkedSpawnPoint(
+  sourceNode: Node,
+  targetKind: NodeKind,
+  overrides: Partial<CanvasNodeData> = {},
+) {
+  const data = { ...createEmptyNodeData(), kind: targetKind, ...overrides }
+  const size = getNodeSize(targetKind, data.mode, data)
+  return getAdjacentSpawnPoint(sourceNode, size)
+}
+
+/** 点击节点 + 时，在默认位置打开菜单（与拖线落点菜单一致） */
+export function getDefaultConnectPoint(sourceNode: Node) {
+  return getLinkedSpawnPoint(sourceNode, 'video', { mode: 'picker' })
 }
 
 export function getConnectSourceAnchor(sourceNode: Node) {
@@ -114,15 +138,65 @@ export function getConnectSourceAnchor(sourceNode: Node) {
   }
 }
 
-/** 新节点落在源节点与松手落点之间的中点 */
-export function getConnectDropPoint(
+function getConnectSpawnConfig(
   sourceNode: Node,
-  releasePoint: { x: number; y: number },
+  menuKey: ConnectMenuKey,
+): { kind: NodeKind; overrides: Partial<CanvasNodeData> } | null {
+  const sourceData = sourceNode.getData() as CanvasNodeData
+
+  switch (menuKey) {
+    case 'text':
+      return { kind: 'text', overrides: { mode: 'picker' } }
+    case 'image':
+      if (sourceData.kind === 'image' && !sourceData.imageGenTask) {
+        return {
+          kind: 'image',
+          overrides: { mode: 'picker', imageGenTask: 'picker' },
+        }
+      }
+      return {
+        kind: 'image',
+        overrides: { mode: 'editor', imageGenTask: 'picker', imageGenState: 'idle' },
+      }
+    case 'video':
+      return { kind: 'video', overrides: { mode: 'picker' } }
+    case 'compose':
+      return { kind: 'video', overrides: { mode: 'picker', title: '视频合成' } }
+    case 'director':
+      return { kind: 'text', overrides: { mode: 'picker', title: '导演台' } }
+    case 'audio':
+      return { kind: 'audio', overrides: { mode: 'picker' } }
+    case 'script':
+      return { kind: 'text', overrides: { mode: 'picker', title: '脚本' } }
+    case 'reference':
+      return null
+    default:
+      return null
+  }
+}
+
+/** 新节点中心对齐操作菜单左上角（与预览连线落点一致） */
+export function resolveConnectSpawnPoint(
+  graph: Graph,
+  container: HTMLElement,
+  sourceNode: Node,
+  menuPos: { left: number; top: number },
+  menuKey: ConnectMenuKey,
 ) {
-  const anchor = getConnectSourceAnchor(sourceNode)
+  const config = getConnectSpawnConfig(sourceNode, menuKey)
+  if (!config) return null
+
+  const data = { ...createEmptyNodeData(), kind: config.kind, ...config.overrides }
+  const size = getNodeSize(config.kind, data.mode, data)
+  const rect = container.getBoundingClientRect()
+  const topLeft = graph.clientToLocal(
+    rect.left + menuPos.left,
+    rect.top + menuPos.top,
+  )
+
   return {
-    x: (anchor.x + releasePoint.x) / 2,
-    y: (anchor.y + releasePoint.y) / 2,
+    x: topLeft.x + size.width / 2,
+    y: topLeft.y + size.height / 2,
   }
 }
 
@@ -150,7 +224,6 @@ export function getConnectMenuPosition(
       60,
       Math.min(offset.top, rect.height - CONNECT_MENU_HEIGHT - 12),
     ),
-    dropPoint: getConnectDropPoint(sourceNode, releasePoint),
   }
 }
 
