@@ -6,6 +6,7 @@
       'image-node--selected': data.isSelected,
       'image-node--light': isLightTheme,
       'image-node--card-only': !data.previewUrl,
+      'image-node--uploading': data.uploadState === 'uploading',
     }"
   >
     <button
@@ -71,8 +72,12 @@
         @drop.prevent.stop="onDrop"
       >
         <template v-if="data.uploadState === 'uploading'">
-          <span class="image-node__spinner" />
-          <span>上传中 ({{ data.uploadProgress }}%) ...</span>
+          <div class="image-node__uploading">
+            <span class="image-node__spinner" aria-hidden="true" />
+            <span class="image-node__uploading-text">
+              上传中 ({{ data.uploadProgress }}%) ...
+            </span>
+          </div>
         </template>
         <template v-else-if="data.previewUrl">
           <img :src="data.previewUrl" :alt="data.fileName" />
@@ -202,12 +207,12 @@ onMounted(() => {
   overflow: visible;
 }
 
-.image-node--card-only {
+.image-node--card-only,
+.image-node--uploading {
   .image-node__body {
     flex: 1;
     min-height: 0;
-    height: auto;
-    // padding: 8px;
+    height: 100%;
   }
 }
 
@@ -306,6 +311,26 @@ onMounted(() => {
     height: 100%;
     object-fit: cover;
   }
+}
+
+.image-node__preview--uploading {
+  cursor: default;
+}
+
+.image-node__uploading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+}
+
+.image-node__uploading-text {
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .image-node__preview--dragover {

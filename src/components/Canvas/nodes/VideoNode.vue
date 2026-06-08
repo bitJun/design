@@ -69,10 +69,12 @@
     </div>
 
     <div v-else class="video-node__body video-node__body--media">
-      <template v-if="data.uploadState === 'uploading'">
-        <span class="video-node__spinner" />
-        <span>上传中 ({{ data.uploadProgress }}%) ...</span>
-      </template>
+      <div v-if="data.uploadState === 'uploading'" class="video-node__uploading">
+        <span class="video-node__spinner" aria-hidden="true" />
+        <span class="video-node__uploading-text">
+          上传中 ({{ data.uploadProgress }}%) ...
+        </span>
+      </div>
       <div v-else-if="data.previewUrl" class="video-node__player">
         <video
           ref="videoRef"
@@ -83,8 +85,6 @@
           controls
           preload="metadata"
           @loadedmetadata="onVideoMetadata"
-          @mousedown.stop
-          @click.stop
         />
       </div>
       <button
@@ -277,6 +277,24 @@ onBeforeUnmount(() => {
   padding: 0;
   color: #9ca3af;
   font-size: 14px;
+}
+
+.video-node__uploading {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.video-node__uploading-text {
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .video-node__player {

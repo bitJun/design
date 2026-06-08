@@ -176,7 +176,7 @@ export const ADD_NODE_GROUPS = [
     items: [
       { kind: 'text' as const, label: '文本', desc: '脚本、广告词、品牌文案', icon: 'text' as MenuIcon },
       { kind: 'image' as const, label: '图片', desc: '海报、封面、素材图', icon: 'image' as MenuIcon, action: 'upload-image' as const },
-      { kind: 'video' as const, label: '视频', desc: '短视频、动画片段', icon: 'video' as MenuIcon },
+      { kind: 'video' as const, label: '视频', desc: '短视频、动画片段', icon: 'video' as MenuIcon, action: 'upload-video' as const },
     ],
   },
   {

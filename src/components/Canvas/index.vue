@@ -420,6 +420,8 @@ const selectedNodeId = ref('')
 const pendingUploadNodeId = ref('')
 const fileInputAccept = ref('image/*,video/*')
 const fileInputMultiple = ref(true)
+type UploadFilter = 'image' | 'video' | 'any'
+const pendingUploadFilter = ref<UploadFilter>('any')
 const toolbarPos = ref({ left: 0, top: 0 })
 const dialoguePos = ref({ left: 0, top: 0, width: 360 })
 const promptPos = ref({ left: 0, top: 0, width: 360 })
@@ -574,6 +576,13 @@ function canShowImageToolbar(data: CanvasNodeData | undefined) {
   return data.mode === 'editor'
 }
 
+function canShowVideoToolbar(data: CanvasNodeData | undefined) {
+  if (!data || data.kind !== 'video') return false
+  if (data.uploadState === 'uploading') return true
+  if (data.previewUrl) return true
+  return data.mode === 'editor'
+}
+
 function bumpToolbarRevision() {
   toolbarRevision.value += 1
 }
@@ -584,9 +593,10 @@ const showToolbarFeatureButtons = computed(() => {
   if (selectedKind.value === 'image' && selectedNodeId.value) {
     return canShowImageToolbar(getSelectedNodeData())
   }
-  if (selectedKind.value !== 'video' || !selectedNodeId.value) return false
-  const data = getSelectedNodeData()
-  return data?.mode !== 'picker'
+  if (selectedKind.value === 'video' && selectedNodeId.value) {
+    return canShowVideoToolbar(getSelectedNodeData())
+  }
+  return false
 })
 
 const isLightNodeToolbar = computed(
@@ -776,9 +786,11 @@ function requestCanvasUpload(nodeId: string) {
   const g = graph.value
   const cell = g?.getCellById(nodeId)
   const data = cell?.getData() as CanvasNodeData | undefined
+  const isVideo = data?.kind === 'video'
   pendingUploadNodeId.value = nodeId
-  fileInputAccept.value = data?.kind === 'video' ? 'video/*' : 'image/*'
+  fileInputAccept.value = isVideo ? 'video/*' : 'image/*'
   fileInputMultiple.value = false
+  pendingUploadFilter.value = isVideo ? 'video' : 'image'
   fileInputRef.value?.click()
 }
 
@@ -1850,10 +1862,23 @@ function addFromMenu(kind: NodeKind) {
   })
 }
 
-function openFileUploadPicker(accept = 'image/*,video/*', multiple = true) {
+function filterUploadFiles(files: File[], filter: UploadFilter) {
+  return files.filter((file) => {
+    if (filter === 'image') return file.type.startsWith('image/')
+    if (filter === 'video') return file.type.startsWith('video/')
+    return file.type.startsWith('image/') || file.type.startsWith('video/')
+  })
+}
+
+function openFileUploadPicker(
+  accept: string,
+  filter: UploadFilter,
+  multiple = true,
+) {
   pendingUploadNodeId.value = ''
   fileInputAccept.value = accept
   fileInputMultiple.value = multiple
+  pendingUploadFilter.value = filter
   fileInputRef.value?.click()
 }
 
@@ -1872,12 +1897,17 @@ function getMultiUploadSpawnPoint(
 
 function onMenuItem(item: (typeof ADD_NODE_GROUPS)[number]['items'][number]) {
   if ('action' in item && item.action === 'upload-image') {
-    openFileUploadPicker('image/*')
+    openFileUploadPicker('image/*', 'image', true)
+    showAddMenu.value = false
+    return
+  }
+  if ('action' in item && item.action === 'upload-video') {
+    openFileUploadPicker('video/*', 'video', true)
     showAddMenu.value = false
     return
   }
   if ('action' in item && item.action === 'upload') {
-    openFileUploadPicker('image/*,video/*')
+    openFileUploadPicker('image/*,video/*', 'any', true)
     showAddMenu.value = false
     return
   }
@@ -1891,7 +1921,10 @@ function onMenuItem(item: (typeof ADD_NODE_GROUPS)[number]['items'][number]) {
 
 function onFileSelected(event: Event) {
   const input = event.target as HTMLInputElement
-  const files = Array.from(input.files ?? [])
+  const files = filterUploadFiles(
+    Array.from(input.files ?? []),
+    pendingUploadFilter.value,
+  )
   input.value = ''
   if (!files.length || !graph.value) return
 
@@ -2093,7 +2126,11 @@ function handleBlankDblClick(event: { x: number; y: number }) {
 }
 
 function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
-  const data = node.getData() as CanvasNodeData
+  let data = node.getData() as CanvasNodeData
+  if (data.kind === 'video' && data.previewUrl && data.mode === 'picker') {
+    data = { ...data, mode: 'editor' }
+    node.setData(data)
+  }
   const multiSelect = Boolean(e?.ctrlKey || e?.metaKey)
 
   selectedNodeId.value = node.id
@@ -2126,6 +2163,7 @@ function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
   const showVideoGenPrompt =
     data.kind === 'video' &&
     data.mode === 'picker' &&
+    !data.previewUrl &&
     data.uploadState !== 'uploading'
 
   if (showImageGenPrompt) {
@@ -2396,7 +2434,7 @@ function cancelCurrentOperation() {
 
 function triggerCanvasUploadShortcut() {
   addMenuDropPoint.value = getGraphCenter()
-  openFileUploadPicker('image/*,video/*')
+  openFileUploadPicker('image/*,video/*', 'any', true)
 }
 
 const { altVoiceTimer, bindKeyboard, unbindKeyboard, endSpacePan } = useCanvasKeyboard({
