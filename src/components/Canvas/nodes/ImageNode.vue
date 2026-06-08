@@ -16,6 +16,18 @@
     >
       +
     </button>
+
+    <button
+      v-if="!data.previewUrl"
+      type="button"
+      class="canvas-node__delete-float"
+      title="删除节点"
+      @mousedown.stop
+      @click="removeSelf"
+    >
+      ×
+    </button>
+
     <div v-if="data.previewUrl" class="image-node__meta canvas-node__meta">
       <span class="image-node__title">
         <span class="image-node__title-icon">▣</span>

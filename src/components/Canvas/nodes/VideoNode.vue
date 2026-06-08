@@ -15,6 +15,16 @@
     >
       +
     </button>
+
+    <button
+      type="button"
+      class="canvas-node__delete-float"
+      title="删除节点"
+      @mousedown.stop
+      @click="removeSelf"
+    >
+      ×
+    </button>
     <!-- <div class="video-node__meta canvas-node__meta">
       <span class="video-node__title">
         <span class="video-node__play">▶</span>

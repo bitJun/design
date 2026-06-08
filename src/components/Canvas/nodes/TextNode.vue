@@ -18,6 +18,17 @@
       +
     </button>
 
+    <button
+      v-if="data.mode === 'picker'"
+      type="button"
+      class="canvas-node__delete-float"
+      title="删除节点"
+      @mousedown.stop
+      @click="removeSelf"
+    >
+      ×
+    </button>
+
     <div v-if="data.mode !== 'picker'" class="text-node__title canvas-node__meta">
       <span class="text-node__title-icon">T</span>
       <span class="text-node__title-text">{{ data.title }}</span>

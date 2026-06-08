@@ -112,11 +112,11 @@ export function nodeCardSize2x3(width = NODE_DEFAULT_WIDTH) {
   return { width, height: Math.round(width * 3 / 2) }
 }
 
-/** 文本/音频 picker 底部输入框距节点底边的垂直间距 */
-export const PROMPT_BAR_TOP_GAP = 62
+/** 文本/音频 picker 底部输入框距节点底边的垂直间距（原 62px，缩小 2/3 后为 21px） */
+export const PROMPT_BAR_TOP_GAP = 21
 
-/** 视频节点与文生视频面板间距（约为 PROMPT_BAR_TOP_GAP 的 1/3） */
-export const VIDEO_GEN_PROMPT_TOP_GAP = Math.round(PROMPT_BAR_TOP_GAP / 3)
+/** 视频节点与文生视频面板间距 */
+export const VIDEO_GEN_PROMPT_TOP_GAP = 21
 
 export const CANVAS_MIN_ZOOM = 0.35
 export const CANVAS_MAX_ZOOM = 2
