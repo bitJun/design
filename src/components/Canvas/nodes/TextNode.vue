@@ -89,7 +89,7 @@
         @input="onEditorInput"
         @blur="onEditorBlur"
         @focus="onEditorFocus"
-        @mousedown.stop
+        @mousedown="onEditorMouseDown"
         @pointerdown.stop
       />
       <span
@@ -169,6 +169,80 @@ function onEditorInput() {
 
 function onEditorFocus() {
   canvasGraph().__textEditorRegistry?.get(getNode().id)?.focus()
+}
+
+function placeCaretAtPoint(clientX: number, clientY: number) {
+  const docWithCaret = document as Document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null
+    caretPositionFromPoint?: (
+      x: number,
+      y: number,
+    ) => { offsetNode: globalThis.Node; offset: number } | null
+  }
+
+  let range: Range | null = null
+  if (docWithCaret.caretRangeFromPoint) {
+    range = docWithCaret.caretRangeFromPoint(clientX, clientY)
+  } else if (docWithCaret.caretPositionFromPoint) {
+    const pos = docWithCaret.caretPositionFromPoint(clientX, clientY)
+    if (pos) {
+      range = document.createRange()
+      range.setStart(pos.offsetNode, pos.offset)
+      range.collapse(true)
+    }
+  }
+
+  if (range) {
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+  }
+}
+
+/**
+ * 编辑器区域：按下并拖动则移动整个节点，轻点（未移动）则进入文字编辑。
+ * 已处于编辑（聚焦）状态时不拦截，保持正常的选词/定位光标行为。
+ */
+function onEditorMouseDown(event: MouseEvent) {
+  event.stopPropagation()
+
+  const el = editorRef.value
+  if (el && document.activeElement === el) return
+  if (event.button !== 0) return
+
+  event.preventDefault()
+
+  const node = getNode()
+  const g = canvasGraph()
+  const startClientX = event.clientX
+  const startClientY = event.clientY
+  const startLocal = g.clientToLocal(startClientX, startClientY)
+  const origin = node.getPosition()
+  let moved = false
+
+  const onMove = (moveEvent: MouseEvent) => {
+    if (!moved && Math.hypot(moveEvent.clientX - startClientX, moveEvent.clientY - startClientY) < 4) {
+      return
+    }
+    moved = true
+    const point = g.clientToLocal(moveEvent.clientX, moveEvent.clientY)
+    node.position(origin.x + (point.x - startLocal.x), origin.y + (point.y - startLocal.y))
+    g.__notifyNodeDragMove?.()
+  }
+
+  const onUp = (upEvent: MouseEvent) => {
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+    if (moved) {
+      g.__notifyNodeDragEnd?.()
+    } else {
+      el?.focus()
+      placeCaretAtPoint(upEvent.clientX, upEvent.clientY)
+    }
+  }
+
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
 }
 
 function onEditorBlur() {
@@ -279,6 +353,8 @@ function onResizeStart(event: MouseEvent) {
 function onAction(key: string) {
   if (key === 'write') {
     data.mode = 'editor'
+    data.promptBarPinned = false
+    data.textPickerTask = 'write'
     syncData()
     nextTickFocus()
     return
@@ -359,6 +435,7 @@ onBeforeUnmount(() => {
   margin-bottom: 8px;
   font-size: 12px;
   color: #9ca3af;
+  cursor: move;
 }
 
 .text-node__title-icon {

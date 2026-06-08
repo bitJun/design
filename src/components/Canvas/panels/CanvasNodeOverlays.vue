@@ -88,6 +88,7 @@
       :active-tab="videoGenActiveTab"
       @update:prompt="emit('update:videoGenPromptText', $event)"
       @update:active-tab="emit('update:videoGenActiveTab', $event)"
+      @drag-start="emit('video-gen-drag-start', $event)"
     />
   </div>
 
@@ -247,6 +248,7 @@ const emit = defineEmits<{
   'image-crop-complete': [payload: { dataUrl: string; width: number; height: number }]
   'reset-video-hd-panel': []
   'video-hd-start': []
+  'video-gen-drag-start': [event: MouseEvent]
 }>()
 
 function onPromptInput(event: Event) {

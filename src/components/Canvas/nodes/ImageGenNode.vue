@@ -4,6 +4,7 @@
     :class="{
       'image-gen-node--selected': data.isSelected,
       'image-gen-node--img2img': data.imageGenTask === 'img2img',
+      'image-gen-node--light': isLightTheme,
     }"
   >
     <button
@@ -73,8 +74,15 @@
       >
         <div
           class="image-gen-node__preview"
-          :class="data.previewUrl ? 'image-gen-node__preview--output' : 'image-gen-node__preview--empty'"
+          :class="[
+            data.previewUrl ? 'image-gen-node__preview--output' : 'image-gen-node__preview--empty',
+            { 'image-gen-node__preview--dragover': isDragOver },
+          ]"
           @click="triggerUpload"
+          @dragenter.prevent="onDragOver"
+          @dragover.prevent="onDragOver"
+          @dragleave="onDragLeave"
+          @drop.prevent.stop="onDrop"
         >
           <img v-if="data.previewUrl" :src="data.previewUrl" :alt="data.fileName" />
           <span v-else class="image-gen-node__placeholder-icon" aria-hidden="true" />
@@ -104,15 +112,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onMounted, reactive } from 'vue'
+import { computed, inject, onMounted, reactive, ref } from 'vue'
 import type { Node } from '@antv/x6'
 import { IMAGE_GEN_ACTIONS, type CanvasNodeData, type ImageGenTask } from '../constants'
 import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
+import { useCanvasBgTheme } from '../useCanvasBgTheme'
 
+const { isLightTheme } = useCanvasBgTheme()
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
+const uploadFileToCanvasNode = inject<(nodeId: string, file: File) => void>('uploadFileToCanvasNode')
 const applyImageGenTask = inject<(nodeId: string, task: ImageGenTask) => void>('applyImageGenTask')
 const { removeSelf } = useNodeDelete()
 const { onPlusPointerDown } = useNodeConnect()
@@ -140,6 +151,29 @@ function triggerUpload() {
   requestCanvasUpload?.(getNode().id)
 }
 
+const isDragOver = ref(false)
+
+function hasDraggedFiles(event: DragEvent) {
+  return Array.from(event.dataTransfer?.types ?? []).includes('Files')
+}
+
+function onDragOver(event: DragEvent) {
+  if (!hasDraggedFiles(event)) return
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+  isDragOver.value = true
+}
+
+function onDragLeave() {
+  isDragOver.value = false
+}
+
+function onDrop(event: DragEvent) {
+  isDragOver.value = false
+  const file = event.dataTransfer?.files?.[0]
+  if (!file || !file.type.startsWith('image/')) return
+  uploadFileToCanvasNode?.(getNode().id, file)
+}
+
 function onPickerAction(key: ImageGenTask) {
   if (key === 'picker') return
   applyImageGenTask?.(getNode().id, key)
@@ -157,6 +191,7 @@ onMounted(() => {
 <style scoped lang="scss">
 @import './node-delete.scss';
 @import './node-port-plus.scss';
+@import './node-light-theme.scss';
 
 .image-gen-node {
   position: relative;
@@ -265,6 +300,12 @@ onMounted(() => {
       height: 100%;
       object-fit: cover;
     }
+  }
+
+  &--dragover {
+    outline: 2px dashed #6b7cff;
+    outline-offset: -6px;
+    background: rgba(107, 124, 255, 0.08);
   }
 }
 

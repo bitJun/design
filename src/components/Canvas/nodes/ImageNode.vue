@@ -59,9 +59,16 @@
 
       <div
         class="image-node__preview"
-        :class="{ 'image-node__preview--uploading': data.uploadState === 'uploading' }"
+        :class="{
+          'image-node__preview--uploading': data.uploadState === 'uploading',
+          'image-node__preview--dragover': isDragOver,
+        }"
         @click="onPreviewClick"
         @dblclick.stop="onPreviewDblClick"
+        @dragenter.prevent="onDragOver"
+        @dragover.prevent="onDragOver"
+        @dragleave="onDragLeave"
+        @drop.prevent.stop="onDrop"
       >
         <template v-if="data.uploadState === 'uploading'">
           <span class="image-node__spinner" />
@@ -73,7 +80,7 @@
         </template>
         <template v-else>
           <span class="image-node__placeholder-icon">▣</span>
-          <span>点击上传图片</span>
+          <span>{{ isDragOver ? '松开以上传图片' : '点击或拖拽图片到此处上传' }}</span>
         </template>
       </div>
     </div>
@@ -81,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onMounted, reactive } from 'vue'
+import { computed, inject, onMounted, reactive, ref } from 'vue'
 import type { Node } from '@antv/x6'
 import { formatDimensions, isPortrait } from '../constants'
 import type { CanvasNodeData } from '../constants'
@@ -94,6 +101,7 @@ import { useCanvasBgTheme } from '../useCanvasBgTheme'
 
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
+const uploadFileToCanvasNode = inject<(nodeId: string, file: File) => void>('uploadFileToCanvasNode')
 const { removeSelf } = useNodeDelete()
 const { onPlusPointerDown } = useNodeConnect()
 const { startResize, previewScale, isResizing } = useNodeViewScale()
@@ -118,6 +126,30 @@ const showUploadSuccess = computed(
 
 let uploadClickTimer: ReturnType<typeof setTimeout> | null = null
 const UPLOAD_CLICK_DELAY = 280
+
+const isDragOver = ref(false)
+
+function hasDraggedFiles(event: DragEvent) {
+  return Array.from(event.dataTransfer?.types ?? []).includes('Files')
+}
+
+function onDragOver(event: DragEvent) {
+  if (!hasDraggedFiles(event)) return
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+  isDragOver.value = true
+}
+
+function onDragLeave() {
+  isDragOver.value = false
+}
+
+function onDrop(event: DragEvent) {
+  isDragOver.value = false
+  const file = event.dataTransfer?.files?.[0]
+  if (!file || !file.type.startsWith('image/')) return
+  cancelPendingUpload()
+  uploadFileToCanvasNode?.(getNode().id, file)
+}
 
 function requestFile() {
   requestCanvasUpload?.(getNode().id)
@@ -274,6 +306,13 @@ onMounted(() => {
     height: 100%;
     object-fit: cover;
   }
+}
+
+.image-node__preview--dragover {
+  outline: 2px dashed #6b7cff;
+  outline-offset: -6px;
+  background: rgba(107, 124, 255, 0.08);
+  color: #6b7cff;
 }
 
 .image-node--portrait .image-node__preview {

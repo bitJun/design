@@ -30,6 +30,8 @@ export interface CanvasNodeData {
   editorWidth?: number
   editorHeight?: number
   textPickerTask?: 'img2prompt' | 'text2video' | 'write' | ''
+  /** 自由输入提示词生成后，底部输入框保持显示 */
+  promptBarPinned?: boolean
   textGenState?: 'idle' | 'loading' | 'done'
   /** 图片反推提示词生成进度（0-100），loading 时用于显示「准备中 / 生成中 X%」 */
   textGenProgress?: number

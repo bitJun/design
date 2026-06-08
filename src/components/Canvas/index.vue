@@ -108,6 +108,7 @@
       @image-crop-complete="onImageCropComplete"
       @reset-video-hd-panel="resetVideoHdPanel"
       @video-hd-start="onVideoHdStart"
+      @video-gen-drag-start="onVideoGenPromptDragStart"
     />
 
     <input
@@ -320,6 +321,7 @@ import {
   findIncomingImageNode,
   IMG2PROMPT_DEFAULT_INSTRUCTION,
   mockImg2Prompt,
+  mockTextGenerate,
   syncTextNodeImageSource,
 } from './textPrompt'
 import { createMinimap, destroyMinimap } from './minimap'
@@ -405,6 +407,7 @@ const dialoguePos = ref({ left: 0, top: 0, width: 360 })
 const promptPos = ref({ left: 0, top: 0, width: 360 })
 const imageGenPromptPos = ref({ left: 0, top: 0, width: 480 })
 const videoGenPromptPos = ref({ left: 0, top: 0, width: 520 })
+const videoGenPromptDragOffset = ref({ x: 0, y: 0 })
 const imageCropPos = ref({ left: 0, top: 0, width: 360, height: 420 })
 const videoHdPos = ref({ left: 0, top: 0, width: 320 })
 const selectedKind = ref<NodeKind | null>(null)
@@ -483,7 +486,11 @@ const showTextFormatToolbar = computed(() => {
   void toolbarRevision.value
   if (!selectedNodeId.value || showImageCrop.value || textExpandOpen.value) return false
   const data = getSelectedNodeData()
-  return data?.kind === 'text' && data.mode === 'editor'
+  return (
+    data?.kind === 'text' &&
+    data.mode === 'editor' &&
+    data.textGenState !== 'loading'
+  )
 })
 const showTextDownload = computed(() => showTextFormatToolbar.value)
 
@@ -737,6 +744,27 @@ function requestCanvasUpload(nodeId: string) {
 
 provide('requestCanvasUpload', requestCanvasUpload)
 
+function uploadFileToCanvasNode(nodeId: string, file: File) {
+  const g = graph.value
+  if (!g) return
+  const cell = g.getCellById(nodeId)
+  if (!cell?.isNode()) return
+
+  const node = cell as Node
+  const data = { ...(node.getData() as CanvasNodeData) }
+  data.mode = 'editor'
+  node.setData(data)
+
+  pendingUploadNodeId.value = ''
+  selectedNodeId.value = nodeId
+  selectedKind.value = data.kind
+  runUploadSimulation(node, file)
+  updateNodeToolbar()
+  scheduleHistoryPush()
+}
+
+provide('uploadFileToCanvasNode', uploadFileToCanvasNode)
+
 function loadImageGenPromptFields(nodeId: string) {
   const g = graph.value
   if (!g) return
@@ -885,14 +913,46 @@ async function submitTextPrompt() {
       return
     }
 
+    const trimmedPrompt = promptText.value.trim()
+    const loadingData = {
+      ...(cell.getData() as CanvasNodeData),
+      mode: 'editor' as const,
+      textGenState: 'loading' as const,
+      textGenProgress: 0,
+      genPrompt: trimmedPrompt,
+      promptBarPinned: true,
+      textPickerTask: '' as const,
+    }
+    cell.setData(loadingData)
+
+    let progress = 0
+    const timer = window.setInterval(() => {
+      progress = Math.min(95, progress + Math.round(8 + Math.random() * 12))
+      cell.setData({
+        ...(cell.getData() as CanvasNodeData),
+        textGenProgress: progress,
+      })
+    }, 280)
+
+    let result = ''
+    try {
+      result = await mockTextGenerate(trimmedPrompt)
+    } finally {
+      window.clearInterval(timer)
+    }
+
     const data = { ...(cell.getData() as CanvasNodeData) }
-    data.content = plainTextToEditorHtml(promptText.value.trim())
+    data.content = plainTextToEditorHtml(result)
     data.mode = 'editor'
+    data.textGenState = 'done'
+    data.textGenProgress = 100
+    data.genPrompt = trimmedPrompt
+    data.promptBarPinned = true
     data.textPickerTask = ''
     cell.setData(data)
     selectedNodeId.value = nodeId
+    selectedKind.value = 'text'
     syncNodeSelectionHighlight(nodeId)
-    activePickerNodeId.value = ''
     bumpToolbarRevision()
     updateNodeToolbar()
     scheduleHistoryPush()
@@ -969,6 +1029,7 @@ function openVideoGenPromptBar(nodeId: string, tab = 'text2video') {
   activeVideoGenPromptNodeId.value = nodeId
   activePickerNodeId.value = ''
   videoGenActiveTab.value = tab
+  videoGenPromptDragOffset.value = { x: 0, y: 0 }
   loadVideoGenPromptFields(nodeId)
   updateVideoGenPromptBarPosition()
 }
@@ -1611,7 +1672,34 @@ function updateVideoGenPromptBarPosition() {
   const cell = g.getCellById(id)
   if (!cell?.isNode()) return
 
-  videoGenPromptPos.value = getNodeVideoGenPromptPosition(g, cell as Node, overlayRoot)
+  const base = getNodeVideoGenPromptPosition(g, cell as Node, overlayRoot)
+  videoGenPromptPos.value = {
+    ...base,
+    left: base.left + videoGenPromptDragOffset.value.x,
+    top: base.top + videoGenPromptDragOffset.value.y,
+  }
+}
+
+function onVideoGenPromptDragStart(event: MouseEvent) {
+  const startX = event.clientX
+  const startY = event.clientY
+  const base = { ...videoGenPromptDragOffset.value }
+
+  const onMove = (moveEvent: MouseEvent) => {
+    videoGenPromptDragOffset.value = {
+      x: base.x + (moveEvent.clientX - startX),
+      y: base.y + (moveEvent.clientY - startY),
+    }
+    updateVideoGenPromptBarPosition()
+  }
+
+  const onUp = () => {
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+  }
+
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
 }
 
 function updateNodeToolbar() {
@@ -1919,8 +2007,11 @@ function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
   } else {
     closeImageGenPromptBar()
     closeVideoGenPromptBar()
-    activePickerNodeId.value =
-      data.mode === 'picker' && (data.kind === 'text' || data.kind === 'audio') ? node.id : ''
+    const showTextPromptBar =
+      (data.kind === 'text' || data.kind === 'audio') &&
+      (data.mode === 'picker' || (data.kind === 'text' && data.promptBarPinned))
+
+    activePickerNodeId.value = showTextPromptBar ? node.id : ''
     if (activePickerNodeId.value && data.kind === 'text') {
       loadPromptBarContext(node.id)
     }
@@ -1965,7 +2056,11 @@ function handleBlankClick() {
 
 function handleNodeDataChange({ node }: { node: Node }) {
   const data = node.getData() as CanvasNodeData
-  if (data.mode === 'editor' && activePickerNodeId.value === node.id) {
+  if (
+    data.mode === 'editor' &&
+    activePickerNodeId.value === node.id &&
+    !data.promptBarPinned
+  ) {
     activePickerNodeId.value = ''
   }
   if (activePickerNodeId.value === node.id && data.kind === 'text') {
@@ -2223,6 +2318,11 @@ onMounted(() => {
   instance.__onTextPickerAction = handleTextPickerAction
   instance.__onTextNodeEdgeLinked = handleTextNodeEdgeLinked
   instance.__notifyTextNodeUpdated = bumpToolbarRevision
+  instance.__notifyNodeDragMove = updateNodeToolbar
+  instance.__notifyNodeDragEnd = () => {
+    updateNodeToolbar()
+    scheduleHistoryPush()
+  }
   instance.__textEditorRegistry = {
     register(nodeId: string, api: TextEditorApi) {
       textEditorApis.set(nodeId, api)
@@ -2263,7 +2363,7 @@ onMounted(() => {
       return
     }
     if (data.kind === 'text' && data.mode === 'picker') {
-      node.setData({ ...data, mode: 'editor' })
+      node.setData({ ...data, mode: 'editor', promptBarPinned: false })
       selectedNodeId.value = node.id
       selectedKind.value = 'text'
       syncNodeSelectionHighlight(node.id)

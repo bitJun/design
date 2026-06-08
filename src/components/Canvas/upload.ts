@@ -4,6 +4,49 @@ import { syncGenNodesFromSource } from './imageGen'
 import { syncTextNodesFromImageSource } from './textPrompt'
 import { getNodeSize, syncNodeShapeFromData } from './graph'
 
+export interface CanvasUploadResult {
+  /** 资源可访问地址（真实接口返回的 URL，或本地预览 URL） */
+  url: string
+}
+
+export type CanvasUploader = (
+  file: File,
+  onProgress?: (percent: number) => void,
+) => Promise<CanvasUploadResult>
+
+/**
+ * 上传接口接入点（预留口子）。
+ * 默认实现为本地模拟：不依赖后端，使用 Object URL 生成预览地址。
+ * 后续接入真实接口时，调用 `setCanvasUploader` 注入即可，无需改动节点组件与画布逻辑。
+ *
+ * @example
+ * setCanvasUploader(async (file, onProgress) => {
+ *   const form = new FormData()
+ *   form.append('file', file)
+ *   const { data } = await http.post('/api/upload', form, {
+ *     onUploadProgress: (e) => onProgress?.(Math.round((e.loaded / e.total) * 100)),
+ *   })
+ *   return { url: data.url }
+ * })
+ */
+let canvasUploader: CanvasUploader | null = null
+
+export function setCanvasUploader(uploader: CanvasUploader | null) {
+  canvasUploader = uploader
+}
+
+/** 执行上传：有真实接口则走接口，否则回退到本地预览（mock）。 */
+async function uploadCanvasFile(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<CanvasUploadResult> {
+  if (canvasUploader) {
+    return canvasUploader(file, onProgress)
+  }
+  // TODO: 真实上传接口未接入，先返回本地预览地址。
+  return { url: URL.createObjectURL(file) }
+}
+
 export function runUploadSimulation(graphNode: Node, file: File) {
   const data = { ...(graphNode.getData() as CanvasNodeData) }
   data.uploadState = 'uploading'
@@ -24,13 +67,13 @@ export function runUploadSimulation(graphNode: Node, file: File) {
 
     if (progress >= 100) {
       window.clearInterval(timer)
-      finishUpload(graphNode, file)
+      void finishUpload(graphNode, file)
     }
   }, 60)
 }
 
-function finishUpload(graphNode: Node, file: File) {
-  const url = URL.createObjectURL(file)
+async function finishUpload(graphNode: Node, file: File) {
+  const { url } = await uploadCanvasFile(file)
   const data = { ...(graphNode.getData() as CanvasNodeData) }
   data.uploadState = 'done'
   data.uploadProgress = 100

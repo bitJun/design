@@ -67,6 +67,29 @@ export function syncTextNodesFromImageSource(graph: Graph, imageNode: Node) {
   })
 }
 
+export function mockTextGenerate(prompt: string): Promise<string> {
+  const seed = prompt.trim()
+  const body = [
+    `故事梗概：${seed}`,
+    '',
+    '第一章 · 重启',
+    '清晨的阳光透过老式窗框洒进房间，空气里混着记忆与现实的错位感。主角在熟悉的街景与陌生的细节之间，逐渐确认自己真的回到了那个关键的年代。',
+    '',
+    '第二章 · 抉择',
+    '凭借来自未来的片段记忆，TA开始在学业、人际与命运岔路口做出不同于前世的判断。每一次选择都在悄悄改写原本既定的人生轨迹。',
+    '',
+    '第三章 · 暗涌',
+    '变化并未被所有人欣然接受。旧日的关系、隐藏的利益与时代局限陆续浮现，主角必须在保守与冒险之间找到属于自己的节奏。',
+    '',
+    '尾声 · 新生',
+    '当熟悉的年份再次来临，世界似乎与记忆中重合，却又处处不同。那些曾经以为无法改变的遗憾，正在以另一种方式被温柔地弥补。',
+  ].join('\n')
+
+  return new Promise((resolve) => {
+    window.setTimeout(() => resolve(body), 3200)
+  })
+}
+
 export function mockImg2Prompt(
   instruction: string,
   source: {

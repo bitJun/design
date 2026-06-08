@@ -2,7 +2,7 @@
   <div
     class="video-gen-prompt-panel"
     :class="{ 'video-gen-prompt-panel--light': isLightTheme }"
-    @mousedown.stop
+    @mousedown="onPanelMouseDown"
   >
     <p v-if="showConnectHint" class="video-gen-prompt-panel__hint">
       需要连接图片节点（1~9个）
@@ -100,7 +100,18 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:prompt': [value: string]
   'update:activeTab': [value: string]
+  'drag-start': [event: MouseEvent]
 }>()
+
+const DRAG_IGNORE_SELECTOR =
+  'button, textarea, input, select, a, [contenteditable], .ant-dropdown, .ant-dropdown-menu'
+
+function onPanelMouseDown(event: MouseEvent) {
+  event.stopPropagation()
+  const target = event.target as HTMLElement | null
+  if (target?.closest(DRAG_IGNORE_SELECTOR)) return
+  emit('drag-start', event)
+}
 
 const showConnectHint = computed(
   () => props.activeTab === 'frames' || props.activeTab === 'first',
@@ -126,6 +137,7 @@ function onPromptInput(event: Event) {
   background: rgba(24, 24, 28, 0.98);
   backdrop-filter: blur(12px);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  cursor: move;
 
   &--light {
     border-color: #e5e7eb;
@@ -332,6 +344,7 @@ function onPromptInput(event: Event) {
   resize: none;
   outline: none;
   box-sizing: border-box;
+  cursor: text;
 
   &::placeholder {
     color: #6b7280;
