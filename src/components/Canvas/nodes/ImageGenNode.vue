@@ -5,6 +5,7 @@
       'image-gen-node--selected': data.isSelected,
       'image-gen-node--img2img': data.imageGenTask === 'img2img',
       'image-gen-node--light': isLightTheme,
+      'image-gen-node--card-only': isEmptyUpload,
     }"
   >
     <button
@@ -15,17 +16,19 @@
     >
       +
     </button>
+
     <button
-      v-if="data.imageGenTask === 'picker' && data.sourceNodeId && !data.imageGenState"
+      v-if="isEmptyUpload"
       type="button"
-      class="image-gen-node__upload-btn"
+      class="canvas-node__delete-float"
+      title="删除节点"
       @mousedown.stop
-      @click="triggerUpload"
+      @click="removeSelf"
     >
-      ↑ 上传
+      ×
     </button>
 
-    <div class="image-gen-node__meta canvas-node__meta">
+    <div v-if="!isEmptyUpload" class="image-gen-node__meta canvas-node__meta">
       <span class="image-gen-node__title">
         <span v-if="data.imageGenTask === 'img2img'" class="image-gen-node__title-icon">图</span>
         <span class="image-gen-node__title-text">{{ headerTitle }}</span>
@@ -69,7 +72,21 @@
       </div>
 
       <div
-        v-else-if="data.imageGenTask === 'picker' || data.imageGenTask === 'img2img'"
+        v-else-if="isEmptyUpload"
+        class="image-gen-node__preview"
+        :class="{ 'image-gen-node__preview--dragover': isDragOver }"
+        @click="triggerUpload"
+        @dragenter.prevent="onDragOver"
+        @dragover.prevent="onDragOver"
+        @dragleave="onDragLeave"
+        @drop.prevent.stop="onDrop"
+      >
+        <span class="image-gen-node__placeholder-symbol">▣</span>
+        <span>{{ isDragOver ? '松开以上传图片' : '点击或拖拽图片到此处上传' }}</span>
+      </div>
+
+      <div
+        v-else-if="data.imageGenTask === 'img2img'"
         class="image-gen-node__picker"
       >
         <div
@@ -87,18 +104,6 @@
           <img v-if="data.previewUrl" :src="data.previewUrl" :alt="data.fileName" />
           <span v-else class="image-gen-node__placeholder-icon" aria-hidden="true" />
         </div>
-        <p class="image-gen-node__try">尝试：</p>
-        <button
-          v-for="action in IMAGE_GEN_ACTIONS"
-          :key="action.key"
-          type="button"
-          class="image-gen-node__action"
-          @mousedown.stop
-          @click="onPickerAction(action.key)"
-        >
-          <span class="image-gen-node__action-icon" :data-icon="action.icon" />
-          {{ action.label }}
-        </button>
       </div>
 
       <div v-else class="image-gen-node__picker">
@@ -114,7 +119,7 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, reactive, ref } from 'vue'
 import type { Node } from '@antv/x6'
-import { IMAGE_GEN_ACTIONS, type CanvasNodeData, type ImageGenTask } from '../constants'
+import type { CanvasNodeData } from '../constants'
 import { createEmptyNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
@@ -124,7 +129,6 @@ const { isLightTheme } = useCanvasBgTheme()
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
 const uploadFileToCanvasNode = inject<(nodeId: string, file: File) => void>('uploadFileToCanvasNode')
-const applyImageGenTask = inject<(nodeId: string, task: ImageGenTask) => void>('applyImageGenTask')
 const { removeSelf } = useNodeDelete()
 const { onPlusPointerDown } = useNodeConnect()
 
@@ -146,6 +150,13 @@ const genHintText = computed(() => {
   const p = data.imageGenProgress ?? 0
   return p < 1 ? '准备中...' : `生成中 ${p}%...`
 })
+
+const isEmptyUpload = computed(
+  () =>
+    data.imageGenTask === 'picker' &&
+    !data.previewUrl &&
+    !data.imageGenState,
+)
 
 function triggerUpload() {
   requestCanvasUpload?.(getNode().id)
@@ -174,11 +185,6 @@ function onDrop(event: DragEvent) {
   uploadFileToCanvasNode?.(getNode().id, file)
 }
 
-function onPickerAction(key: ImageGenTask) {
-  if (key === 'picker') return
-  applyImageGenTask?.(getNode().id, key)
-}
-
 onMounted(() => {
   const node = getNode()
   Object.assign(data, node.getData() as CanvasNodeData)
@@ -195,29 +201,23 @@ onMounted(() => {
 
 .image-gen-node {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
   font-family: system-ui, -apple-system, sans-serif;
   color: #f3f4f6;
   pointer-events: auto;
+  overflow: visible;
 }
 
-.image-gen-node__upload-btn {
-  position: absolute;
-  top: -36px;
-  right: 0;
-  z-index: 2;
-  padding: 6px 12px;
-  border: 1px solid #4b4b55;
-  border-radius: 8px;
-  background: #252528;
-  color: #e5e7eb;
-  font-size: 12px;
-  cursor: pointer;
-
-  &:hover {
-    background: #2a2a30;
+.image-gen-node--card-only {
+  .image-gen-node__body {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    padding: 0;
   }
 }
 
@@ -260,6 +260,7 @@ onMounted(() => {
 }
 
 .image-gen-node__body {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: calc(100% - 24px);
@@ -279,11 +280,19 @@ onMounted(() => {
 
 .image-gen-node__preview {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   border-radius: 10px;
   background: #141416;
+  color: #9ca3af;
+  font-size: 12px;
   overflow: hidden;
+  cursor: pointer;
 
   &--empty {
     flex: 1;
@@ -306,7 +315,14 @@ onMounted(() => {
     outline: 2px dashed #6b7cff;
     outline-offset: -6px;
     background: rgba(107, 124, 255, 0.08);
+    color: #6b7cff;
+    cursor: pointer;
   }
+}
+
+.image-gen-node__placeholder-symbol {
+  font-size: 28px;
+  opacity: 0.5;
 }
 
 .image-gen-node__placeholder-icon {
@@ -343,61 +359,6 @@ onMounted(() => {
   &--lg {
     width: 64px;
     height: 52px;
-  }
-}
-
-.image-gen-node__try {
-  margin: 12px 0 8px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.image-gen-node__action {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  margin-bottom: 6px;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: #e5e7eb;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover {
-    background: #2a2a30;
-  }
-}
-
-.image-gen-node__action-icon {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  background: #3d3d45;
-
-  &[data-icon='img2img']::after {
-    content: '▣';
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    font-size: 11px;
-    color: #9ca3af;
-  }
-
-  &[data-icon='hd']::after {
-    content: 'HD';
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    font-size: 8px;
-    font-weight: 700;
-    color: #9ca3af;
   }
 }
 
