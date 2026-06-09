@@ -782,16 +782,37 @@ function resetVideoDialogue() {
   showVideoDialogue.value = false
 }
 
+function triggerFileInputClick(
+  accept: string,
+  filter: UploadFilter,
+  multiple: boolean,
+  nodeId = '',
+) {
+  pendingUploadNodeId.value = nodeId
+  fileInputAccept.value = accept
+  fileInputMultiple.value = multiple
+  pendingUploadFilter.value = filter
+
+  const input = fileInputRef.value
+  if (!input) return
+  // 同步写入 DOM，避免首次点击时 :accept 尚未更新导致文件类型无限制
+  input.value = ''
+  input.accept = accept
+  input.multiple = multiple
+  input.click()
+}
+
 function requestCanvasUpload(nodeId: string) {
   const g = graph.value
   const cell = g?.getCellById(nodeId)
   const data = cell?.getData() as CanvasNodeData | undefined
   const isVideo = data?.kind === 'video'
-  pendingUploadNodeId.value = nodeId
-  fileInputAccept.value = isVideo ? 'video/*' : 'image/*'
-  fileInputMultiple.value = false
-  pendingUploadFilter.value = isVideo ? 'video' : 'image'
-  fileInputRef.value?.click()
+  triggerFileInputClick(
+    isVideo ? 'video/*' : 'image/*',
+    isVideo ? 'video' : 'image',
+    false,
+    nodeId,
+  )
 }
 
 provide('requestCanvasUpload', requestCanvasUpload)
@@ -1875,11 +1896,7 @@ function openFileUploadPicker(
   filter: UploadFilter,
   multiple = true,
 ) {
-  pendingUploadNodeId.value = ''
-  fileInputAccept.value = accept
-  fileInputMultiple.value = multiple
-  pendingUploadFilter.value = filter
-  fileInputRef.value?.click()
+  triggerFileInputClick(accept, filter, multiple)
 }
 
 function getMultiUploadSpawnPoint(
