@@ -106,6 +106,7 @@
               v-model:duration="videoDuration"
               v-model:aspect-ratio="videoAspectRatio"
               v-model:resolution="videoResolution"
+              @close="showVideoSettings = false"
             />
           </div>
         </div>

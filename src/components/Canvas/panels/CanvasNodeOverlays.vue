@@ -88,7 +88,9 @@
       :active-tab="videoGenActiveTab"
       :source-refs="videoGenSourceRefs"
       :element-select-mode="elementSelectMode"
+      :video-num="videoNum"
       @update:prompt="emit('update:videoGenPromptText', $event)"
+      @update:video-num="emit('update:videoNum', $event)"
       @update:active-tab="emit('update:videoGenActiveTab', $event)"
       @drag-start="emit('video-gen-drag-start', $event)"
       @quick-action="emit('video-gen-quick-action', $event)"
@@ -231,6 +233,7 @@ defineProps<{
   imageGenSourcePreviewUrl: string
   imageGenSubmitting: boolean
   videoGenPromptText: string
+  videoNum: number
   videoGenActiveTab: string
   videoGenSourceRefs: VideoSourceRef[]
   elementSelectMode: boolean
@@ -241,6 +244,7 @@ defineProps<{
 
 const emit = defineEmits<{
   'update:promptText': [value: string]
+  'update:videoNum': [value: number]
   'update:imageGenPromptText': [value: string]
   'update:imageGenSeed': [value: number]
   'update:videoGenPromptText': [value: string]

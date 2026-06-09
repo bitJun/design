@@ -530,20 +530,23 @@ export const VIDEO_DIALOGUE_PLACEHOLDER = '让我们开始创作吧...'
 export const VIDEO_DIALOGUE_VIDEO_SETTINGS = '5s · 16:9 · 720P'
 export const VIDEO_DIALOGUE_CREDITS = '135'
 
-export const VIDEO_GEN_DURATION_LABEL = '时长'
-export const VIDEO_GEN_ASPECT_RATIO_LABEL = '宽高比'
-export const VIDEO_GEN_RESOLUTION_LABEL = '分辨率'
+export const VIDEO_GEN_DURATION_LABEL = '视频时长'
+export const VIDEO_GEN_ASPECT_RATIO_LABEL = '比例'
+export const VIDEO_GEN_RESOLUTION_LABEL = '清晰度'
+export const VIDEO_GEN_AUDIO_LABEL = '生成音频'
 export const VIDEO_GEN_DURATIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const
 export type VideoGenDuration = (typeof VIDEO_GEN_DURATIONS)[number]
 export const VIDEO_GEN_ASPECT_RATIOS = [
+  { key: 'auto', label: 'Auto', preview: { width: 14, height: 14 } },
   { key: '16:9', label: '16:9', preview: { width: 16, height: 9 } },
-  { key: '9:16', label: '9:16', preview: { width: 9, height: 16 } },
-  { key: '1:1', label: '1:1', preview: { width: 12, height: 12 } },
   { key: '4:3', label: '4:3', preview: { width: 14, height: 10 } },
+  { key: '1:1', label: '1:1', preview: { width: 12, height: 12 } },
   { key: '3:4', label: '3:4', preview: { width: 10, height: 14 } },
+  { key: '9:16', label: '9:16', preview: { width: 9, height: 16 } },
+  { key: '21:9', label: '21:9', preview: { width: 18, height: 8 } },
 ] as const
 export type VideoGenAspectRatio = (typeof VIDEO_GEN_ASPECT_RATIOS)[number]['key']
-export const VIDEO_GEN_RESOLUTIONS = ['720P', '1080P'] as const
+export const VIDEO_GEN_RESOLUTIONS = ['480P', '720P', '1080P'] as const
 export type VideoGenResolution = (typeof VIDEO_GEN_RESOLUTIONS)[number]
 
 export function formatVideoGenSettings(
@@ -551,8 +554,84 @@ export function formatVideoGenSettings(
   aspectRatio: VideoGenAspectRatio,
   resolution: VideoGenResolution,
 ) {
-  return `${duration}s · ${aspectRatio} · ${resolution}`
+  const ratioLabel = aspectRatio === 'auto' ? 'Auto' : aspectRatio
+  return `${ratioLabel} · ${resolution} · ${duration}s`
 }
+
+export type VideoGenModelId =
+  | 'seedance-2-vip'
+  | 'seedance-2-fast-vip'
+  | 'happy-horse-1'
+  | 'kling-03'
+  | 'kling-3'
+  | 'wan-2-7'
+  | 'kling-01'
+
+export type VideoGenModelItem = {
+  id: VideoGenModelId
+  name: string
+  icon: 'seedance' | 'happy-horse' | 'kling' | 'wan'
+  promoTag?: string
+  description?: string
+  duration: string
+  vip?: boolean
+  diamond?: boolean
+}
+
+export const VIDEO_GEN_MODELS: VideoGenModelItem[] = [
+  {
+    id: 'seedance-2-vip',
+    name: 'Seedance 2.0 VIP',
+    icon: 'seedance',
+    promoTag: '720P限时9折',
+    description: '最强视频模型，会员专属通道，15s 音画同步',
+    duration: '2min',
+    vip: true,
+  },
+  {
+    id: 'seedance-2-fast-vip',
+    name: 'Seedance 2.0 Fast VIP',
+    icon: 'seedance',
+    promoTag: '720P限时9折',
+    duration: '2min',
+    vip: true,
+  },
+  {
+    id: 'happy-horse-1',
+    name: 'Happy Horse 1.0',
+    icon: 'happy-horse',
+    promoTag: '限时4折',
+    duration: '2min',
+  },
+  {
+    id: 'kling-03',
+    name: 'Kling 03',
+    icon: 'kling',
+    duration: '3min',
+    diamond: true,
+  },
+  {
+    id: 'kling-3',
+    name: 'Kling 3.0',
+    icon: 'kling',
+    description: '最强视频模型，会员专属通道，15s 音画同步',
+    duration: '3min',
+    diamond: true,
+  },
+  {
+    id: 'wan-2-7',
+    name: 'Wan 2.7',
+    icon: 'wan',
+    duration: '3min',
+  },
+  {
+    id: 'kling-01',
+    name: 'Kling 01',
+    icon: 'kling',
+    duration: '3min',
+    diamond: true,
+  },
+]
 
 export const VIDEO_ADVISOR_MENU = [
   {

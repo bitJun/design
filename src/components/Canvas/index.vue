@@ -102,7 +102,9 @@
       :image-dialogue-text="imageDialogueText"
       :video-dialogue-text="videoDialogueText"
       :video-hd-magnification="videoHdMagnification"
+      :video-num="videoNum"
       @update:prompt-text="promptText = $event"
+      @update:video-num="videoNum = $event"
       @persist-prompt-bar-draft="persistPromptBarDraft"
       @submit-text-prompt="submitTextPrompt"
       @update:image-gen-prompt-text="imageGenPromptText = $event; persistImageGenPrompt()"
@@ -416,6 +418,7 @@ const imageGenSourcePreviewUrl = ref('')
 const imageGenSubmitting = ref(false)
 const activeVideoGenPromptNodeId = ref('')
 const videoGenPromptText = ref('')
+const videoNum = ref(1)
 const videoGenActiveTab = ref('text2video')
 const selectedNodeId = ref('')
 const pendingUploadNodeId = ref('')

@@ -621,7 +621,7 @@ export function getNodeVideoGenPromptPosition(
   return {
     left: box.centerX,
     top: box.bottom + VIDEO_GEN_PROMPT_TOP_GAP,
-    width: Math.min(maxWidth, Math.max(box.width, 520)),
+    width: Math.min(maxWidth, Math.max(box.width, 600)),
   }
 }
 

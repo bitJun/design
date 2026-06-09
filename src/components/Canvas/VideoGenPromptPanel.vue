@@ -98,15 +98,78 @@
     />
 
     <div class="video-gen-prompt-panel__footer">
-      <button type="button" class="video-gen-prompt-panel__chip video-gen-prompt-panel__chip--vip">
-        Seedance 2.0 VIP
-      </button>
-      <button type="button" class="video-gen-prompt-panel__chip">16:9 · 720P · 5s 🔊 ▾</button>
+      <div class="video-gen-prompt-panel__model-wrap">
+        <button
+          type="button"
+          class="video-gen-prompt-panel__chip video-gen-prompt-panel__chip--vip"
+          :class="{ 'video-gen-prompt-panel__chip--active': showVideoModelPicker }"
+          @click.stop="toggleVideoModelPicker"
+        >
+          {{ selectedVideoModel?.name ?? 'Seedance 2.0 VIP' }} ▾
+        </button>
+        <div
+          v-if="showVideoModelPicker"
+          class="video-gen-prompt-panel__model-menu"
+          @mousedown.stop
+        >
+          <VideoGenModelPicker
+            :model-id="videoModelId"
+            @update:model-id="onVideoModelChange"
+            @select="showVideoModelPicker = false"
+          />
+        </div>
+      </div>
+      <div class="video-gen-prompt-panel__settings-wrap">
+        <button
+          type="button"
+          class="video-gen-prompt-panel__chip"
+          :class="{ 'video-gen-prompt-panel__chip--active': showVideoSettings }"
+          @click.stop="toggleVideoSettings"
+        >
+          {{ videoSettingsLabel }}{{ generateAudio ? ' 🔊' : '' }} ▾
+        </button>
+        <div
+          v-if="showVideoSettings"
+          class="video-gen-prompt-panel__settings-menu"
+          @mousedown.stop
+        >
+          <VideoGenSettingsPopover
+            v-model:duration="videoDuration"
+            v-model:aspect-ratio="videoAspectRatio"
+            v-model:resolution="videoResolution"
+            v-model:generate-audio="generateAudio"
+            @close="showVideoSettings = false"
+          />
+        </div>
+      </div>
+      <a-tooltip>
+        <template #title>标记</template>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          aria-hidden="true"
+          role="img"
+          class="iconify iconify--libtv text-fg-muted canvas-light:text-neutral-700"
+          width="1em" height="1em" viewBox="0 0 16 16"
+        >
+          <g transform="translate(1.22 1.77)">
+            <path d="M5.10059 0C7.91853 0.000212037 10.2001 2.2928 10.2002 5.11719L10.1943 5.37598C10.1317 6.63474 9.61327 7.77289 8.80469 8.63086C8.7912 8.64972 8.77744 8.66874 8.76074 8.68555L5.87793 11.5791C5.44885 12.0091 4.75232 12.0091 4.32324 11.5791L1.44043 8.68555C1.42361 8.66866 1.40906 8.64984 1.39551 8.63086C0.587075 7.77292 0.0694293 6.63459 0.00683594 5.37598L0 5.11719C0.000138958 2.29268 2.28246 0 5.10059 0ZM5.10059 0.867188C2.7641 0.867188 0.867315 2.76831 0.867188 5.11719C0.867188 6.26873 1.32268 7.31233 2.06348 8.07812C2.07238 8.08733 2.08091 8.0976 2.08887 8.10742L4.93652 10.9668C5.02701 11.0575 5.17318 11.0575 5.26367 10.9668L8.11133 8.10742C8.11936 8.09749 8.12772 8.08742 8.13672 8.07812C8.87758 7.31231 9.33301 6.26877 9.33301 5.11719C9.33288 2.84165 7.55295 0.985713 5.31738 0.87207L5.10059 0.867188ZM5.09863 3.72754C5.83057 3.72754 6.42467 4.32083 6.4248 5.05273C6.4248 5.78475 5.83065 6.37793 5.09863 6.37793C4.3668 6.37771 3.77344 5.78462 3.77344 5.05273C3.77357 4.32096 4.36688 3.72776 5.09863 3.72754ZM11.0459 8.02061C11.1147 7.83511 11.3774 7.83525 11.4463 8.02061L11.9326 9.33409C11.9542 9.3924 12.0003 9.43842 12.0586 9.46006L13.3721 9.94639C13.5578 10.0151 13.5578 10.278 13.3721 10.3468L12.0586 10.8331C12.0003 10.8547 11.9542 10.9008 11.9326 10.9591L11.4463 12.2726C11.3776 12.4583 11.1146 12.4583 11.0459 12.2726L10.5605 10.9591C10.539 10.9009 10.4927 10.8548 10.4346 10.8331L9.12012 10.3468C8.93479 10.2779 8.93469 10.0152 9.12012 9.94639L10.4346 9.46006C10.4927 9.43837 10.539 9.39229 10.5605 9.33409L11.0459 8.02061Z" fill="currentColor"></path>
+          </g>
+        </svg>
+      </a-tooltip>
       <span class="video-gen-prompt-panel__tools">
         <button type="button" class="video-gen-prompt-panel__tool" title="翻译">文</button>
-        <button type="button" class="video-gen-prompt-panel__tool" title="设置">☰</button>
+        <!-- <button type="button" class="video-gen-prompt-panel__tool" title="设置">☰</button> -->
       </span>
-      <button type="button" class="video-gen-prompt-panel__chip">1个 ▾</button>
+      <a-select
+        :value="videoNum"
+        class="video-gen-prompt-panel__count-select"
+        @update:value="onVideoNumChange"
+      >
+        <a-select-option :value="1">1个</a-select-option>
+        <a-select-option :value="2">2个</a-select-option>
+        <a-select-option :value="3">3个</a-select-option>
+      </a-select>
       <span class="video-gen-prompt-panel__credits">⚡ 122/135</span>
       <button
         type="button"
@@ -122,15 +185,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useCanvasBgTheme } from './useCanvasBgTheme'
+import VideoGenModelPicker from './VideoGenModelPicker.vue'
+import VideoGenSettingsPopover from './VideoGenSettingsPopover.vue'
 import {
+  VIDEO_GEN_MODELS,
   VIDEO_GEN_PROMPT_PLACEHOLDER,
   VIDEO_GEN_QUICK_ACTIONS,
   VIDEO_GEN_TABS,
+  formatVideoGenSettings,
+  type VideoGenAspectRatio,
+  type VideoGenDuration,
+  type VideoGenModelId,
+  type VideoGenResolution,
 } from './constants'
 import { getVideoGenTabValidation } from './videoGen'
 import type { VideoSourceRef } from './videoGen'
+
 
 const { isLightTheme } = useCanvasBgTheme()
 const videoGenTabs = ref<Array<{ key: string; label: string; disabled?: boolean; disabledHint?: string }>>([
@@ -142,6 +214,7 @@ const videoGenTabs = ref<Array<{ key: string; label: string; disabled?: boolean;
 ])
 
 const props = defineProps<{
+  videoNum: number
   prompt: string
   activeTab: string
   sourceRefs?: VideoSourceRef[]
@@ -149,6 +222,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  'update:videoNum': [value: number]
   'update:prompt': [value: string]
   'update:activeTab': [value: string]
   'drag-start': [event: MouseEvent]
@@ -166,36 +240,78 @@ function onPanelMouseDown(event: MouseEvent) {
   emit('drag-start', event)
 }
 
+function onVideoNumChange(value: unknown) {
+  if (value === undefined || value === null) return
+  emit('update:videoNum', Number(value))
+}
+
 const sourceCount = computed(() => props.sourceRefs?.length ?? 0)
 
-const validationHint = computed(() => {
-  videoGenTabs.value = videoGenTabs.value.map((item:any) => {
-    if (item.key === 'img2video') {
-      item.disabledHint = `当前图片数量 ${sourceCount.value} 个，需要1个`
-      if (sourceCount.value > 1) {
+const showVideoModelPicker = ref(false)
+const showVideoSettings = ref(false)
+const videoModelId = ref<VideoGenModelId>('seedance-2-vip')
+const videoDuration = ref<VideoGenDuration>(5)
+const videoAspectRatio = ref<VideoGenAspectRatio>('16:9')
+const videoResolution = ref<VideoGenResolution>('720P')
+const generateAudio = ref(true)
+
+const videoSettingsLabel = computed(() =>
+  formatVideoGenSettings(videoDuration.value, videoAspectRatio.value, videoResolution.value),
+)
+
+const selectedVideoModel = computed(() =>
+  VIDEO_GEN_MODELS.find((item) => item.id === videoModelId.value),
+)
+
+function toggleVideoModelPicker() {
+  showVideoModelPicker.value = !showVideoModelPicker.value
+  if (showVideoModelPicker.value) showVideoSettings.value = false
+}
+
+function onVideoModelChange(id: VideoGenModelId) {
+  videoModelId.value = id
+}
+
+function toggleVideoSettings() {
+  showVideoSettings.value = !showVideoSettings.value
+  if (showVideoSettings.value) showVideoModelPicker.value = false
+}
+
+function syncVideoGenTabsBySourceCount() {
+  const count = sourceCount.value
+  videoGenTabs.value = videoGenTabs.value.map((item) => {
+    const next = { ...item }
+    if (next.key === 'img2video') {
+      next.disabledHint = `当前图片数量 ${count} 个，需要1个`
+      if (count > 1) {
         if (props.activeTab === 'img2video') {
-          emit('update:activeTab', 'reference');
+          emit('update:activeTab', 'reference')
         }
-        item.disabled = true;
+        next.disabled = true
       } else {
-        item.disabled = false;
+        next.disabled = false
       }
     }
-    if (item.key === 'frames') {
-      item.disabledHint = `当前图片数量 ${sourceCount.value} 个，需要1~2个`
-      if (sourceCount.value > 2) {
+    if (next.key === 'frames') {
+      next.disabledHint = `当前图片数量 ${count} 个，需要1~2个`
+      if (count > 2) {
         if (props.activeTab === 'frames') {
-          emit('update:activeTab', 'reference');
+          emit('update:activeTab', 'reference')
         }
-        item.disabled = true;
+        next.disabled = true
       } else {
-        item.disabled = false;
+        next.disabled = false
       }
     }
-    return item
-  });
-  return getVideoGenTabValidation(props.activeTab, sourceCount.value)
-})
+    return next
+  })
+}
+
+watch(sourceCount, syncVideoGenTabsBySourceCount, { immediate: true })
+
+const validationHint = computed(() =>
+  getVideoGenTabValidation(props.activeTab, sourceCount.value),
+)
 
 const validationError = computed(() => {
   const hint = validationHint.value
@@ -577,6 +693,19 @@ function onPromptInput(event: Event) {
   flex-wrap: wrap;
 }
 
+.video-gen-prompt-panel__model-wrap,
+.video-gen-prompt-panel__settings-wrap {
+  position: relative;
+}
+
+.video-gen-prompt-panel__model-menu,
+.video-gen-prompt-panel__settings-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 10;
+}
+
 .video-gen-prompt-panel__chip {
   padding: 4px 8px;
   border: none;
@@ -596,6 +725,11 @@ function onPromptInput(event: Event) {
     color: #c4b5fd;
   }
 
+  &--active {
+    background: #2a2a30;
+    color: #e5e7eb;
+  }
+
   .video-gen-prompt-panel--light & {
     background: #f3f4f6;
     color: #6b7280;
@@ -607,6 +741,11 @@ function onPromptInput(event: Event) {
 
     &--vip {
       color: #7c3aed;
+    }
+
+    &--active {
+      background: #e5e7eb;
+      color: #111827;
     }
   }
 }
