@@ -84,6 +84,7 @@
     }"
   >
     <VideoGenPromptPanel
+      ref="videoGenPromptPanelRef"
       :prompt="videoGenPromptText"
       :active-tab="videoGenActiveTab"
       :source-refs="videoGenSourceRefs"
@@ -199,7 +200,10 @@ import {
   type VideoHdMagnification,
 } from '../constants'
 import type { CanvasBgTheme } from '../canvasTheme'
+import { ref } from 'vue'
 import type { VideoSourceRef } from '../videoGen'
+
+const videoGenPromptPanelRef = ref<InstanceType<typeof VideoGenPromptPanel> | null>(null)
 
 defineProps<{
   canvasBgTheme: CanvasBgTheme
@@ -268,4 +272,12 @@ function onPromptInput(event: Event) {
   emit('update:promptText', (event.target as HTMLTextAreaElement).value)
   emit('persist-prompt-bar-draft')
 }
+
+function dismissVideoGenPromptOverlay() {
+  return videoGenPromptPanelRef.value?.dismissTopOverlay() ?? false
+}
+
+defineExpose({
+  dismissVideoGenPromptOverlay,
+})
 </script>

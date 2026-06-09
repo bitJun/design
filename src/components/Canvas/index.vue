@@ -69,6 +69,7 @@
     />
 
     <CanvasNodeOverlays
+      ref="nodeOverlaysRef"
       :canvas-bg-theme="canvasBgTheme"
       :show-prompt-bar="showPromptBar"
       :show-image-gen-prompt-bar="showImageGenPromptBar"
@@ -366,6 +367,7 @@ const userMenuName = ref('李阳')
 const userMenuRole = ref('普通用户')
 const userMenuPoints = ref(3)
 const canvasRef = ref<HTMLElement | null>(null)
+const nodeOverlaysRef = ref<InstanceType<typeof CanvasNodeOverlays> | null>(null)
 const graphRef = ref<HTMLElement | null>(null)
 const minimapContainerRef = ref<HTMLElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -2218,25 +2220,15 @@ function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
   updateNodeToolbar()
 }
 
-function handleNodeUnselected() {
-  activePickerNodeId.value = ''
-  closeImageGenPromptBar()
-  closeVideoGenPromptBar()
-}
-
-function handleBlankClick() {
+function resetCanvasInteractionState() {
   closeAddMenu()
   closeProjectMenu()
   closeUserMenu()
   closeZoomMenu()
   closeShortcutsPanel()
   closeHistoryPanel()
-  const g = graph.value as CanvasGraph | null
-  if (g?.__suppressBlankCloseForConnect) {
-    g.__suppressBlankCloseForConnect = false
-  } else {
-    closeConnectMenu()
-  }
+  closeConnectMenu()
+  activePickerNodeId.value = ''
   selectedNodeId.value = ''
   selectedKind.value = null
   resetImageToolbarMore()
@@ -2250,6 +2242,119 @@ function handleBlankClick() {
   closeTextExpand()
   exitElementSelectMode()
   syncNodeSelectionHighlight('')
+}
+
+function dismissOneCanvasLayer() {
+  if (imagePreviewUrl.value) {
+    closeImagePreview()
+    return true
+  }
+  if (showShortcutsPanel.value) {
+    closeShortcutsPanel()
+    return true
+  }
+  if (showImageCrop.value) {
+    closeImageCrop()
+    return true
+  }
+  if (nodeOverlaysRef.value?.dismissVideoGenPromptOverlay()) {
+    return true
+  }
+  if (showImageHdMenu.value) {
+    showImageHdMenu.value = false
+    return true
+  }
+  if (showImageToolbarMoreMenu.value) {
+    showImageToolbarMoreMenu.value = false
+    return true
+  }
+  if (showImageToolbarMore.value) {
+    resetImageToolbarMore()
+    return true
+  }
+  const g = graph.value as CanvasGraph | null
+  if (g?.__suppressBlankCloseForConnect) {
+    g.__suppressBlankCloseForConnect = false
+    return true
+  }
+  if (showConnectMenu.value) {
+    closeConnectMenu()
+    return true
+  }
+  if (showAddMenu.value) {
+    closeAddMenu()
+    return true
+  }
+  if (showProjectMenu.value) {
+    closeProjectMenu()
+    return true
+  }
+  if (showUserMenu.value) {
+    closeUserMenu()
+    return true
+  }
+  if (showZoomMenu.value) {
+    closeZoomMenu()
+    return true
+  }
+  if (showAssetsPanel.value) {
+    showAssetsPanel.value = false
+    return true
+  }
+  if (showHistoryPanel.value) {
+    closeHistoryPanel()
+    return true
+  }
+  if (showVideoFramesPanel.value) {
+    resetVideoFramesPanel()
+    return true
+  }
+  if (showVideoHdPanel.value) {
+    resetVideoHdPanel()
+    return true
+  }
+  if (showVideoDialogue.value) {
+    resetVideoDialogue()
+    return true
+  }
+  if (showImageDialogue.value) {
+    resetImageDialogue()
+    return true
+  }
+  if (textExpandOpen.value) {
+    closeTextExpand()
+    return true
+  }
+  if (activeImageGenPromptNodeId.value) {
+    closeImageGenPromptBar()
+    return true
+  }
+  if (activeVideoGenPromptNodeId.value) {
+    closeVideoGenPromptBar()
+    return true
+  }
+  if (activePickerNodeId.value) {
+    activePickerNodeId.value = ''
+    return true
+  }
+  if (showElementSelectMode.value) {
+    exitElementSelectMode()
+    return true
+  }
+  if (selectedNodeId.value) {
+    selectedNodeId.value = ''
+    selectedKind.value = null
+    resetImageToolbarMore()
+    resetImageDialogue()
+    resetImageCrop()
+    resetVideoDialogue()
+    resetVideoHdPanel()
+    resetVideoFramesPanel()
+    syncNodeSelectionHighlight('')
+    updateNodeToolbar()
+    return true
+  }
+  return false
 }
 
 function handleNodeDataChange({ node }: { node: Node }) {
@@ -2304,7 +2409,7 @@ function handleUndo() {
   if (!g || !canvasHistory?.undo(g)) return
   syncHistoryState()
   syncNodeCount()
-  handleBlankClick()
+  resetCanvasInteractionState()
   nextTick(() => updateNodeToolbar())
 }
 
@@ -2313,7 +2418,7 @@ function handleRedo() {
   if (!g || !canvasHistory?.redo(g)) return
   syncHistoryState()
   syncNodeCount()
-  handleBlankClick()
+  resetCanvasInteractionState()
   nextTick(() => updateNodeToolbar())
 }
 
@@ -2406,61 +2511,7 @@ function closeImagePreview() {
 }
 
 function cancelCurrentOperation() {
-  if (imagePreviewUrl.value) {
-    closeImagePreview()
-    return true
-  }
-  if (showShortcutsPanel.value) {
-    closeShortcutsPanel()
-    return true
-  }
-  if (showImageCrop.value) {
-    closeImageCrop()
-    return true
-  }
-  if (showConnectMenu.value) {
-    closeConnectMenu()
-    return true
-  }
-  if (showAddMenu.value) {
-    closeAddMenu()
-    return true
-  }
-  if (showProjectMenu.value) {
-    closeProjectMenu()
-    return true
-  }
-  if (showUserMenu.value) {
-    closeUserMenu()
-    return true
-  }
-  if (showZoomMenu.value) {
-    closeZoomMenu()
-    return true
-  }
-  if (showAssetsPanel.value) {
-    showAssetsPanel.value = false
-    return true
-  }
-  if (showHistoryPanel.value) {
-    closeHistoryPanel()
-    return true
-  }
-  if (showImageDialogue.value) {
-    resetImageDialogue()
-    return true
-  }
-  if (showVideoDialogue.value || showVideoHdPanel.value || showVideoFramesPanel.value) {
-    resetVideoDialogue()
-    resetVideoHdPanel()
-    resetVideoFramesPanel()
-    return true
-  }
-  if (selectedNodeId.value) {
-    handleBlankClick()
-    return true
-  }
-  return false
+  return dismissOneCanvasLayer()
 }
 
 function triggerCanvasUploadShortcut() {
@@ -2570,8 +2621,7 @@ onMounted(() => {
     }
   })
   instance.on('blank:click', () => {
-    handleBlankClick()
-    handleNodeUnselected()
+    dismissOneCanvasLayer()
   })
   instance.on('node:change:data', handleNodeDataChange)
   instance.on('edge:connected', handleEdgeConnected)
