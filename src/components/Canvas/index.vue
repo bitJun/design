@@ -119,6 +119,7 @@
       @video-hd-start="onVideoHdStart"
       @video-gen-drag-start="onVideoGenPromptDragStart"
       @video-gen-quick-action="onVideoGenQuickAction"
+      @remove-video-source-ref="onRemoveVideoSourceRef"
     />
 
     <input
@@ -348,7 +349,7 @@ import {
   type CanvasSnapshot,
 } from './canvasSnapshot'
 import { createCanvasHistory } from './canvasHistory'
-import { getVideoSourceRefs } from './videoGen'
+import { disconnectImageFromVideo, getVideoSourceRefs } from './videoGen'
 import { setSharedCanvasBgTheme } from './useCanvasBgTheme'
 import { useCanvasKeyboard } from './composables/useCanvasKeyboard'
 
@@ -1513,6 +1514,16 @@ function handleEdgeConnected({
 
   canvasGraph.__connectPreviewEdgeId = edge.id
   openConnectMenu(source as Node, releasePoint)
+}
+
+function onRemoveVideoSourceRef(imageNodeId: string) {
+  const g = graph.value
+  const videoNodeId = activeVideoGenPromptNodeId.value
+  if (!g || !videoNodeId || !imageNodeId) return
+  if (!disconnectImageFromVideo(g, imageNodeId, videoNodeId)) return
+  bumpToolbarRevision()
+  updateNodeToolbar()
+  scheduleHistoryPush()
 }
 
 function removeNodeById(nodeId: string) {

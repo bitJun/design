@@ -36,6 +36,29 @@ export function findIncomingImageNodes(graph: Graph, videoNodeId: string): Node[
   })
 }
 
+export function findImageToVideoEdge(
+  graph: Graph,
+  imageNodeId: string,
+  videoNodeId: string,
+) {
+  return graph.getEdges().find(
+    (edge) =>
+      edge.getSourceCellId() === imageNodeId &&
+      edge.getTargetCellId() === videoNodeId,
+  ) ?? null
+}
+
+export function disconnectImageFromVideo(
+  graph: Graph,
+  imageNodeId: string,
+  videoNodeId: string,
+) {
+  const edge = findImageToVideoEdge(graph, imageNodeId, videoNodeId)
+  if (!edge) return false
+  graph.removeEdge(edge.id)
+  return true
+}
+
 export function getVideoSourceRefs(graph: Graph, videoNodeId: string): VideoSourceRef[] {
   return findIncomingImageNodes(graph, videoNodeId).map((node, index) => {
     const data = node.getData() as CanvasNodeData

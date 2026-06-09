@@ -92,6 +92,7 @@
       @update:active-tab="emit('update:videoGenActiveTab', $event)"
       @drag-start="emit('video-gen-drag-start', $event)"
       @quick-action="emit('video-gen-quick-action', $event)"
+      @remove-source-ref="emit('remove-video-source-ref', $event)"
     />
   </div>
 
@@ -256,6 +257,7 @@ const emit = defineEmits<{
   'video-hd-start': []
   'video-gen-drag-start': [event: MouseEvent]
   'video-gen-quick-action': [key: string]
+  'remove-video-source-ref': [nodeId: string]
 }>()
 
 function onPromptInput(event: Event) {

@@ -76,6 +76,14 @@
         :class="{ 'video-gen-prompt-panel__ref--invalid': validationError }"
       >
         <img :src="ref.previewUrl" alt="" />
+        <button
+          type="button"
+          class="video-gen-prompt-panel__ref-remove"
+          title="删除"
+          @click.stop="emit('remove-source-ref', ref.nodeId)"
+        >
+          ×
+        </button>
         <span v-if="ref.badge" class="video-gen-prompt-panel__ref-badge">{{ ref.badge }}</span>
         <span v-else class="video-gen-prompt-panel__ref-index">{{ ref.index }}</span>
       </div>
@@ -145,6 +153,7 @@ const emit = defineEmits<{
   'update:activeTab': [value: string]
   'drag-start': [event: MouseEvent]
   'quick-action': [key: string]
+  'remove-source-ref': [nodeId: string]
 }>()
 
 const DRAG_IGNORE_SELECTOR =
@@ -470,6 +479,44 @@ function onPromptInput(event: Event) {
 
   .video-gen-prompt-panel--light & {
     background: #f3f4f6;
+  }
+}
+
+.video-gen-prompt-panel__ref-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+
+  .video-gen-prompt-panel__ref:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.9);
+  }
+
+  .video-gen-prompt-panel--light & {
+    background: rgba(17, 24, 39, 0.45);
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.9);
+    }
   }
 }
 
