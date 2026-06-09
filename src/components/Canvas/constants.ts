@@ -200,12 +200,12 @@ export const VIDEO_PICKER_ACTIONS = [
   // { key: 'first', label: '首帧生成视频', icon: 'spark' },
 ]
 
-export const VIDEO_GEN_TABS: Array<{ key: string; label: string; disabled?: boolean }> = [
-  { key: 'text2video', label: '文生视频' },
-  { key: 'reference', label: '全能参考' },
-  { key: 'img2video', label: '图生视频' },
-  { key: 'frames', label: '首尾帧' },
-  { key: 'imageRef', label: '图片参考' },
+export const VIDEO_GEN_TABS: Array<{ key: string; label: string; disabled?: boolean; disabledHint?: string }> = [
+  { key: 'text2video', label: '文生视频', disabled: true, disabledHint: '已接入媒体输入,无法使用纯文生视频' },
+  { key: 'reference', label: '全能参考', disabled: false, disabledHint: '' },
+  { key: 'img2video', label: '图生视频', disabled: false, disabledHint: '图生视频功能暂未开放' },
+  { key: 'frames', label: '首尾帧', disabled: false, disabledHint: '首尾帧功能暂未开放' },
+  { key: 'imageRef', label: '图片参考', disabled: false, disabledHint: '' },
 ]
 
 export const VIDEO_GEN_QUICK_ACTIONS = [

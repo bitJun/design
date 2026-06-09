@@ -4,32 +4,51 @@
     :class="{ 'video-gen-prompt-panel--light': isLightTheme }"
     @mousedown="onPanelMouseDown"
   >
-    <p
+    <!-- <p
       v-if="validationHint"
       class="video-gen-prompt-panel__hint"
       :class="{ 'video-gen-prompt-panel__hint--error': validationError }"
     >
       {{ validationHint }}
-    </p>
+    </p> -->
 
     <div class="video-gen-prompt-panel__tabs">
-      <button
-        v-for="tab in VIDEO_GEN_TABS"
+      <div 
+        v-for="tab in videoGenTabs"
         :key="tab.key"
-        type="button"
-        class="video-gen-prompt-panel__tab"
-        :class="{
-          'video-gen-prompt-panel__tab--active': activeTab === tab.key,
-          'video-gen-prompt-panel__tab--active-disabled': activeTab === tab.key && tab.disabled,
-        }"
-        :disabled="tab.disabled"
-        @click="selectTab(tab.key)"
       >
-        {{ tab.label }}
-      </button>
+        <a-tooltip v-if="tab.disabled">
+          <template #title>{{ tab.disabledHint }}</template>
+          <button
+            type="button"
+            class="video-gen-prompt-panel__tab"
+            :class="{
+              'video-gen-prompt-panel__tab--active': activeTab === tab.key,
+              'video-gen-prompt-panel__tab--active-disabled': activeTab === tab.key && tab.disabled,
+            }"
+            :disabled="tab.disabled"
+            @click="selectTab(tab.key)"
+          >
+            {{ tab.label }}
+          </button>
+        </a-tooltip>
+        <button
+          v-else
+          type="button"
+          class="video-gen-prompt-panel__tab"
+          :class="{
+            'video-gen-prompt-panel__tab--active': activeTab === tab.key,
+            'video-gen-prompt-panel__tab--active-disabled': activeTab === tab.key && tab.disabled,
+          }"
+          :disabled="tab.disabled"
+          @click="selectTab(tab.key)"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
     </div>
 
-    <div class="video-gen-prompt-panel__head">
+    <!-- <div class="video-gen-prompt-panel__head">
       <div class="video-gen-prompt-panel__actions">
         <button
           v-for="action in VIDEO_GEN_QUICK_ACTIONS"
@@ -44,7 +63,7 @@
         </button>
       </div>
       <button type="button" class="video-gen-prompt-panel__expand" title="展开">⤢</button>
-    </div>
+    </div> -->
 
     <div
       v-if="showSourceRefs"
@@ -95,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useCanvasBgTheme } from './useCanvasBgTheme'
 import {
   VIDEO_GEN_PROMPT_PLACEHOLDER,
@@ -106,6 +125,13 @@ import { getVideoGenTabValidation } from './videoGen'
 import type { VideoSourceRef } from './videoGen'
 
 const { isLightTheme } = useCanvasBgTheme()
+const videoGenTabs = ref<Array<{ key: string; label: string; disabled?: boolean; disabledHint?: string }>>([
+  { key: 'text2video', label: '文生视频', disabled: true, disabledHint: '已接入媒体输入,无法使用纯文生视频' },
+  { key: 'reference', label: '全能参考', disabled: false, disabledHint: '' },
+  { key: 'img2video', label: '图生视频', disabled: false, disabledHint: '' },
+  { key: 'frames', label: '首尾帧', disabled: false, disabledHint: '' },
+  { key: 'imageRef', label: '图片参考', disabled: false, disabledHint: '' },
+])
 
 const props = defineProps<{
   prompt: string
@@ -134,6 +160,31 @@ function onPanelMouseDown(event: MouseEvent) {
 const sourceCount = computed(() => props.sourceRefs?.length ?? 0)
 
 const validationHint = computed(() => {
+  videoGenTabs.value = videoGenTabs.value.map((item:any) => {
+    if (item.key === 'img2video') {
+      item.disabledHint = `当前图片数量 ${sourceCount.value} 个，需要1个`
+      if (sourceCount.value > 1) {
+        if (props.activeTab === 'img2video') {
+          emit('update:activeTab', 'reference');
+        }
+        item.disabled = true;
+      } else {
+        item.disabled = false;
+      }
+    }
+    if (item.key === 'frames') {
+      item.disabledHint = `当前图片数量 ${sourceCount.value} 个，需要1~2个`
+      if (sourceCount.value > 2) {
+        if (props.activeTab === 'frames') {
+          emit('update:activeTab', 'reference');
+        }
+        item.disabled = true;
+      } else {
+        item.disabled = false;
+      }
+    }
+    return item
+  });
   return getVideoGenTabValidation(props.activeTab, sourceCount.value)
 })
 
@@ -163,9 +214,9 @@ const displayRefs = computed(() => {
 })
 
 function selectTab(key: string) {
-  const tab = VIDEO_GEN_TABS.find((item) => item.key === key)
+  const tab = VIDEO_GEN_TABS.find((item) => item.key === key);
   if (tab?.disabled) return
-  emit('update:activeTab', key)
+  emit('update:activeTab', key);
 }
 
 function onPromptInput(event: Event) {

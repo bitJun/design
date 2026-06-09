@@ -19,6 +19,7 @@ declare module 'vue' {
     APopover: typeof import('ant-design-vue/es')['Popover']
     ASelect: typeof import('ant-design-vue/es')['Select']
     ASubMenu: typeof import('ant-design-vue/es')['SubMenu']
+    ATooltip: typeof import('ant-design-vue/es')['Tooltip']
     Canvas: typeof import('./components/Canvas/index.vue')['default']
     CanvasAddMenu: typeof import('./components/Canvas/panels/CanvasAddMenu.vue')['default']
     CanvasAssetsPanel: typeof import('./components/Canvas/panels/CanvasAssetsPanel.vue')['default']
