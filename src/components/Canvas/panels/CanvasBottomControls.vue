@@ -34,7 +34,7 @@
         title="网格"
         @click="emit('toggle-grid')"
       >
-        ▦
+        <i class="iconfont icon-border-top"></i>
       </button>
       <button
         type="button"

@@ -71,7 +71,7 @@
           :disabled="!canUndo"
           @click="emit('undo')"
         >
-          <span class="canvas__brand-icon canvas__brand-icon--undo" aria-hidden="true" />
+          <i class="iconfont icon-shangyibu"></i>
         </button>
         <button
           type="button"
@@ -80,7 +80,7 @@
           :disabled="!canRedo"
           @click="emit('redo')"
         >
-          <span class="canvas__brand-icon canvas__brand-icon--redo" aria-hidden="true" />
+          <i class="iconfont icon-xiayibu"></i>
         </button>
       </div>
       <span class="canvas__brand-divider" aria-hidden="true" />
