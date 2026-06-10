@@ -345,6 +345,78 @@ export const IMAGE_DIALOGUE_QUALITY_LABEL = '自适应 · 标准画质 · 2K'
 export const IMAGE_DIALOGUE_CREDITS = '22'
 export const IMAGE_DIALOGUE_COUNT_OPTIONS = [1, 2, 4] as const
 
+export const IMAGE_STYLE_PANEL_SEARCH_PLACEHOLDER = '搜索想要的风格、灵感、视觉'
+export const IMAGE_STYLE_PANEL_TABS = [
+  '推荐',
+  '摄影写真',
+  '电商营销',
+  '动漫游戏',
+  '风格插画',
+  '平面设计',
+  '建筑及室内设计',
+  '故事玩法',
+  '大片玩法',
+  '小说漫文',
+] as const
+
+export type ImageStyleCard = {
+  key: string
+  title: string
+  author: string
+  gradient: string
+  credits: number
+}
+
+const IMAGE_STYLE_CARD_TITLES = [
+  '光感水彩',
+  '创意3D渲染卡通世界',
+  '数字护理设计',
+  '3D渲染户型彩屏',
+  '电商保护形象插画',
+  '室内场景纯真装饰',
+  '极简几何商品台',
+  '钢笔线条画风',
+  '室内温暖家居置景',
+  '气泡球珠质感风',
+  '梦幻3D色彩画风',
+  '团扇工笔画面',
+  '产品摄影暗调光',
+  '游戏场景设计',
+  'Q版手绘画风',
+  '果冻质感设计',
+  '毛绒玩偶商务系',
+  '电影感产品场景',
+  '3D机械科技风',
+  '国风手绘卡通玩偶',
+  '蜡笔风卡通头像',
+  '蜡笔水彩涂鸦插画',
+  '软萌漫画设计',
+  '霓虹赛博城市',
+]
+
+const IMAGE_STYLE_CARD_AUTHORS = ['蜜全岁月', '智子归依', '像素ADESIGN', '微缩造物']
+
+const IMAGE_STYLE_CARD_GRADIENTS = [
+  'linear-gradient(135deg, #d6f5c8 0%, #8fd06a 100%)',
+  'linear-gradient(135deg, #fde2c8 0%, #f7b267 100%)',
+  'linear-gradient(135deg, #cfe3ff 0%, #7aa8f5 100%)',
+  'linear-gradient(135deg, #e7d6ff 0%, #b18bf0 100%)',
+  'linear-gradient(135deg, #ffd6e7 0%, #f48fb1 100%)',
+  'linear-gradient(135deg, #d2f4f0 0%, #7fd6c7 100%)',
+  'linear-gradient(135deg, #fff3c4 0%, #f6c453 100%)',
+  'linear-gradient(135deg, #e3e7ec 0%, #aab4c4 100%)',
+]
+
+export const IMAGE_STYLE_PANEL_CARDS: ImageStyleCard[] = IMAGE_STYLE_CARD_TITLES.map(
+  (title, index) => ({
+    key: `style-${index}`,
+    title,
+    author: IMAGE_STYLE_CARD_AUTHORS[index % IMAGE_STYLE_CARD_AUTHORS.length],
+    gradient: IMAGE_STYLE_CARD_GRADIENTS[index % IMAGE_STYLE_CARD_GRADIENTS.length],
+    credits: 300 + ((index * 137) % 900),
+  }),
+)
+
 export type ImageDialogueModelIcon = 'lib' | 'navo' | 'seedream' | 'mj'
 
 export type ImageDialogueModelItem = {

@@ -101,6 +101,7 @@
       :video-gen-source-refs="videoGenSourceRefs"
       :element-select-mode="showElementSelectMode"
       :image-dialogue-text="imageDialogueText"
+      :image-dialogue-preview-url="imageDialoguePreviewUrl"
       :video-dialogue-text="videoDialogueText"
       :video-hd-magnification="videoHdMagnification"
       :video-num="videoNum"
@@ -114,6 +115,7 @@
       @update:video-gen-prompt-text="videoGenPromptText = $event; persistVideoGenPrompt()"
       @update:video-gen-active-tab="videoGenActiveTab = $event; persistVideoGenPrompt()"
       @update:image-dialogue-text="imageDialogueText = $event"
+      @remove-image-dialogue-preview="clearImageDialoguePreview"
       @update:video-dialogue-text="videoDialogueText = $event"
       @update:video-hd-magnification="videoHdMagnification = $event"
       @close-image-crop="closeImageCrop"
@@ -562,6 +564,12 @@ const imageCropSource = computed(() => {
   }
 })
 
+const imageDialoguePreviewUrl = computed(() => {
+  void toolbarRevision.value
+  const data = getSelectedNodeData()
+  return data?.sourcePreviewUrl || data?.previewUrl || ''
+})
+
 const showNodeToolbar = computed(() => Boolean(selectedNodeId.value))
 const toolbarRevision = ref(0)
 
@@ -782,6 +790,19 @@ function onVideoHdStart() {
 
 function resetImageDialogue() {
   showImageDialogue.value = false
+}
+
+function clearImageDialoguePreview() {
+  const g = graph.value
+  const id = selectedNodeId.value
+  if (!g || !id) return
+  const cell = g.getCellById(id)
+  if (!cell?.isNode()) return
+  const data = { ...(cell.getData() as CanvasNodeData) }
+  data.sourcePreviewUrl = ''
+  data.inputUpdated = false
+  cell.setData(data)
+  toolbarRevision.value += 1
 }
 
 function resetVideoDialogue() {
@@ -1457,6 +1478,9 @@ function onConnectMenuItem(item: (typeof CONNECT_GENERATE_MENU)[number]) {
   // 文生图目标节点：在其下方打开图片生成提示栏，发送后图片进入加载
   if (data.kind === 'image' && data.imageGenState) {
     openImageGenPromptBar(spawned.id)
+  } else if (data.kind === 'image') {
+    // 由节点拖拽生成的图片节点（图生图占位），默认展示对话框
+    openImageDialogue(spawned.id)
   }
 }
 

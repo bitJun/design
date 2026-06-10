@@ -5,7 +5,12 @@
     </button>
 
     <div class="image-dialogue__head">
-      <button type="button" class="image-dialogue__chip">
+      <button
+        type="button"
+        class="image-dialogue__chip"
+        @mousedown.stop
+        @click.stop="openStyleModal"
+      >
         <span class="image-dialogue__chip-icon" data-icon="style" aria-hidden="true" />
         风格
       </button>
@@ -13,9 +18,32 @@
         <span class="image-dialogue__chip-icon" data-icon="mark" aria-hidden="true" />
         标记
       </button>
-      <div class="image-dialogue__thumb">
-        <span class="image-dialogue__thumb-img" aria-hidden="true" />
-        <span class="image-dialogue__thumb-badge">1</span>
+      <div
+        class="image-dialogue__thumb"
+        @mouseenter="thumbHover = true"
+        @mouseleave="thumbHover = false"
+      >
+        <img
+          v-if="previewUrl"
+          :src="previewUrl"
+          alt=""
+          class="image-dialogue__thumb-img"
+        />
+        <span v-else class="image-dialogue__thumb-img" aria-hidden="true" />
+        <button
+          v-if="thumbHover && previewUrl"
+          type="button"
+          class="image-dialogue__thumb-remove"
+          title="移除"
+          @click="emit('remove')"
+        >
+          <span class="image-dialogue__thumb-remove-icon" aria-hidden="true" />
+        </button>
+        <span v-else class="image-dialogue__thumb-badge">1</span>
+
+        <div v-if="thumbHover && previewUrl" class="image-dialogue__thumb-preview">
+          <img :src="previewUrl" alt="" />
+        </div>
       </div>
     </div>
 
@@ -147,6 +175,14 @@
         </button>
       </div>
     </div>
+
+    <Teleport to="body">
+      <ImageStylePanel
+        v-if="showStyleModal"
+        @close="showStyleModal = false"
+        @select="onStyleSelect"
+      />
+    </Teleport>
   </div>
 </template>
 
@@ -154,6 +190,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useCanvasBgTheme } from './useCanvasBgTheme'
 import ImageGenSettingsPopover from './ImageGenSettingsPopover.vue'
+import ImageStylePanel from './ImageStylePanel.vue'
 import {
   IMAGE_DIALOGUE_PLACEHOLDER,
   IMAGE_DIALOGUE_QUALITY_LABEL,
@@ -163,18 +200,23 @@ import {
   type ImageDialogueModelItem,
   type ImageGenAspectRatio,
   type ImageGenCount,
+  type ImageStyleCard,
 } from './constants'
 
 defineProps<{
   modelValue: string
+  previewUrl?: string
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
+  remove: []
 }>()
 
 const { isLightTheme } = useCanvasBgTheme()
 
+const thumbHover = ref(false)
+const showStyleModal = ref(false)
 const showGenSettings = ref(false)
 const showModelMenu = ref(false)
 const showCountMenu = ref(false)
@@ -191,6 +233,18 @@ const selectedModelName = computed(
 
 function onInput(event: Event) {
   emit('update:modelValue', (event.target as HTMLTextAreaElement).value)
+}
+
+function openStyleModal() {
+  showStyleModal.value = true
+  showModelMenu.value = false
+  showCountMenu.value = false
+  showGenSettings.value = false
+}
+
+function onStyleSelect(card: ImageStyleCard) {
+  void card
+  showStyleModal.value = false
 }
 
 function toggleGenSettings() {
@@ -307,7 +361,8 @@ onBeforeUnmount(() => {
 }
 
 .image-dialogue__chip {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 5px;
   padding: 6px 12px;
@@ -354,10 +409,9 @@ onBeforeUnmount(() => {
 .image-dialogue__thumb {
   position: relative;
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 45px;
+  height: 45px;
   border-radius: 8px;
-  overflow: hidden;
   border: 1px solid #4b4b55;
 
   .image-dialogue--light & {
@@ -369,6 +423,8 @@ onBeforeUnmount(() => {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  border-radius: 7px;
   background: linear-gradient(135deg, #d6f5c8 0%, #aee08a 55%, #8fd06a 100%);
 }
 
@@ -388,6 +444,54 @@ onBeforeUnmount(() => {
   font-size: 10px;
   line-height: 1;
   font-weight: 600;
+}
+
+.image-dialogue__thumb-remove {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(17, 24, 39, 0.82);
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(17, 24, 39, 0.95);
+  }
+}
+
+.image-dialogue__thumb-remove-icon {
+  width: 9px;
+  height: 9px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' fill='none' viewBox='0 0 9 9'%3E%3Cpath stroke='%23fff' stroke-linecap='round' stroke-width='1.3' d='m2 2 5 5M7 2 2 7'/%3E%3C/svg%3E") center / 9px 9px no-repeat;
+}
+
+.image-dialogue__thumb-preview {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 8;
+  transform: translateX(-50%);
+  padding: 6px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.22);
+  pointer-events: none;
+
+  img {
+    display: block;
+    width: 150px;
+    max-height: 260px;
+    object-fit: contain;
+    border-radius: 8px;
+  }
 }
 
 .image-dialogue__input {

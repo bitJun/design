@@ -132,7 +132,9 @@
   >
     <ImageDialoguePanel
       :model-value="imageDialogueText"
+      :preview-url="imageDialoguePreviewUrl"
       @update:model-value="emit('update:imageDialogueText', $event)"
+      @remove="emit('remove-image-dialogue-preview')"
     />
   </div>
 
@@ -242,6 +244,7 @@ defineProps<{
   videoGenSourceRefs: VideoSourceRef[]
   elementSelectMode: boolean
   imageDialogueText: string
+  imageDialoguePreviewUrl: string
   videoDialogueText: string
   videoHdMagnification: VideoHdMagnification
 }>()
@@ -254,6 +257,7 @@ const emit = defineEmits<{
   'update:videoGenPromptText': [value: string]
   'update:videoGenActiveTab': [value: string]
   'update:imageDialogueText': [value: string]
+  'remove-image-dialogue-preview': []
   'update:videoDialogueText': [value: string]
   'update:videoHdMagnification': [value: VideoHdMagnification]
   'persist-prompt-bar-draft': []
