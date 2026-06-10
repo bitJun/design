@@ -96,14 +96,14 @@
           </div>
         </div>
 
-        <button type="button" class="image-dialogue__tool" title="摄像机">
+        <!-- <button type="button" class="image-dialogue__tool" title="摄像机">
           <span class="image-dialogue__tool-icon" data-icon="camera" aria-hidden="true" />
           摄像机
         </button>
         <button type="button" class="image-dialogue__tool" title="全景">
           <span class="image-dialogue__tool-icon" data-icon="panorama" aria-hidden="true" />
           全景
-        </button>
+        </button> -->
         <button type="button" class="image-dialogue__icon" title="翻译">
           <span class="image-dialogue__icon-glyph" data-icon="translate" aria-hidden="true" />
         </button>
@@ -151,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useCanvasBgTheme } from './useCanvasBgTheme'
 import ImageGenSettingsPopover from './ImageGenSettingsPopover.vue'
 import {
@@ -226,6 +226,28 @@ function selectCount(count: number) {
   selectedCount.value = count
   showCountMenu.value = false
 }
+
+function onDocumentMouseDown(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (!target) return
+  if (showModelMenu.value && !target.closest('.image-dialogue__model-wrap')) {
+    showModelMenu.value = false
+  }
+  if (showCountMenu.value && !target.closest('.image-dialogue__count-wrap')) {
+    showCountMenu.value = false
+  }
+  if (showGenSettings.value && !target.closest('.image-dialogue__gen-settings-wrap')) {
+    showGenSettings.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('mousedown', onDocumentMouseDown, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', onDocumentMouseDown, true)
+})
 </script>
 
 <style scoped lang="scss">
