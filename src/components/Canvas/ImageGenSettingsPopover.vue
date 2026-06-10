@@ -1,5 +1,13 @@
 <template>
   <div class="image-gen-settings">
+    <button
+      type="button"
+      class="image-gen-settings__close"
+      title="关闭"
+      @click="emit('close')"
+    >
+      <span class="image-gen-settings__close-icon" aria-hidden="true" />
+    </button>
     <section class="image-gen-settings__section">
       <p class="image-gen-settings__title">{{ IMAGE_GEN_ASPECT_RATIO_LABEL }}</p>
       <div class="image-gen-settings__ratio-grid">
@@ -69,6 +77,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   'update:aspectRatio': [value: ImageGenAspectRatio]
   'update:imageCount': [value: ImageGenCount]
+  close: []
 }>()
 
 const aspectRatio = computed({
@@ -84,12 +93,39 @@ const imageCount = computed({
 
 <style scoped lang="scss">
 .image-gen-settings {
+  position: relative;
   width: 248px;
   padding: 12px;
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.image-gen-settings__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+}
+
+.image-gen-settings__close-icon {
+  width: 14px;
+  height: 14px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 14 14'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.3' d='m3.5 3.5 7 7m0-7-7 7'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
 }
 
 .image-gen-settings__section + .image-gen-settings__section {

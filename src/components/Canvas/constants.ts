@@ -338,7 +338,33 @@ export const IMAGE_NODE_TOOLBAR_MORE_MENU = [
 ] satisfies ImageToolbarMenuItem[]
 
 export const IMAGE_DIALOGUE_GREETING = 'Hi, 我是你的AI设计助理'
-export const IMAGE_DIALOGUE_PLACEHOLDER = '让我们开始创作吧...'
+export const IMAGE_DIALOGUE_PLACEHOLDER =
+  '可直接文字生图，或上传图片输入文字指令对图片进行编辑，如：将背景改为雪夜'
+export const IMAGE_DIALOGUE_MODEL_LABEL = 'Lib Image'
+export const IMAGE_DIALOGUE_QUALITY_LABEL = '自适应 · 标准画质 · 2K'
+export const IMAGE_DIALOGUE_CREDITS = '22'
+export const IMAGE_DIALOGUE_COUNT_OPTIONS = [1, 2, 4] as const
+
+export type ImageDialogueModelIcon = 'lib' | 'navo' | 'seedream' | 'mj'
+
+export type ImageDialogueModelItem = {
+  key: string
+  name: string
+  duration: string
+  icon: ImageDialogueModelIcon
+  desc?: string
+  badge?: string
+}
+
+export const IMAGE_DIALOGUE_MODEL_MENU: ImageDialogueModelItem[] = [
+  { key: 'lib-image', name: 'Lib Image', duration: '60s', icon: 'lib', desc: '最新图片模型、长文本能力突出' },
+  { key: 'lib-navo-pro', name: 'Lib Navo Pro', duration: '50s', icon: 'navo' },
+  { key: 'lib-navo-2', name: 'Lib Navo 2', duration: '25s', icon: 'navo' },
+  { key: 'seedream-4-6', name: 'Seedream 4.6', duration: '20s', icon: 'seedream' },
+  { key: 'seedream-5-lite', name: 'Seedream 5.0 Lite', duration: '20s', icon: 'seedream' },
+  { key: 'seedream-4-5', name: 'Seedream 4.5', duration: '15s', icon: 'seedream', badge: '限时5折' },
+  { key: 'midjourney-v7', name: 'Midjourney V7', duration: '50s', icon: 'mj' },
+]
 
 export const IMAGE_COLOR_DEFAULT = '#0E316A'
 export const IMAGE_COLOR_SWATCHES = [

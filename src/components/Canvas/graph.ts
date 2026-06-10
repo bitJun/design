@@ -556,7 +556,7 @@ export function getNodeTextFormatToolbarPosition(
   return {
     left: box.centerX,
     top: anchorOffset.top - 10,
-    width: Math.max(box.width, 420),
+    width: Math.max(box.width, 638),
   }
 }
 
@@ -574,7 +574,7 @@ export function getNodeDialoguePosition(graph: Graph, node: Node, container: HTM
   return {
     left: box.centerX,
     top: box.bottom + 12,
-    width: Math.max(box.width, 360),
+    width: Math.max(box.width, 638),
   }
 }
 
@@ -587,7 +587,7 @@ export function getNodePromptPosition(graph: Graph, node: Node, container: HTMLE
   return {
     left: box.centerX,
     top: box.bottom + PROMPT_BAR_TOP_GAP,
-    width: Math.min(maxWidth, Math.max(box.width, 360)),
+    width: Math.min(maxWidth, Math.max(box.width, 638)),
   }
 }
 
@@ -604,7 +604,7 @@ export function getNodeImageGenPromptPosition(
   return {
     left: box.centerX,
     top: box.bottom + PROMPT_BAR_TOP_GAP,
-    width: Math.min(maxWidth, Math.max(box.width, 480)),
+    width: Math.min(maxWidth, Math.max(box.width, 638)),
   }
 }
 
@@ -621,7 +621,7 @@ export function getNodeVideoGenPromptPosition(
   return {
     left: box.centerX,
     top: box.bottom + VIDEO_GEN_PROMPT_TOP_GAP,
-    width: Math.min(maxWidth, Math.max(box.width, 600)),
+    width: Math.min(maxWidth, Math.max(box.width, 638)),
   }
 }
 
