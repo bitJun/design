@@ -394,12 +394,12 @@ onMounted(() => {
   nextTick(() => syncPromptView())
 })
 
-function openStyleModal() {
-  showStyleModal.value = true
-  showModelMenu.value = false
-  showCountMenu.value = false
-  showGenSettings.value = false
-}
+// function openStyleModal() {
+//   showStyleModal.value = true
+//   showModelMenu.value = false
+//   showCountMenu.value = false
+//   showGenSettings.value = false
+// }
 
 function onStyleSelect(card: ImageStyleCard) {
   void card

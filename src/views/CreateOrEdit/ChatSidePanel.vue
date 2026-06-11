@@ -171,6 +171,12 @@
       <span class="chat-panel__icon chat-panel__icon--expand" aria-hidden="true" />
     </button>
   </aside>
+  <img
+    src="@/assets/images/stmsge.png"
+    alt="logo"
+    class="chat-panel__msg-icon"
+    @click="collapsed = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -194,7 +200,7 @@ const emit = defineEmits<{
   'new-chat': []
 }>()
 
-const collapsed = defineModel<boolean>('collapsed', { default: false })
+const collapsed = defineModel<boolean>('collapsed', { required: true })
 
 const message = ref('')
 const autoMode = ref('Auto')
@@ -247,7 +253,6 @@ async function addAttachmentFromCanvas(payload: { previewUrl: string; fileName: 
     return
   }
 
-  collapsed.value = false
   focusInput()
 }
 
@@ -345,7 +350,6 @@ function startNewChat() {
 }
 
 function focusInput() {
-  collapsed.value = false
   nextTick(() => inputRef.value?.focus())
 }
 
@@ -391,7 +395,7 @@ defineExpose({
   transition: width 0.2s ease;
 
   &--collapsed {
-    width: 48px;
+    width: 0px !important;
   }
 }
 
@@ -805,5 +809,13 @@ defineExpose({
   &:hover {
     background: #f9fafb;
   }
+}
+.chat-panel__msg-icon {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
 }
 </style>

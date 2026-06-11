@@ -1,15 +1,9 @@
 <template>
   <div class="create-or-edit">
-    <div
-      class="create-or-edit__canvas"
-      :class="{ 'create-or-edit__canvas--panel-collapsed': chatPanelCollapsed }"
-    >
-      <Canvas
-        ref="canvasRef"
-        @focus-chat="focusChatPanel"
-        @add-to-chat="onAddToChat"
-      />
-    </div>
+    <Canvas
+      ref="canvasRef"
+      @focus-chat="focusChatPanel"
+    />
     <ChatSidePanel
       ref="chatPanelRef"
       v-model:collapsed="chatPanelCollapsed"
@@ -31,18 +25,13 @@ type CanvasExpose = {
   getNodeCount: () => number
 }
 
-const chatPanelCollapsed = ref(false)
+const chatPanelCollapsed = ref(true)
 const canvasRef = ref<InstanceType<typeof Canvas> & CanvasExpose | null>(null)
 const chatPanelRef = ref<InstanceType<typeof ChatSidePanel> | null>(null)
 
 function focusChatPanel() {
   chatPanelCollapsed.value = false
   chatPanelRef.value?.focusInput()
-}
-
-function onAddToChat(payload: { previewUrl: string; fileName: string }) {
-  chatPanelCollapsed.value = false
-  chatPanelRef.value?.addAttachmentFromCanvas(payload)
 }
 
 async function onChatSend(payload: ChatSendPayload) {
