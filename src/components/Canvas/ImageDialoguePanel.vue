@@ -6,7 +6,7 @@
         class="image-dialogue__model-select"
         placeholder="选择工作流"
       >
-        <a-select-option value="1">反推提示词</a-select-option>
+        <a-select-option value="1"></a-select-option>
         <a-select-option value="2">小红书种草文案</a-select-option>
         <!-- <a-select-option value="3">3</a-select-option> -->
       </a-select>

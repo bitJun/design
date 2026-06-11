@@ -10,6 +10,42 @@
     }"
     @mousedown.stop
   >
+    <div style="display: flex;justify-content: flex-end;padding-right: 20px;margin-bottom: 12px;">
+      <div class="canvas__prompt-model-wrap">
+        <button
+          type="button"
+          class="canvas__prompt-model-chip"
+          :class="{ 'canvas__prompt-model-chip--active': showPromptWorkFlow }"
+          @mousedown.stop
+          @click.stop="togglePromptWorkFlow"
+        >
+          <span class="canvas__prompt-model-mark" aria-hidden="true" />
+          {{ selectedPromptWorkFlowName }}
+          <span class="canvas__prompt-model-arrow">▾</span>
+        </button>
+        <div
+          v-if="showPromptWorkFlow"
+          class="canvas__prompt-model-menu"
+          @mousedown.stop
+        >
+          <button
+            v-for="model in TEXT_PROMPT_MODEL_MENU"
+            :key="model.key"
+            type="button"
+            class="canvas__prompt-model-item"
+            :class="{ 'canvas__prompt-model-item--active': model.key === selectedPromptModelKey }"
+            @click="selectPromptWorkFlow(model)"
+          >
+            <span class="canvas__prompt-model-item-mark" aria-hidden="true" />
+            <span class="canvas__prompt-model-item-main">
+              <span class="canvas__prompt-model-item-name">{{ model.name }}</span>
+              <span v-if="model.desc" class="canvas__prompt-model-item-desc">{{ model.desc }}</span>
+            </span>
+            <span class="canvas__prompt-model-item-time">{{ model.duration }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
     <div
       class="canvas__prompt-body"
       :class="{
@@ -96,7 +132,7 @@
           @mousedown.stop
         >
           <button
-            v-for="model in TEXT_PROMPT_MODEL_MENU"
+            v-for="model in IMAGE_DIALOGUE_MODEL_MENU"
             :key="model.key"
             type="button"
             class="canvas__prompt-model-item"
@@ -272,6 +308,7 @@ import VideoDialoguePanel from '../VideoDialoguePanel.vue'
 import VideoHdPanel from '../VideoHdPanel.vue'
 import VideoFramesPanel from '../VideoFramesPanel.vue'
 import {
+  IMAGE_DIALOGUE_MODEL_MENU,
   PROMPT_PLACEHOLDER,
   TEXT_PROMPT_MODEL_LABEL,
   TEXT_PROMPT_MODEL_MENU,
@@ -360,20 +397,40 @@ const emit = defineEmits<{
 }>()
 
 const showPromptModelMenu = ref(false)
-const selectedPromptModelKey = ref(TEXT_PROMPT_MODEL_MENU[0]?.key ?? '')
+const showPromptWorkFlow = ref(false)
+const selectedPromptModelKey = ref(IMAGE_DIALOGUE_MODEL_MENU[0]?.key ?? '')
+const selectedPromptWorkFlowKey = ref(TEXT_PROMPT_MODEL_MENU[0]?.key ?? '')
+const selectedPromptWorkFlowName = computed(
+  () =>
+    TEXT_PROMPT_MODEL_MENU.find((model) => model.key === selectedPromptWorkFlowKey.value)?.name ??
+    TEXT_PROMPT_MODEL_LABEL,
+)
 const selectedPromptModelName = computed(
   () =>
-    TEXT_PROMPT_MODEL_MENU.find((model) => model.key === selectedPromptModelKey.value)?.name ??
+  IMAGE_DIALOGUE_MODEL_MENU.find((model) => model.key === selectedPromptModelKey.value)?.name ??
     TEXT_PROMPT_MODEL_LABEL,
 )
 
 function togglePromptModelMenu() {
+  showPromptWorkFlow.value = false;
   showPromptModelMenu.value = !showPromptModelMenu.value
 }
 
+function togglePromptWorkFlow() {
+  showPromptModelMenu.value = false;
+  showPromptWorkFlow.value = !showPromptWorkFlow.value
+}
+
 function selectPromptModel(model: TextPromptModelItem) {
+  console.log(model)
   selectedPromptModelKey.value = model.key
   showPromptModelMenu.value = false
+}
+
+function selectPromptWorkFlow(model: TextPromptModelItem) {
+  console.log(model)
+  selectedPromptWorkFlowKey.value = model.key
+  showPromptWorkFlow.value = false
 }
 
 function onPromptModelDocMouseDown(event: MouseEvent) {
