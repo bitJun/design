@@ -113,6 +113,51 @@ function getNodeScreenBox(graph: Graph, node: Node, container: HTMLElement) {
   }
 }
 
+/** 当前可视区域内是否存在至少一个节点（与屏幕有交集） */
+export function hasVisibleNodesInViewport(graph: Graph, overlayRoot: HTMLElement) {
+  const nodes = graph.getNodes()
+  if (!nodes.length) return false
+
+  const scroller = getScroller(graph)
+  if (!scroller) return true
+
+  const scrollRect = scroller.container.getBoundingClientRect()
+  const containerRect = overlayRoot.getBoundingClientRect()
+  const viewLeft = scrollRect.left - containerRect.left
+  const viewTop = scrollRect.top - containerRect.top
+  const viewRight = viewLeft + scrollRect.width
+  const viewBottom = viewTop + scrollRect.height
+
+  return nodes.some((node) => {
+    const bbox = node.getBBox()
+    const topLeft = graphLocalToContainerOffset(graph, bbox.x, bbox.y, overlayRoot)
+    const bottomRight = graphLocalToContainerOffset(
+      graph,
+      bbox.x + bbox.width,
+      bbox.y + bbox.height,
+      overlayRoot,
+    )
+    const nodeLeft = Math.min(topLeft.left, bottomRight.left)
+    const nodeTop = Math.min(topLeft.top, bottomRight.top)
+    const nodeRight = Math.max(topLeft.left, bottomRight.left)
+    const nodeBottom = Math.max(topLeft.top, bottomRight.top)
+
+    return (
+      nodeRight > viewLeft &&
+      nodeLeft < viewRight &&
+      nodeBottom > viewTop &&
+      nodeTop < viewBottom
+    )
+  })
+}
+
+/** 将画布内容居中到当前视窗 */
+export function centerGraphContent(graph: Graph) {
+  const scroller = getScroller(graph)
+  if (!scroller || graph.getNodes().length === 0) return
+  scroller.centerContent()
+}
+
 export type ConnectMenuOpener = (
   nodeId: string,
   releasePoint: { x: number; y: number },

@@ -209,6 +209,23 @@
       />
     </div>
 
+    <Transition name="canvas-back-to-nodes">
+      <div
+        v-if="showBackToNodesBanner"
+        class="canvas__back-to-nodes"
+        @mousedown.stop
+      >
+        <div class="canvas__back-to-nodes-bar">
+          <span class="canvas__back-to-nodes-text">
+            当前视窗没有节点，可点击按钮快速回到内容区域
+          </span>
+          <button type="button" class="canvas__back-to-nodes-btn" @click="recenterToNodes">
+            回到节点
+          </button>
+        </div>
+      </div>
+    </Transition>
+
     <div
       v-if="showTextFormatToolbar"
       class="canvas__text-format-anchor"
@@ -317,6 +334,8 @@ import {
   createGraph,
   ensureInfiniteCanvasArea,
   getViewportCenterLocal,
+  hasVisibleNodesInViewport,
+  centerGraphContent,
   getNodeCropOverlayPosition,
   getNodeDialoguePosition,
   getNodeImageGenPromptPosition,
@@ -404,6 +423,7 @@ let historyPushTimer: ReturnType<typeof setTimeout> | null = null
 let scrollerScrollTarget: HTMLElement | null = null
 
 const showMinimap = ref(false)
+const showBackToNodesBanner = ref(false)
 const showProjectMenu = ref(false)
 const showUserMenu = ref(false)
 const canvasProjects = ref([...CANVAS_PROJECTS])
@@ -1944,7 +1964,30 @@ function syncNodeCount() {
     closeImageGenPromptBar()
     closeVideoGenPromptBar()
     selectedNodeId.value = ''
+    showBackToNodesBanner.value = false
+    return
   }
+  syncViewportNodeVisibility()
+}
+
+function syncViewportNodeVisibility() {
+  const g = graph.value
+  const root = canvasRef.value
+  if (!g || !root || nodeCount.value === 0) {
+    showBackToNodesBanner.value = false
+    return
+  }
+  showBackToNodesBanner.value = !hasVisibleNodesInViewport(g, root)
+}
+
+function recenterToNodes() {
+  const g = graph.value
+  if (!g) return
+  centerGraphContent(g)
+  nextTick(() => {
+    syncViewportNodeVisibility()
+    updateNodeToolbar()
+  })
 }
 
 function syncZoom(scale?: number) {
@@ -2763,16 +2806,21 @@ const { altVoiceTimer, bindKeyboard, unbindKeyboard, endSpacePan } = useCanvasKe
   getScroller,
 })
 
+function onScrollerScroll() {
+  updateNodeToolbar()
+  syncViewportNodeVisibility()
+}
+
 function bindScrollerScrollListener(g: Graph) {
   const scroller = getScroller(g)
   if (!scroller) return
   scrollerScrollTarget = scroller.container
-  scrollerScrollTarget.addEventListener('scroll', updateNodeToolbar, { passive: true })
+  scrollerScrollTarget.addEventListener('scroll', onScrollerScroll, { passive: true })
 }
 
 function unbindScrollerScrollListener() {
   if (!scrollerScrollTarget) return
-  scrollerScrollTarget.removeEventListener('scroll', updateNodeToolbar)
+  scrollerScrollTarget.removeEventListener('scroll', onScrollerScroll)
   scrollerScrollTarget = null
 }
 
@@ -2815,12 +2863,19 @@ onMounted(() => {
   instance.on('blank:dblclick', handleBlankDblClick)
   instance.on('scale', ({ sx }) => {
     syncZoom(sx)
-    requestAnimationFrame(() => updateNodeToolbar())
+    requestAnimationFrame(() => {
+      updateNodeToolbar()
+      syncViewportNodeVisibility()
+    })
   })
-  instance.on('translate', updateNodeToolbar)
+  instance.on('translate', () => {
+    updateNodeToolbar()
+    syncViewportNodeVisibility()
+  })
   instance.on('node:moving', updateNodeToolbar)
   instance.on('node:moved', () => {
     updateNodeToolbar()
+    syncViewportNodeVisibility()
     scheduleHistoryPush()
   })
   instance.on('node:added', syncNodeCount)
@@ -2861,6 +2916,7 @@ onMounted(() => {
     syncAllNodeSizes(instance)
     refreshCanvasNodeViews(instance)
     ensureInfiniteCanvasArea(instance, { recenter: true })
+    syncViewportNodeVisibility()
   })
 
   if (showMinimap.value) {
