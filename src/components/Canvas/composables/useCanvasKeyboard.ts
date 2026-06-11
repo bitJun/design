@@ -19,7 +19,10 @@ type CanvasKeyboardDeps = {
   moveNodeLayer: (step: 'front' | 'back' | 'forward' | 'backward') => void
   openImageDialogue: (nodeId?: string) => void
   getSelectedNode: () => Node | null
-  removeSelectedNode: () => void
+  removeSelectedNodes: () => void
+  removeSelectedEdge: () => boolean
+  hasSelectedNodes: () => boolean
+  hasSelectedEdge: () => boolean
   openImagePreview: () => void
   triggerCanvasUploadShortcut: () => void
   getScroller: (graph: Graph) => { togglePanning: (enabled: boolean) => unknown } | null
@@ -165,9 +168,14 @@ export function useCanvasKeyboard(deps: CanvasKeyboardDeps) {
     }
 
     if (key !== 'Delete' && key !== 'Backspace') return
-    if (!deps.selectedNodeId.value) return
+    if (deps.hasSelectedEdge()) {
+      event.preventDefault()
+      deps.removeSelectedEdge()
+      return
+    }
+    if (!deps.hasSelectedNodes()) return
     event.preventDefault()
-    deps.removeSelectedNode()
+    deps.removeSelectedNodes()
   }
 
   function handleKeyup(event: KeyboardEvent) {

@@ -93,6 +93,6 @@ export function applyCanvasBgTheme(
   }
 
   graph.getEdges().forEach((edge) => {
-    applyFlowEdgeStyle(edge)
+    applyFlowEdgeStyle(graph, edge)
   })
 }

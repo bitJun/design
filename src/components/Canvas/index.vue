@@ -219,7 +219,12 @@
           <span class="canvas__back-to-nodes-text">
             当前视窗没有节点，可点击按钮快速回到内容区域
           </span>
-          <button type="button" class="canvas__back-to-nodes-btn" @click="recenterToNodes">
+          <button
+            type="button"
+            class="canvas__back-to-nodes-btn"
+            :disabled="isRecenteringToNodes"
+            @click="recenterToNodes"
+          >
             回到节点
           </button>
         </div>
@@ -327,6 +332,8 @@ import {
   getLinkedSpawnPoint,
   resolveConnectSpawnPoint,
 } from './nodeConnect'
+import { detachEdgeRelation, isPersistedEdge } from './edgeRelations'
+import { syncEdgeSelectionHighlight } from './edgeStyle'
 import type { ConnectMenuKey } from './constants'
 import {
   addCanvasNode,
@@ -424,6 +431,7 @@ let scrollerScrollTarget: HTMLElement | null = null
 
 const showMinimap = ref(false)
 const showBackToNodesBanner = ref(false)
+const isRecenteringToNodes = ref(false)
 const showProjectMenu = ref(false)
 const showUserMenu = ref(false)
 const canvasProjects = ref([...CANVAS_PROJECTS])
@@ -451,6 +459,8 @@ const videoGenPromptText = ref('')
 const videoNum = ref(1)
 const videoGenActiveTab = ref('text2video')
 const selectedNodeId = ref('')
+const selectedNodeIds = ref<string[]>([])
+const selectedEdgeId = ref('')
 const pendingUploadNodeId = ref('')
 const fileInputAccept = ref('image/*,video/*')
 const fileInputMultiple = ref(true)
@@ -1763,11 +1773,6 @@ function removeNodeById(nodeId: string) {
   g.removeCell(cell)
   bumpToolbarRevision()
   textEditorApis.delete(nodeId)
-  if (selectedNodeId.value === nodeId) {
-    selectedNodeId.value = ''
-    selectedKind.value = null
-    syncNodeSelectionHighlight('')
-  }
   if (activePickerNodeId.value === nodeId) {
     activePickerNodeId.value = ''
   }
@@ -1777,6 +1782,7 @@ function removeNodeById(nodeId: string) {
   if (activeVideoGenPromptNodeId.value === nodeId) {
     closeVideoGenPromptBar()
   }
+  syncSelectionFromGraph()
   syncNodeCount()
   scheduleHistoryPush()
 }
@@ -1828,7 +1834,7 @@ function onTextFormatAction(cmd: TextFormatCommand, value?: string) {
     return
   }
   if (cmd === 'delete') {
-    removeSelectedNode()
+    removeSelectedNodes()
     return
   }
   const api = textEditorApis.get(selectedNodeId.value)
@@ -1973,8 +1979,10 @@ function syncNodeCount() {
 function syncViewportNodeVisibility() {
   const g = graph.value
   const root = canvasRef.value
-  if (!g || !root || nodeCount.value === 0) {
-    showBackToNodesBanner.value = false
+  if (!g || !root || nodeCount.value === 0 || isRecenteringToNodes.value) {
+    if (!isRecenteringToNodes.value) {
+      showBackToNodesBanner.value = false
+    }
     return
   }
   showBackToNodesBanner.value = !hasVisibleNodesInViewport(g, root)
@@ -1982,11 +1990,20 @@ function syncViewportNodeVisibility() {
 
 function recenterToNodes() {
   const g = graph.value
-  if (!g) return
-  centerGraphContent(g)
-  nextTick(() => {
-    syncViewportNodeVisibility()
-    updateNodeToolbar()
+  if (!g || isRecenteringToNodes.value) return
+
+  isRecenteringToNodes.value = true
+  showBackToNodesBanner.value = false
+
+  centerGraphContent(g, {
+    animate: true,
+    duration: '360ms',
+    onComplete: () => {
+      isRecenteringToNodes.value = false
+      syncZoom()
+      syncViewportNodeVisibility()
+      updateNodeToolbar()
+    },
   })
 }
 
@@ -2004,16 +2021,133 @@ function getGraphCenter() {
   return getViewportCenterLocal(g)
 }
 
-function syncNodeSelectionHighlight(nodeId: string) {
+function getGraphSelectedNodeIds() {
+  const g = graph.value
+  if (!g) return []
+  return g
+    .getSelectedCells()
+    .filter((cell) => cell.isNode())
+    .map((cell) => cell.id)
+}
+
+function syncNodeSelectionHighlight(selectedIds: string | string[] = []) {
   const g = graph.value
   if (!g) return
 
+  const idSet = new Set(
+    Array.isArray(selectedIds)
+      ? selectedIds
+      : selectedIds
+        ? [selectedIds]
+        : getGraphSelectedNodeIds(),
+  )
+
   g.getNodes().forEach((node) => {
     const data = node.getData() as CanvasNodeData
-    const isSelected = node.id === nodeId
+    const isSelected = idSet.has(node.id)
     if (Boolean(data.isSelected) === isSelected) return
     node.setData({ ...data, isSelected })
   })
+}
+
+function syncSelectionFromGraph() {
+  const g = graph.value
+  if (!g) return
+
+  const ids = getGraphSelectedNodeIds()
+  selectedNodeIds.value = ids
+
+  if (ids.length > 0) {
+    selectedEdgeId.value = ''
+    syncEdgeSelectionHighlight(g, '')
+    const primaryId = ids[ids.length - 1]
+    const cell = g.getCellById(primaryId)
+    if (cell?.isNode()) {
+      selectedNodeId.value = primaryId
+      selectedKind.value = (cell.getData() as CanvasNodeData).kind
+    }
+  } else {
+    selectedNodeId.value = ''
+    selectedKind.value = null
+  }
+
+  syncNodeSelectionHighlight(ids)
+  bumpToolbarRevision()
+  updateNodeToolbar()
+}
+
+function selectGraphNodes(target: Node | string | (Node | string)[]) {
+  const g = graph.value
+  if (!g) return
+
+  const cells = (Array.isArray(target) ? target : [target])
+    .map((item) => (typeof item === 'string' ? g.getCellById(item) : item))
+    .filter((cell): cell is Node => cell != null && cell.isNode())
+
+  clearEdgeSelection()
+  g.cleanSelection()
+  if (cells.length) g.select(cells)
+  syncSelectionFromGraph()
+}
+
+function clearEdgeSelection() {
+  const g = graph.value
+  if (!g || !selectedEdgeId.value) return
+  selectedEdgeId.value = ''
+  syncEdgeSelectionHighlight(g, '')
+}
+
+function handleEdgeClick({ edge, e }: { edge: Edge; e?: MouseEvent }) {
+  if (!isPersistedEdge(edge)) return
+  e?.stopPropagation()
+
+  const g = graph.value
+  if (!g) return
+
+  g.cleanSelection()
+  selectedNodeId.value = ''
+  selectedNodeIds.value = []
+  selectedKind.value = null
+  syncNodeSelectionHighlight([])
+
+  selectedEdgeId.value = edge.id
+  syncEdgeSelectionHighlight(g, edge.id)
+  updateNodeToolbar()
+}
+
+function removeSelectedEdge() {
+  const g = graph.value
+  const edgeId = selectedEdgeId.value
+  if (!g || !edgeId) return false
+
+  const cell = g.getCellById(edgeId)
+  if (!cell?.isEdge() || !isPersistedEdge(cell as Edge)) return false
+
+  const edge = cell as Edge
+  const relation = detachEdgeRelation(g, edge)
+
+  const canvasGraph = g as CanvasGraph
+  if (canvasGraph.__connectPreviewEdgeId === edgeId) {
+    canvasGraph.__connectPreviewEdgeId = ''
+  }
+
+  g.removeEdge(edgeId)
+  selectedEdgeId.value = ''
+  syncEdgeSelectionHighlight(g, '')
+
+  if (relation?.targetId === activePickerNodeId.value) {
+    loadPromptBarContext(relation.targetId)
+  }
+  if (relation?.targetId === activeImageGenPromptNodeId.value) {
+    loadImageGenPromptFields(relation.targetId)
+  }
+  if (relation?.targetId === selectedNodeId.value) {
+    bumpToolbarRevision()
+  }
+
+  updateNodeToolbar()
+  scheduleHistoryPush()
+  return true
 }
 
 function updatePromptBarPosition() {
@@ -2409,10 +2543,43 @@ function zoomOut() {
   applyZoomAfterChange()
 }
 
-function removeSelectedNode() {
-  const id = selectedNodeId.value
-  if (!id) return
-  removeNodeById(id)
+function removeSelectedNodes() {
+  const g = graph.value
+  if (!g) return
+
+  let ids = getGraphSelectedNodeIds()
+  if (!ids.length && selectedNodeId.value) {
+    ids = [selectedNodeId.value]
+  }
+  if (!ids.length) return
+
+  clearEdgeSelection()
+  g.cleanSelection()
+
+  ids.forEach((id) => {
+    if (activePickerNodeId.value === id) activePickerNodeId.value = ''
+    if (activeImageGenPromptNodeId.value === id) closeImageGenPromptBar()
+    if (activeVideoGenPromptNodeId.value === id) closeVideoGenPromptBar()
+    textEditorApis.delete(id)
+    detachImageSourceFromDownstream(g, id)
+    const cell = g.getCellById(id)
+    if (cell?.isNode()) g.removeCell(cell)
+  })
+
+  selectedNodeId.value = ''
+  selectedNodeIds.value = []
+  selectedKind.value = null
+  resetImageToolbarMore()
+  resetImageDialogue()
+  resetImageCrop()
+  resetVideoDialogue()
+  resetVideoHdPanel()
+  resetVideoFramesPanel()
+  syncNodeSelectionHighlight([])
+  bumpToolbarRevision()
+  updateNodeToolbar()
+  syncNodeCount()
+  scheduleHistoryPush()
 }
 
 function handleBlankDblClick(event: { x: number; y: number }) {
@@ -2427,12 +2594,12 @@ function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
   }
   const multiSelect = Boolean(e?.ctrlKey || e?.metaKey)
 
+  clearEdgeSelection()
   selectedNodeId.value = node.id
   selectedKind.value = data.kind
 
   if (multiSelect) {
-    syncNodeSelectionHighlight(node.id)
-    updateNodeToolbar()
+    syncSelectionFromGraph()
     return
   }
 
@@ -2445,8 +2612,7 @@ function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
   bumpToolbarRevision()
 
   if (showElementSelectMode.value && data.kind === 'image' && data.previewUrl) {
-    syncNodeSelectionHighlight(node.id)
-    updateNodeToolbar()
+    syncSelectionFromGraph()
     return
   }
 
@@ -2477,8 +2643,7 @@ function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
     }
   }
 
-  syncNodeSelectionHighlight(node.id)
-  updateNodeToolbar()
+  syncSelectionFromGraph()
 }
 
 function resetCanvasInteractionState() {
@@ -2490,7 +2655,10 @@ function resetCanvasInteractionState() {
   closeHistoryPanel()
   closeConnectMenu()
   activePickerNodeId.value = ''
+  graph.value?.cleanSelection()
   selectedNodeId.value = ''
+  selectedNodeIds.value = []
+  selectedEdgeId.value = ''
   selectedKind.value = null
   resetImageToolbarMore()
   resetImageDialogue()
@@ -2502,7 +2670,8 @@ function resetCanvasInteractionState() {
   closeVideoGenPromptBar()
   closeTextExpand()
   exitElementSelectMode()
-  syncNodeSelectionHighlight('')
+  syncNodeSelectionHighlight([])
+  if (graph.value) syncEdgeSelectionHighlight(graph.value, '')
 }
 
 function dismissOneCanvasLayer() {
@@ -2602,8 +2771,15 @@ function dismissOneCanvasLayer() {
     exitElementSelectMode()
     return true
   }
-  if (selectedNodeId.value) {
+  if (selectedEdgeId.value) {
+    clearEdgeSelection()
+    updateNodeToolbar()
+    return true
+  }
+  if (selectedNodeId.value || selectedNodeIds.value.length) {
+    graph.value?.cleanSelection()
     selectedNodeId.value = ''
+    selectedNodeIds.value = []
     selectedKind.value = null
     resetImageToolbarMore()
     resetImageDialogue()
@@ -2611,7 +2787,7 @@ function dismissOneCanvasLayer() {
     resetVideoDialogue()
     resetVideoHdPanel()
     resetVideoFramesPanel()
-    syncNodeSelectionHighlight('')
+    syncNodeSelectionHighlight([])
     updateNodeToolbar()
     return true
   }
@@ -2719,10 +2895,7 @@ function pasteNode() {
   const data = node.getData() as CanvasNodeData
   node.setData({ ...data, isSelected: true })
 
-  selectedNodeId.value = node.id
-  selectedKind.value = data.kind
-  syncNodeSelectionHighlight(node.id)
-  updateNodeToolbar()
+  selectGraphNodes(node)
   syncNodeCount()
   scheduleHistoryPush()
 }
@@ -2800,7 +2973,10 @@ const { altVoiceTimer, bindKeyboard, unbindKeyboard, endSpacePan } = useCanvasKe
   moveNodeLayer,
   openImageDialogue,
   getSelectedNode,
-  removeSelectedNode,
+  removeSelectedNodes,
+  removeSelectedEdge,
+  hasSelectedNodes: () => getGraphSelectedNodeIds().length > 0 || Boolean(selectedNodeId.value),
+  hasSelectedEdge: () => Boolean(selectedEdgeId.value),
   openImagePreview,
   triggerCanvasUploadShortcut,
   getScroller,
@@ -2881,6 +3057,10 @@ onMounted(() => {
   instance.on('node:added', syncNodeCount)
   instance.on('node:removed', syncNodeCount)
   instance.on('node:click', handleNodeClick)
+  instance.on('edge:click', handleEdgeClick)
+  instance.on('selection:changed', () => {
+    syncSelectionFromGraph()
+  })
   instance.on('node:dblclick', ({ node }) => {
     const data = node.getData() as CanvasNodeData
     if (data.kind === 'image') {
@@ -2889,11 +3069,8 @@ onMounted(() => {
     }
     if (data.kind === 'text' && data.mode === 'picker') {
       node.setData({ ...data, mode: 'editor', promptBarPinned: false })
-      selectedNodeId.value = node.id
-      selectedKind.value = 'text'
-      syncNodeSelectionHighlight(node.id)
+      selectGraphNodes(node)
       bumpToolbarRevision()
-      updateNodeToolbar()
     }
   })
   instance.on('blank:click', () => {
@@ -2954,10 +3131,7 @@ function addImageFromFile(file: File, point?: { x: number; y: number }) {
   })
 
   runUploadSimulation(node, file)
-  selectedNodeId.value = node.id
-  selectedKind.value = 'image'
-  syncNodeSelectionHighlight(node.id)
-  updateNodeToolbar()
+  selectGraphNodes(node)
   syncNodeCount()
   scheduleHistoryPush()
 

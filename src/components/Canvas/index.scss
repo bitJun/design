@@ -678,6 +678,10 @@
     pointer-events: none !important;
   }
 
+  .x6-edge {
+    cursor: pointer;
+  }
+
   /* 连线电流输出：虚线沿路径流动 + 蓝色辉光 */
   .x6-edge path:nth-child(2) {
     stroke: #6b7cff;
@@ -687,6 +691,14 @@
     animation: canvas-edge-flow 0.45s linear infinite;
     filter: drop-shadow(0 0 3px rgba(107, 124, 255, 0.95))
       drop-shadow(0 0 8px rgba(107, 124, 255, 0.4));
+  }
+
+  .x6-edge.canvas-edge--selected path:nth-child(2) {
+    stroke: #f97316;
+    stroke-width: 3.5;
+    animation: none;
+    filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.95))
+      drop-shadow(0 0 10px rgba(249, 115, 22, 0.45));
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1547,8 +1559,13 @@
   cursor: pointer;
   transition: opacity 0.15s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
   }
 }
 

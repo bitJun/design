@@ -152,9 +152,29 @@ export function hasVisibleNodesInViewport(graph: Graph, overlayRoot: HTMLElement
 }
 
 /** 将画布内容居中到当前视窗 */
-export function centerGraphContent(graph: Graph) {
+export function centerGraphContent(
+  graph: Graph,
+  options?: {
+    animate?: boolean
+    duration?: string
+    onComplete?: () => void
+  },
+) {
   const scroller = getScroller(graph)
   if (!scroller || graph.getNodes().length === 0) return
+
+  if (options?.animate) {
+    const center = graph.getContentArea().getCenter()
+    scroller.transitionToPoint(center.x, center.y, {
+      duration: options.duration ?? '320ms',
+      timing: 'ease-in-out',
+      onTransitionEnd: () => {
+        options.onComplete?.()
+      },
+    })
+    return
+  }
+
   scroller.centerContent()
 }
 
