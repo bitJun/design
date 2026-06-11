@@ -1,5 +1,16 @@
 <template>
-  <div ref="canvasRef" class="canvas" :class="`canvas--bg-${canvasBgTheme}`">
+  <div
+    ref="canvasRef"
+    class="canvas"
+    :class="[
+      `canvas--bg-${canvasBgTheme}`,
+      { 'canvas--file-dragover': isCanvasFileDragOver },
+    ]"
+    @dragenter.prevent="onCanvasDragEnter"
+    @dragover.prevent="onCanvasDragOver"
+    @dragleave="onCanvasDragLeave"
+    @drop.prevent="onCanvasFileDrop"
+  >
     <CanvasHeader
       :canvas-bg-theme="canvasBgTheme"
       :current-project-name="currentProjectName"
@@ -307,6 +318,7 @@ import {
   IMG2PROMPT_EXAMPLE_FILENAME,
   CANVAS_MAX_ZOOM,
   CANVAS_MIN_ZOOM,
+  NODE_SPAWN_GAP_X,
   NODE_SPAWN_GAP_Y,
   ZOOM_MENU_PRESETS,
   TEXT_EDITOR_PLACEHOLDER,
@@ -340,6 +352,7 @@ import {
   bindGraphInteraction,
   createGraph,
   ensureInfiniteCanvasArea,
+  clientPointToGraphLocal,
   getViewportCenterLocal,
   hasVisibleNodesInViewport,
   centerGraphContent,
@@ -464,6 +477,8 @@ const selectedEdgeId = ref('')
 const pendingUploadNodeId = ref('')
 const fileInputAccept = ref('image/*,video/*')
 const fileInputMultiple = ref(true)
+const isCanvasFileDragOver = ref(false)
+const canvasFileDragDepth = ref(0)
 type UploadFilter = 'image' | 'video' | 'any'
 const pendingUploadFilter = ref<UploadFilter>('any')
 const toolbarPos = ref({ left: 0, top: 0 })
@@ -2294,12 +2309,126 @@ function addFromMenu(kind: NodeKind) {
   })
 }
 
+function isImageUploadFile(file: File) {
+  return (
+    file.type.startsWith('image/') ||
+    /\.(jpe?g|png|gif|webp|bmp|svg|heic|heif)$/i.test(file.name)
+  )
+}
+
+function isVideoUploadFile(file: File) {
+  return (
+    file.type.startsWith('video/') ||
+    /\.(mp4|mov|webm|avi|mkv|m4v)$/i.test(file.name)
+  )
+}
+
 function filterUploadFiles(files: File[], filter: UploadFilter) {
   return files.filter((file) => {
-    if (filter === 'image') return file.type.startsWith('image/')
-    if (filter === 'video') return file.type.startsWith('video/')
-    return file.type.startsWith('image/') || file.type.startsWith('video/')
+    if (filter === 'image') return isImageUploadFile(file)
+    if (filter === 'video') return isVideoUploadFile(file)
+    return isImageUploadFile(file) || isVideoUploadFile(file)
   })
+}
+
+function hasCanvasFileDrag(event: DragEvent) {
+  return Array.from(event.dataTransfer?.types ?? []).includes('Files')
+}
+
+function getHorizontalUploadSpawnPoint(
+  base: { x: number; y: number },
+  index: number,
+  kind: NodeKind,
+) {
+  if (index === 0) return base
+  const size = getNodeSize(kind, 'editor')
+  return {
+    x: base.x + index * (size.width + NODE_SPAWN_GAP_X),
+    y: base.y,
+  }
+}
+
+function spawnMediaFilesAtPoint(
+  files: File[],
+  basePoint: { x: number; y: number },
+  options: { pendingNodeId?: string } = {},
+) {
+  const g = graph.value
+  if (!g || !files.length) return
+
+  const pendingId = options.pendingNodeId ?? ''
+  let lastNodeId = ''
+  let lastKind: NodeKind = 'image'
+
+  files.forEach((file, index) => {
+    const kind: NodeKind = isVideoUploadFile(file) ? 'video' : 'image'
+
+    let node: Node | undefined
+    if (index === 0 && pendingId) {
+      const cell = g.getCellById(pendingId)
+      if (cell?.isNode()) node = cell as Node
+    }
+
+    if (!node) {
+      const point = getHorizontalUploadSpawnPoint(basePoint, index, kind)
+      node = addCanvasNode(g, kind, point, {
+        mode: 'editor',
+        title: file.name,
+        fileName: file.name,
+      })
+    } else {
+      const data = { ...(node.getData() as CanvasNodeData) }
+      data.mode = 'editor'
+      data.title = file.name
+      data.fileName = file.name
+      node.setData(data)
+    }
+
+    runUploadSimulation(node, file)
+    lastNodeId = node.id
+    lastKind = kind
+  })
+
+  if (lastNodeId) {
+    selectGraphNodes(lastNodeId)
+    selectedKind.value = lastKind
+  }
+  syncNodeCount()
+  updateNodeToolbar()
+  scheduleHistoryPush()
+}
+
+function onCanvasDragEnter(event: DragEvent) {
+  if (!hasCanvasFileDrag(event)) return
+  canvasFileDragDepth.value += 1
+  isCanvasFileDragOver.value = true
+}
+
+function onCanvasDragOver(event: DragEvent) {
+  if (!hasCanvasFileDrag(event)) return
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+}
+
+function onCanvasDragLeave(event: DragEvent) {
+  if (!hasCanvasFileDrag(event)) return
+  canvasFileDragDepth.value = Math.max(0, canvasFileDragDepth.value - 1)
+  if (canvasFileDragDepth.value === 0) {
+    isCanvasFileDragOver.value = false
+  }
+}
+
+function onCanvasFileDrop(event: DragEvent) {
+  canvasFileDragDepth.value = 0
+  isCanvasFileDragOver.value = false
+
+  const g = graph.value
+  if (!g) return
+
+  const files = filterUploadFiles(Array.from(event.dataTransfer?.files ?? []), 'any')
+  if (!files.length) return
+
+  const point = clientPointToGraphLocal(g, event.clientX, event.clientY)
+  spawnMediaFilesAtPoint(files, point)
 }
 
 function openFileUploadPicker(
@@ -2356,47 +2485,14 @@ function onFileSelected(event: Event) {
   input.value = ''
   if (!files.length || !graph.value) return
 
-  const g = graph.value
   const basePoint = addMenuDropPoint.value ?? getGraphCenter()
-  const pendingId = pendingUploadNodeId.value
-  let lastNodeId = ''
-  let lastKind: NodeKind = 'image'
-
-  files.forEach((file, index) => {
-    const isVideo = file.type.startsWith('video/')
-    const kind: NodeKind = isVideo ? 'video' : 'image'
-
-    let node: Node | undefined
-    if (index === 0 && pendingId) {
-      const cell = g.getCellById(pendingId)
-      if (cell?.isNode()) node = cell as Node
-    }
-
-    if (!node) {
-      const point = getMultiUploadSpawnPoint(basePoint, index, kind)
-      node = addCanvasNode(g, kind, point)
-    } else {
-      const data = { ...(node.getData() as CanvasNodeData) }
-      data.mode = 'editor'
-      node.setData(data)
-    }
-
-    runUploadSimulation(node, file)
-    lastNodeId = node.id
-    lastKind = kind
+  spawnMediaFilesAtPoint(files, basePoint, {
+    pendingNodeId: pendingUploadNodeId.value,
   })
 
   pendingUploadNodeId.value = ''
   addMenuDropPoint.value = null
   closeAddMenu()
-  syncNodeCount()
-  if (lastNodeId) {
-    selectedNodeId.value = lastNodeId
-    selectedKind.value = lastKind
-    syncNodeSelectionHighlight(lastNodeId)
-  }
-  updateNodeToolbar()
-  scheduleHistoryPush()
 }
 
 function toggleAddMenu() {

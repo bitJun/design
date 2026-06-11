@@ -38,20 +38,42 @@ type ScrollerImplLike = {
  * scroller 模式下必须用 scrollerImpl.clientToLocalPoint（已计入 scrollLeft/padding/缩放），
  * 直接用 graph.clientToLocal 会忽略滚动偏移，导致新建节点落点偏移很大。
  */
-export function getViewportCenterLocal(graph: Graph): { x: number; y: number } {
+export function clientPointToGraphLocal(
+  graph: Graph,
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } {
   const scroller = getScroller(graph)
   const impl = scroller
     ? (scroller as unknown as { scrollerImpl?: ScrollerImplLike }).scrollerImpl
     : undefined
 
   if (scroller && impl) {
-    const el = scroller.container
-    const p = impl.clientToLocalPoint(el.clientWidth / 2, el.clientHeight / 2)
+    const p = impl.clientToLocalPoint(clientX, clientY)
     return { x: p.x, y: p.y }
   }
 
+  return graph.clientToLocal(clientX, clientY)
+}
+
+export function getViewportCenterLocal(graph: Graph): { x: number; y: number } {
+  const scroller = getScroller(graph)
+  if (scroller) {
+    const el = scroller.container
+    const rect = el.getBoundingClientRect()
+    return clientPointToGraphLocal(
+      graph,
+      rect.left + el.clientWidth / 2,
+      rect.top + el.clientHeight / 2,
+    )
+  }
+
   const rect = graph.container.getBoundingClientRect()
-  return graph.clientToLocal(rect.width / 2, rect.height / 2)
+  return clientPointToGraphLocal(
+    graph,
+    rect.left + rect.width / 2,
+    rect.top + rect.height / 2,
+  )
 }
 
 /**

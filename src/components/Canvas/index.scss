@@ -723,6 +723,12 @@
   }
 }
 
+.canvas--file-dragover .canvas__graph {
+  outline: 2px dashed rgba(107, 124, 255, 0.72);
+  outline-offset: -6px;
+  background: rgba(107, 124, 255, 0.05);
+}
+
 .canvas__empty {
   position: absolute;
   inset: 0;
