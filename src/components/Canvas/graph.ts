@@ -533,7 +533,7 @@ export function createGraph(container: HTMLElement): CanvasGraph {
       rubberband: true,
       modifiers: ['ctrl', 'meta'],
       multipleSelectionModifiers: ['ctrl', 'meta'],
-      showNodeSelectionBox: true,
+      showNodeSelectionBox: false,
       pointerEvents: 'none',
     }),
   )

@@ -2741,6 +2741,11 @@
     stroke: #6b7cff !important;
     stroke-width: 2px !important;
   }
+
+  .x6-node-selected[data-shape='image-node'] rect[selector='body'] {
+    stroke: transparent !important;
+    stroke-width: 0 !important;
+  }
 }
 
 .canvas__shortcuts-backdrop {

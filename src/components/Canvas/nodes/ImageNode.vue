@@ -81,7 +81,7 @@
         </template>
         <template v-else-if="data.previewUrl">
           <img :src="data.previewUrl" :alt="data.fileName" />
-          <span v-if="showUploadSuccess" class="image-node__success">上传成功</span>
+          <!-- <span v-if="showUploadSuccess" class="image-node__success">上传成功</span> -->
         </template>
         <template v-else>
           <span class="image-node__placeholder-icon">▣</span>
@@ -125,10 +125,6 @@ const isPortraitLayout = computed(() =>
     ? isPortrait(data.mediaWidth, data.mediaHeight)
     : false,
 )
-const showUploadSuccess = computed(
-  () => data.uploadState === 'done' && Boolean(data.previewUrl),
-)
-
 let uploadClickTimer: ReturnType<typeof setTimeout> | null = null
 const UPLOAD_CLICK_DELAY = 280
 
@@ -260,6 +256,11 @@ onMounted(() => {
   border-radius: 14px;
   background: #1e1e22;
   box-sizing: border-box;
+}
+
+.image-node--selected .image-node__body {
+  outline: none;
+  box-shadow: none;
 }
 
 .image-node__scale-btn {

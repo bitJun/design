@@ -543,6 +543,7 @@ export const IMAGE_COLOR_PALETTE_PRESETS = [
 ] as const
 
 export const IMAGE_GEN_ASPECT_RATIO_LABEL = '宽高比'
+export const IMAGE_GEN_ASPECT_RATIO_QUALITY_LABEL = '清晰度'
 export const IMAGE_GEN_COUNT_LABEL = '张数'
 export const IMAGE_GEN_ASPECT_RATIOS = [
   { key: 'auto', label: 'auto', preview: { width: 14, height: 10 } },
@@ -563,10 +564,6 @@ export type ImageGenCount = (typeof IMAGE_GEN_COUNTS)[number]
 
 export const IMAGE_DESIGN_IPS_TITLE = '分辨率';
 export const IMAGE_DESIGN_IPS_MENU = [
-  {
-    key: 'auto',
-    label: 'auto',
-  },
   {
     key: '1K',
     label: '1K',

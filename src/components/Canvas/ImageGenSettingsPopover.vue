@@ -33,6 +33,31 @@
     </section>
 
     <div class="image-gen-settings__divider" aria-hidden="true" />
+    <section class="image-gen-settings__section">
+      <p class="image-gen-settings__title">{{ IMAGE_DESIGN_IPS_TITLE }}</p>
+      <div class="image-gen-settings__ratio-grid">
+        <!-- <button
+          v-for="ratio in IMAGE_DESIGN_IPS_MENU"
+          :key="ratio.key"
+          type="button"
+          class="image-gen-settings__ratio"
+          :class="{ 'image-gen-settings__ratio--active': aspectRatio === ratio.key }"
+          @click="aspectRatio = ratio.key"
+        >
+          <span
+            class="image-gen-settings__ratio-preview"
+            :style="{
+              width: `${ratio.preview.width}px`,
+              height: `${ratio.preview.height}px`,
+            }"
+            aria-hidden="true"
+          />
+          <span class="image-gen-settings__ratio-label">{{ ratio.label }}</span>
+        </button> -->
+      </div>
+    </section>
+
+    <div class="image-gen-settings__divider" aria-hidden="true" />
 
     <section class="image-gen-settings__section">
       <p class="image-gen-settings__title">{{ IMAGE_GEN_COUNT_LABEL }}</p>
@@ -56,6 +81,8 @@
 import { computed } from 'vue'
 import {
   IMAGE_GEN_ASPECT_RATIO_LABEL,
+  IMAGE_DESIGN_IPS_TITLE,
+  IMAGE_DESIGN_IPS_MENU,
   IMAGE_GEN_ASPECT_RATIOS,
   IMAGE_GEN_COUNT_LABEL,
   IMAGE_GEN_COUNTS,
