@@ -200,7 +200,6 @@ import VideoGenSettingsPopover from './VideoGenSettingsPopover.vue'
 import {
   VIDEO_GEN_MODELS,
   VIDEO_GEN_PROMPT_PLACEHOLDER,
-  VIDEO_GEN_QUICK_ACTIONS,
   VIDEO_GEN_TABS,
   formatVideoGenSettings,
   type VideoGenAspectRatio,

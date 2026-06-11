@@ -13,15 +13,47 @@
     <div
       class="canvas__prompt-body"
       :class="{
-        'canvas__prompt-body--img2prompt': isImg2PromptTask && promptSourcePreviewUrl,
+        'canvas__prompt-body--img2prompt':
+          isImg2PromptTask && (promptSourcePreviews.length || promptSourcePreviewUrl),
       }"
     >
       <span
-        v-if="isImg2PromptTask && promptSourcePreviewUrl"
-        class="canvas__prompt-ref"
+        v-if="isImg2PromptTask && (promptSourcePreviews.length || promptSourcePreviewUrl)"
+        class="canvas__prompt-refs"
       >
-        <img :src="promptSourcePreviewUrl" alt="" />
-        <span class="canvas__prompt-ref-badge">1</span>
+        <template v-if="promptSourcePreviews.length">
+          <span
+            v-for="(item, index) in promptSourcePreviews"
+            :key="item.nodeId || index"
+            class="canvas__prompt-ref"
+            @mouseenter="hoveredPromptRef = item.nodeId || String(index)"
+            @mouseleave="hoveredPromptRef = null"
+          >
+            <img :src="item.previewUrl" alt="" />
+            <button
+              v-if="hoveredPromptRef === (item.nodeId || String(index))"
+              type="button"
+              class="canvas__prompt-ref-remove"
+              title="移除"
+              @mousedown.stop
+              @click.stop="emit('remove-prompt-source', item.nodeId)"
+            >
+              <span class="canvas__prompt-ref-remove-icon" aria-hidden="true" />
+            </button>
+            <span v-else class="canvas__prompt-ref-badge">{{ index + 1 }}</span>
+
+            <div
+              v-if="hoveredPromptRef === (item.nodeId || String(index))"
+              class="canvas__prompt-ref-preview"
+            >
+              <img :src="item.previewUrl" alt="" />
+            </div>
+          </span>
+        </template>
+        <span v-else class="canvas__prompt-ref">
+          <img :src="promptSourcePreviewUrl" alt="" />
+          <span class="canvas__prompt-ref-badge">1</span>
+        </span>
       </span>
       <textarea
         :value="promptText"
@@ -32,11 +64,40 @@
       />
     </div>
     <div class="canvas__prompt-footer">
-      <button type="button" class="canvas__prompt-model-chip">
-        <span class="canvas__prompt-model-mark" aria-hidden="true" />
-        {{ TEXT_PROMPT_MODEL_LABEL }}
-        <span class="canvas__prompt-model-arrow">▾</span>
-      </button>
+      <div class="canvas__prompt-model-wrap">
+        <button
+          type="button"
+          class="canvas__prompt-model-chip"
+          :class="{ 'canvas__prompt-model-chip--active': showPromptModelMenu }"
+          @mousedown.stop
+          @click.stop="togglePromptModelMenu"
+        >
+          <span class="canvas__prompt-model-mark" aria-hidden="true" />
+          {{ selectedPromptModelName }}
+          <span class="canvas__prompt-model-arrow">▾</span>
+        </button>
+        <div
+          v-if="showPromptModelMenu"
+          class="canvas__prompt-model-menu"
+          @mousedown.stop
+        >
+          <button
+            v-for="model in TEXT_PROMPT_MODEL_MENU"
+            :key="model.key"
+            type="button"
+            class="canvas__prompt-model-item"
+            :class="{ 'canvas__prompt-model-item--active': model.key === selectedPromptModelKey }"
+            @click="selectPromptModel(model)"
+          >
+            <span class="canvas__prompt-model-item-mark" aria-hidden="true" />
+            <span class="canvas__prompt-model-item-main">
+              <span class="canvas__prompt-model-item-name">{{ model.name }}</span>
+              <span v-if="model.desc" class="canvas__prompt-model-item-desc">{{ model.desc }}</span>
+            </span>
+            <span class="canvas__prompt-model-item-time">{{ model.duration }}</span>
+          </button>
+        </div>
+      </div>
       <div class="canvas__prompt-actions">
         <button type="button" class="canvas__prompt-icon" title="翻译">文A</button>
         <span class="canvas__prompt-credits">⚡ 1</span>
@@ -133,8 +194,9 @@
     <ImageDialoguePanel
       :model-value="imageDialogueText"
       :preview-url="imageDialoguePreviewUrl"
+      :previews="imageDialoguePreviews"
       @update:model-value="emit('update:imageDialogueText', $event)"
-      @remove="emit('remove-image-dialogue-preview')"
+      @remove="emit('remove-image-dialogue-preview', $event)"
     />
   </div>
 
@@ -198,14 +260,50 @@ import VideoFramesPanel from '../VideoFramesPanel.vue'
 import {
   PROMPT_PLACEHOLDER,
   TEXT_PROMPT_MODEL_LABEL,
+  TEXT_PROMPT_MODEL_MENU,
+  type ImageSourceRef,
   type NodeKind,
+  type TextPromptModelItem,
   type VideoHdMagnification,
 } from '../constants'
 import type { CanvasBgTheme } from '../canvasTheme'
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { VideoSourceRef } from '../videoGen'
 
 const videoGenPromptPanelRef = ref<InstanceType<typeof VideoGenPromptPanel> | null>(null)
+const hoveredPromptRef = ref<string | null>(null)
+
+const showPromptModelMenu = ref(false)
+const selectedPromptModelKey = ref(TEXT_PROMPT_MODEL_MENU[0]?.key ?? '')
+const selectedPromptModelName = computed(
+  () =>
+    TEXT_PROMPT_MODEL_MENU.find((model) => model.key === selectedPromptModelKey.value)?.name ??
+    TEXT_PROMPT_MODEL_LABEL,
+)
+
+function togglePromptModelMenu() {
+  showPromptModelMenu.value = !showPromptModelMenu.value
+}
+
+function selectPromptModel(model: TextPromptModelItem) {
+  selectedPromptModelKey.value = model.key
+  showPromptModelMenu.value = false
+}
+
+function onPromptModelDocMouseDown(event: MouseEvent) {
+  if (!showPromptModelMenu.value) return
+  const target = event.target as HTMLElement | null
+  if (target?.closest('.canvas__prompt-model-wrap')) return
+  showPromptModelMenu.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('mousedown', onPromptModelDocMouseDown, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', onPromptModelDocMouseDown, true)
+})
 
 defineProps<{
   canvasBgTheme: CanvasBgTheme
@@ -231,6 +329,7 @@ defineProps<{
   } | null
   promptText: string
   promptSourcePreviewUrl: string
+  promptSourcePreviews: ImageSourceRef[]
   promptSubmitting: boolean
   canSubmitTextPrompt: boolean
   isImg2PromptTask: boolean
@@ -245,6 +344,7 @@ defineProps<{
   elementSelectMode: boolean
   imageDialogueText: string
   imageDialoguePreviewUrl: string
+  imageDialoguePreviews: ImageSourceRef[]
   videoDialogueText: string
   videoHdMagnification: VideoHdMagnification
 }>()
@@ -256,8 +356,9 @@ const emit = defineEmits<{
   'update:imageGenSeed': [value: number]
   'update:videoGenPromptText': [value: string]
   'update:videoGenActiveTab': [value: string]
+  'remove-prompt-source': [sourceNodeId?: string]
   'update:imageDialogueText': [value: string]
-  'remove-image-dialogue-preview': []
+  'remove-image-dialogue-preview': [sourceNodeId?: string]
   'update:videoDialogueText': [value: string]
   'update:videoHdMagnification': [value: VideoHdMagnification]
   'persist-prompt-bar-draft': []

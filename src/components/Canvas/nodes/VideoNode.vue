@@ -102,9 +102,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import type { Node } from '@antv/x6'
-import { VIDEO_PICKER_ACTIONS, formatDimensions } from '../constants'
 import type { CanvasNodeData } from '../constants'
 import { useNodeDelete } from './useNodeDelete'
 import { useNodeConnect } from './useNodeConnect'
@@ -112,7 +111,6 @@ import { useCanvasBgTheme } from '../useCanvasBgTheme'
 
 const getNode = inject<() => Node>('getNode')!
 const requestCanvasUpload = inject<(nodeId: string) => void>('requestCanvasUpload')
-const openVideoGenPromptBar = inject<(nodeId: string, tab?: string) => void>('openVideoGenPromptBar')
 const { removeSelf } = useNodeDelete()
 const { onPlusPointerDown } = useNodeConnect()
 const { isLightTheme } = useCanvasBgTheme()
@@ -131,21 +129,12 @@ const data = reactive<CanvasNodeData>({
   fileName: '',
 })
 
-const dimensionLabel = computed(() =>
-  formatDimensions(data.mediaWidth, data.mediaHeight),
-)
-
 function syncData() {
   getNode().setData({ ...data })
 }
 
 function triggerUpload() {
   requestCanvasUpload?.(getNode().id)
-}
-
-function onPickerAction(key: string) {
-  const tab = key === 'frames' ? 'frames' : key === 'first' ? 'first' : 'text2video'
-  openVideoGenPromptBar?.(getNode().id, tab)
 }
 
 function onVideoMetadata(event: Event) {

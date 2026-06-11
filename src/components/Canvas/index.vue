@@ -89,6 +89,7 @@
       :image-crop-source="imageCropSource"
       :prompt-text="promptText"
       :prompt-source-preview-url="promptSourcePreviewUrl"
+      :prompt-source-previews="promptSourcePreviews"
       :prompt-submitting="promptSubmitting"
       :can-submit-text-prompt="canSubmitTextPrompt"
       :is-img2-prompt-task="isImg2PromptTask"
@@ -102,6 +103,7 @@
       :element-select-mode="showElementSelectMode"
       :image-dialogue-text="imageDialogueText"
       :image-dialogue-preview-url="imageDialoguePreviewUrl"
+      :image-dialogue-previews="imageDialoguePreviews"
       :video-dialogue-text="videoDialogueText"
       :video-hd-magnification="videoHdMagnification"
       :video-num="videoNum"
@@ -109,6 +111,7 @@
       @update:video-num="videoNum = $event"
       @persist-prompt-bar-draft="persistPromptBarDraft"
       @submit-text-prompt="submitTextPrompt"
+      @remove-prompt-source="removePromptImageSource"
       @update:image-gen-prompt-text="imageGenPromptText = $event; persistImageGenPrompt()"
       @update:image-gen-seed="imageGenSeed = $event; persistImageGenPrompt()"
       @generate-image="generateImageFromPrompt"
@@ -195,22 +198,6 @@
       />
     </div>
 
-    <button
-      v-if="showTextDownload"
-      type="button"
-      class="canvas__text-download"
-      :class="{ 'canvas__text-download--light': canvasBgTheme === 'light' }"
-      :style="{
-        left: `${textDownloadPos.left}px`,
-        top: `${textDownloadPos.top}px`,
-      }"
-      title="下载文本"
-      @mousedown.stop
-      @click="downloadSelectedTextNode"
-    >
-      <span class="canvas__node-toolbar-icon" data-icon="download" aria-hidden="true" />
-    </button>
-
     <div
       v-if="showTextFormatToolbar"
       class="canvas__text-format-anchor"
@@ -292,6 +279,7 @@ import {
   TEXT_EDITOR_PLACEHOLDER,
   type CanvasNodeData,
   type ImageGenTask,
+  type ImageSourceRef,
   type NodeKind,
   type TextFormatCommand,
   type VideoHdMagnification,
@@ -304,6 +292,7 @@ import {
   spawnCroppedImageNode,
 } from './imageGen'
 import {
+  canImageNodeAcceptIncoming,
   canOpenConnectMenu,
   createNodeFromConnectMenu,
   getConnectMenuPosition,
@@ -364,6 +353,7 @@ const modalStore = useModalStore()
 const modelType = ref<'img2prompt' | 'text2xhs' | 'free'>('free')
 const promptSourcePreviewUrl = ref('')
 const promptSourceFileName = ref('')
+const promptSourcePreviews = ref<ImageSourceRef[]>([])
 const promptSubmitting = ref(false)
 const userMenuName = ref('李阳')
 const userMenuRole = ref('普通用户')
@@ -537,8 +527,6 @@ const showTextFormatToolbar = computed(() => {
     data.textGenState !== 'loading'
   )
 })
-const showTextDownload = computed(() => showTextFormatToolbar.value)
-
 const isImg2PromptTask = computed(() => {
   void toolbarRevision.value
   const id = activePickerNodeId.value
@@ -562,6 +550,27 @@ const imageCropSource = computed(() => {
     mediaWidth: data.mediaWidth,
     mediaHeight: data.mediaHeight,
   }
+})
+
+const imageDialoguePreviews = computed<ImageSourceRef[]>(() => {
+  void toolbarRevision.value
+  const data = getSelectedNodeData()
+  if (!data) return []
+  const refs = Array.isArray(data.imageSourceRefs)
+    ? data.imageSourceRefs.filter((item) => item.previewUrl)
+    : []
+  if (refs.length) {
+    return refs.map((item) => ({
+      nodeId: item.nodeId,
+      previewUrl: item.previewUrl,
+      fileName: item.fileName ?? '',
+    }))
+  }
+  const single = data.sourcePreviewUrl || ''
+  if (single) {
+    return [{ nodeId: data.sourceNodeId ?? '', previewUrl: single, fileName: data.sourceFileName ?? '' }]
+  }
+  return []
 })
 
 const imageDialoguePreviewUrl = computed(() => {
@@ -792,17 +801,37 @@ function resetImageDialogue() {
   showImageDialogue.value = false
 }
 
-function clearImageDialoguePreview() {
+function clearImageDialoguePreview(sourceNodeId?: string) {
   const g = graph.value
   const id = selectedNodeId.value
   if (!g || !id) return
   const cell = g.getCellById(id)
   if (!cell?.isNode()) return
   const data = { ...(cell.getData() as CanvasNodeData) }
-  data.sourcePreviewUrl = ''
-  data.inputUpdated = false
-  cell.setData(data)
+
+  let refs = Array.isArray(data.imageSourceRefs) ? [...data.imageSourceRefs] : []
+  if (sourceNodeId) {
+    refs = refs.filter((item) => item.nodeId !== sourceNodeId)
+    // 同步删除该来源连入的连线
+    g.getEdges().forEach((edge) => {
+      if (edge.getSourceCellId() === sourceNodeId && edge.getTargetCellId() === id) {
+        g.removeEdge(edge.id)
+      }
+    })
+  } else {
+    refs = []
+  }
+  data.imageSourceRefs = refs
+
+  const latest = refs[refs.length - 1]
+  data.sourceNodeId = latest?.nodeId ?? ''
+  data.sourcePreviewUrl = latest?.previewUrl ?? ''
+  data.sourceFileName = latest?.fileName ?? ''
+  data.inputUpdated = refs.some((item) => Boolean(item.previewUrl))
+  // overwrite: true —— X6 默认深合并数组不会缩短，删除元素必须整体替换
+  cell.setData(data, { overwrite: true })
   toolbarRevision.value += 1
+  scheduleHistoryPush()
 }
 
 function resetVideoDialogue() {
@@ -910,6 +939,43 @@ function persistVideoGenPrompt() {
   cell.setData(data)
 }
 
+/** 文本提示栏：删除某张来源图片 —— 移除其连线、从来源数组移除、刷新提示栏 */
+function removePromptImageSource(sourceNodeId?: string) {
+  const g = graph.value
+  const textNodeId = activePickerNodeId.value
+  if (!g || !textNodeId || !sourceNodeId) return
+  const cell = g.getCellById(textNodeId)
+  if (!cell?.isNode()) return
+
+  g.getEdges().forEach((edge) => {
+    const s = edge.getSourceCellId()
+    const t = edge.getTargetCellId()
+    if (
+      (s === sourceNodeId && t === textNodeId) ||
+      (s === textNodeId && t === sourceNodeId)
+    ) {
+      g.removeEdge(edge.id)
+    }
+  })
+
+  const data = { ...(cell.getData() as CanvasNodeData) }
+  const refs = (Array.isArray(data.imageSourceRefs) ? data.imageSourceRefs : []).filter(
+    (item) => item.nodeId !== sourceNodeId,
+  )
+  data.imageSourceRefs = refs
+  const latest = refs[refs.length - 1]
+  data.sourceNodeId = latest?.nodeId ?? ''
+  data.sourcePreviewUrl = latest?.previewUrl ?? ''
+  data.sourceFileName = latest?.fileName ?? ''
+  data.linkedImageNodeId = latest?.nodeId ?? ''
+  cell.setData(data, { overwrite: true })
+
+  promptSourcePreviewUrl.value = data.sourcePreviewUrl ?? ''
+  promptSourceFileName.value = data.sourceFileName ?? ''
+  promptSourcePreviews.value = refs.filter((item) => item.previewUrl)
+  scheduleHistoryPush()
+}
+
 function loadPromptBarContext(nodeId: string) {
   const g = graph.value
   if (!g) return
@@ -919,6 +985,9 @@ function loadPromptBarContext(nodeId: string) {
   const synced = syncTextNodeImageSource(g, cell as Node)
   promptSourcePreviewUrl.value = synced.sourcePreviewUrl ?? ''
   promptSourceFileName.value = synced.sourceFileName ?? ''
+  promptSourcePreviews.value = Array.isArray(synced.imageSourceRefs)
+    ? synced.imageSourceRefs.filter((item) => item.previewUrl)
+    : []
 
   if (synced.textPickerTask === 'img2prompt') {
     modelType.value = 'img2prompt'
@@ -1523,6 +1592,8 @@ function handleEdgeConnected({
     const targetData = target.getData() as CanvasNodeData
     if (targetData.kind === 'text' || targetData.kind === 'video') {
       handleNodeEdgeLinked(target.id)
+    } else if (targetData.kind === 'image' && canImageNodeAcceptIncoming(targetData)) {
+      linkImageSourceFromEdge(g, edge, target)
     } else {
       g.removeEdge(edge.id)
     }
@@ -1545,6 +1616,54 @@ function handleEdgeConnected({
   openConnectMenu(source as Node, releasePoint)
 }
 
+/** 将源图片节点追加到目标图片节点的输入源列表（按 nodeId 去重，支持多个不同源节点连入） */
+function applyIncomingImageSource(target: Node, source: Node) {
+  if (source.id === target.id) return false
+  const sourceData = source.getData() as CanvasNodeData
+  const data = { ...(target.getData() as CanvasNodeData) }
+
+  const ref: ImageSourceRef = {
+    nodeId: source.id,
+    previewUrl: sourceData.previewUrl ?? '',
+    fileName: sourceData.fileName ?? '',
+  }
+  const refs = Array.isArray(data.imageSourceRefs) ? [...data.imageSourceRefs] : []
+  // 兼容生成节点时写入的单一来源（如节点3 由节点1 连线生成），首次追加时先补回原始来源
+  if (!refs.length && data.sourceNodeId && data.sourcePreviewUrl) {
+    refs.push({
+      nodeId: data.sourceNodeId,
+      previewUrl: data.sourcePreviewUrl,
+      fileName: data.sourceFileName ?? '',
+    })
+  }
+  const existingIdx = refs.findIndex((item) => item.nodeId === source.id)
+  if (existingIdx >= 0) refs.splice(existingIdx, 1, ref)
+  else refs.push(ref)
+  data.imageSourceRefs = refs
+
+  // 兼容旧逻辑：主来源保留为最新连入的一张
+  data.sourceNodeId = source.id
+  data.sourcePreviewUrl = ref.previewUrl
+  data.sourceFileName = ref.fileName
+  data.inputUpdated = refs.some((item) => Boolean(item.previewUrl))
+  // overwrite: true —— 避免 X6 默认深合并对 imageSourceRefs 数组按索引合并导致脏数据
+  target.setData(data, { overwrite: true })
+  return true
+}
+
+/** 将拖入连线的源节点图片写入目标图片节点的输入源，并保留连线 */
+function linkImageSourceFromEdge(g: Graph, edge: Edge, target: Node) {
+  const source = edge.getSourceCell()
+  if (!source?.isNode() || !applyIncomingImageSource(target, source)) {
+    g.removeEdge(edge.id)
+    return
+  }
+
+  bumpToolbarRevision()
+  updateNodeToolbar()
+  scheduleHistoryPush()
+}
+
 function onRemoveVideoSourceRef(imageNodeId: string) {
   const g = graph.value
   const videoNodeId = activeVideoGenPromptNodeId.value
@@ -1555,6 +1674,31 @@ function onRemoveVideoSourceRef(imageNodeId: string) {
   scheduleHistoryPush()
 }
 
+/** 节点被删除时，清理所有下游图片节点中引用它的输入源（对话框缩略图随之移除） */
+function detachImageSourceFromDownstream(g: Graph, deletedNodeId: string) {
+  g.getNodes().forEach((node) => {
+    if (node.id === deletedNodeId) return
+    const data = node.getData() as CanvasNodeData
+    if (data.kind !== 'image' && data.kind !== 'text') return
+
+    const refs = Array.isArray(data.imageSourceRefs) ? data.imageSourceRefs : []
+    const hasRef = refs.some((item) => item.nodeId === deletedNodeId)
+    const hasSingle = data.sourceNodeId === deletedNodeId || data.linkedImageNodeId === deletedNodeId
+    if (!hasRef && !hasSingle) return
+
+    const next = { ...data }
+    const filtered = refs.filter((item) => item.nodeId !== deletedNodeId)
+    next.imageSourceRefs = filtered
+    const latest = filtered[filtered.length - 1]
+    next.sourceNodeId = latest?.nodeId ?? ''
+    next.sourcePreviewUrl = latest?.previewUrl ?? ''
+    next.sourceFileName = latest?.fileName ?? ''
+    next.inputUpdated = filtered.some((item) => Boolean(item.previewUrl))
+    if (data.kind === 'text') next.linkedImageNodeId = latest?.nodeId ?? ''
+    node.setData(next, { overwrite: true })
+  })
+}
+
 function removeNodeById(nodeId: string) {
   const g = graph.value
   if (!g || !nodeId) return
@@ -1562,7 +1706,9 @@ function removeNodeById(nodeId: string) {
   const cell = g.getCellById(nodeId)
   if (!cell?.isNode()) return
 
+  detachImageSourceFromDownstream(g, nodeId)
   g.removeCell(cell)
+  bumpToolbarRevision()
   textEditorApis.delete(nodeId)
   if (selectedNodeId.value === nodeId) {
     selectedNodeId.value = ''
@@ -1622,14 +1768,23 @@ function persistTextExpandContent() {
   cell.setData(data)
 }
 
-function onTextFormatAction(cmd: TextFormatCommand) {
+// value：颜色/字体/字号等带参命令的取值
+function onTextFormatAction(cmd: TextFormatCommand, value?: string) {
+  if (cmd === 'download') {
+    downloadSelectedTextNode()
+    return
+  }
+  if (cmd === 'delete') {
+    removeSelectedNode()
+    return
+  }
   const api = textEditorApis.get(selectedNodeId.value)
   if (!api) return
   if (cmd === 'expand') {
     openTextExpand(selectedNodeId.value)
     return
   }
-  api.execFormat(cmd)
+  api.execFormat(cmd, value)
 }
 
 function downloadSelectedTextNode() {
@@ -1724,7 +1879,7 @@ function handleTextPickerAction(key: string, nodeId: string) {
   updateNodeToolbar()
 }
 
-function handleNodeEdgeLinked(targetNodeId: string) {
+function handleNodeEdgeLinked(targetNodeId: string, sourceNodeId?: string) {
   const g = graph.value
   if (!g) return
   const cell = g.getCellById(targetNodeId)
@@ -1735,6 +1890,12 @@ function handleNodeEdgeLinked(targetNodeId: string) {
     syncTextNodeImageSource(g, cell as Node)
     if (activePickerNodeId.value === targetNodeId) {
       loadPromptBarContext(targetNodeId)
+    }
+  } else if (data.kind === 'image' && canImageNodeAcceptIncoming(data)) {
+    const source = sourceNodeId ? g.getCellById(sourceNodeId) : null
+    if (source?.isNode()) {
+      applyIncomingImageSource(cell as Node, source as Node)
+      openImageDialogue(targetNodeId)
     }
   }
 
@@ -2393,6 +2554,9 @@ function handleNodeDataChange({ node }: { node: Node }) {
   if (activePickerNodeId.value === node.id && data.kind === 'text') {
     promptSourcePreviewUrl.value = data.sourcePreviewUrl ?? ''
     promptSourceFileName.value = data.sourceFileName ?? ''
+    promptSourcePreviews.value = Array.isArray(data.imageSourceRefs)
+      ? data.imageSourceRefs.filter((item) => item.previewUrl)
+      : []
   }
   if (selectedNodeId.value === node.id) {
     selectedKind.value = data.kind

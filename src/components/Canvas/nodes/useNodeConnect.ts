@@ -4,6 +4,7 @@ import type { CanvasGraph } from '../graph'
 import { getFlowEdgeAttrs } from '../edgeStyle'
 import type { CanvasNodeData } from '../constants'
 import {
+  canImageNodeAcceptIncoming,
   canOpenConnectMenu,
   removeSourcePreviewEdges,
 } from '../nodeConnect'
@@ -73,7 +74,7 @@ export function useNodeConnect() {
         const canLink =
           sourceData.kind === 'image' &&
           sourceData.previewUrl &&
-          canLinkImageToNode(targetData)
+          (canLinkImageToNode(targetData) || canImageNodeAcceptIncoming(targetData))
 
         if (!canLink) {
           g.removeCell(edge)
@@ -82,7 +83,7 @@ export function useNodeConnect() {
 
         edge.setTarget({ cell: targetNode.id, port: 'left' })
         ;(g as CanvasGraph).__connectPreviewEdgeId = ''
-        ;(g as CanvasGraph).__onNodeEdgeLinked?.(targetNode.id)
+        ;(g as CanvasGraph).__onNodeEdgeLinked?.(targetNode.id, node.id)
         return
       }
 

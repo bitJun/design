@@ -1,5 +1,5 @@
 import type { Graph, Node } from '@antv/x6'
-import type { CanvasNodeData } from './constants'
+import type { CanvasNodeData, ImageSourceRef } from './constants'
 import { connectGenEdge } from './imageGen'
 
 export const IMG2PROMPT_DEFAULT_INSTRUCTION =
@@ -35,20 +35,62 @@ export function findLinkedImageNode(graph: Graph, textNodeId: string): Node | nu
 
 export const findIncomingImageNode = findLinkedImageNode
 
+/** 收集与文本节点相连的所有图片节点（用于多图参考），按连线顺序去重 */
+export function collectLinkedImageNodes(graph: Graph, textNodeId: string): Node[] {
+  const result: Node[] = []
+  const seen = new Set<string>()
+  for (const edge of graph.getEdges()) {
+    const sourceId = edge.getSourceCellId()
+    const targetId = edge.getTargetCellId()
+    if (!sourceId || !targetId) continue
+
+    let imageId = ''
+    if (sourceId === textNodeId) imageId = targetId
+    else if (targetId === textNodeId) imageId = sourceId
+    else continue
+    if (seen.has(imageId)) continue
+
+    const imageCell = graph.getCellById(imageId)
+    if (!imageCell?.isNode()) continue
+    const data = imageCell.getData() as CanvasNodeData
+    if (data.kind !== 'image' || !data.previewUrl) continue
+
+    seen.add(imageId)
+    result.push(imageCell as Node)
+  }
+  return result
+}
+
 export function syncTextNodeImageSource(
   graph: Graph,
   textNode: Node,
   imageNode?: Node | null,
 ): CanvasNodeData {
-  const linked = imageNode ?? findLinkedImageNode(graph, textNode.id)
   const data = { ...(textNode.getData() as CanvasNodeData) }
 
-  if (linked) {
-    const imageData = linked.getData() as CanvasNodeData
-    data.linkedImageNodeId = linked.id
-    data.sourcePreviewUrl = imageData.previewUrl
-    data.sourceFileName = imageData.fileName
-    textNode.setData(data)
+  const linkedNodes = collectLinkedImageNodes(graph, textNode.id)
+  // 确保显式传入的图片节点也被纳入（去重）
+  if (imageNode && !linkedNodes.some((node) => node.id === imageNode.id)) {
+    const imgData = imageNode.getData() as CanvasNodeData
+    if (imgData.kind === 'image' && imgData.previewUrl) linkedNodes.push(imageNode)
+  }
+
+  if (linkedNodes.length) {
+    const refs: ImageSourceRef[] = linkedNodes.map((node) => {
+      const imageData = node.getData() as CanvasNodeData
+      return {
+        nodeId: node.id,
+        previewUrl: imageData.previewUrl ?? '',
+        fileName: imageData.fileName ?? '',
+      }
+    })
+    const latest = refs[refs.length - 1]
+    data.imageSourceRefs = refs
+    data.linkedImageNodeId = latest.nodeId
+    data.sourcePreviewUrl = latest.previewUrl
+    data.sourceFileName = latest.fileName
+    // overwrite: true —— 避免 X6 默认深合并对数组按索引合并
+    textNode.setData(data, { overwrite: true })
   }
 
   return textNode.getData() as CanvasNodeData

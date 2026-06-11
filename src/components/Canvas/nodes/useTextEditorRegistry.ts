@@ -1,7 +1,8 @@
 import type { TextFormatCommand } from '../constants'
 
 export type TextEditorApi = {
-  execFormat: (cmd: TextFormatCommand) => void
+  /** value 用于带参命令：颜色/字体/字重/字号/对齐/行距 */
+  execFormat: (cmd: TextFormatCommand, value?: string) => void
   copyContent: () => Promise<void>
   requestExpand: () => void
   focus: () => void

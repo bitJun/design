@@ -23,8 +23,7 @@
       type="button"
       class="canvas-node__delete-float"
       title="删除节点"
-      @mousedown.stop
-      @click="removeSelf"
+      @mousedown.stop.prevent="removeSelf"
     >
       ×
     </button>
@@ -36,8 +35,7 @@
         type="button"
         class="canvas-node__delete"
         title="删除节点"
-        @mousedown.stop
-        @click="removeSelf"
+        @mousedown.stop.prevent="removeSelf"
       >
         ×
       </button>
@@ -56,6 +54,7 @@
     <div
       v-else-if="data.mode === 'picker'"
       class="text-node__body text-node__body--picker"
+      :class="{ 'text-node__body--img2prompt': data.textPickerTask === 'img2prompt' }"
     >
       <div class="text-node__hero-icon">
         <span />
@@ -249,7 +248,43 @@ function onEditorBlur() {
   onEditorInput()
 }
 
-function execFormat(cmd: TextFormatCommand) {
+function applyInlineStyle(style: Record<string, string>) {
+  const el = editorRef.value
+  if (!el) return
+  el.focus()
+  const sel = window.getSelection()
+  if (!sel) return
+
+  let range: Range
+  const active = sel.rangeCount ? sel.getRangeAt(0) : null
+  if (!active || active.collapsed || !el.contains(active.commonAncestorContainer)) {
+    // 无选区时作用于整个文本节点内容
+    range = document.createRange()
+    range.selectNodeContents(el)
+  } else {
+    range = active
+  }
+
+  const span = document.createElement('span')
+  Object.entries(style).forEach(([prop, value]) => {
+    span.style.setProperty(toCssProp(prop), value)
+  })
+  const frag = range.extractContents()
+  span.appendChild(frag)
+  range.insertNode(span)
+
+  sel.removeAllRanges()
+  const next = document.createRange()
+  next.selectNodeContents(span)
+  sel.addRange(next)
+  onEditorInput()
+}
+
+function toCssProp(prop: string) {
+  return prop.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+}
+
+function execFormat(cmd: TextFormatCommand, value?: string) {
   const el = editorRef.value
   if (!el) return
   el.focus()
@@ -258,6 +293,39 @@ function execFormat(cmd: TextFormatCommand) {
     case 'clear':
       document.execCommand('removeFormat')
       break
+    case 'color':
+      if (value) applyInlineStyle({ color: value })
+      return
+    case 'clear-color':
+      applyInlineStyle({ color: 'inherit' })
+      return
+    case 'fontFamily':
+      if (value) applyInlineStyle({ fontFamily: value })
+      return
+    case 'fontWeight':
+      if (value) applyInlineStyle({ fontWeight: value })
+      return
+    case 'fontSize':
+      if (value) applyInlineStyle({ fontSize: `${value}px` })
+      return
+    case 'lineHeight':
+      if (value) {
+        el.style.lineHeight = value
+        onEditorInput()
+      }
+      return
+    case 'align':
+      document.execCommand(
+        value === 'center'
+          ? 'justifyCenter'
+          : value === 'right'
+            ? 'justifyRight'
+            : value === 'justify'
+              ? 'justifyFull'
+              : 'justifyLeft',
+      )
+      onEditorInput()
+      return
     case 'h1':
       document.execCommand('formatBlock', false, 'h1')
       break
@@ -469,6 +537,16 @@ onBeforeUnmount(() => {
 
 .text-node__body--picker {
   padding: 16px 12px 12px;
+}
+
+/* 图生提示词占位：仅有 hero 图标，居中显示 */
+.text-node__body--picker.text-node__body--img2prompt {
+  align-items: center;
+  justify-content: center;
+
+  .text-node__hero-icon {
+    margin-bottom: 0;
+  }
 }
 
 .text-node__skeleton {

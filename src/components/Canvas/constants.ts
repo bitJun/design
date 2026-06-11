@@ -6,6 +6,13 @@ export type UploadState = 'idle' | 'uploading' | 'done'
 
 export type ImageGenTask = 'picker' | 'img2img' | 'hd'
 
+/** 由上游节点连线带过来的图片输入源 */
+export interface ImageSourceRef {
+  nodeId: string
+  previewUrl: string
+  fileName?: string
+}
+
 export interface CanvasNodeData {
   kind: NodeKind
   title: string
@@ -22,6 +29,8 @@ export interface CanvasNodeData {
   sourceNodeId?: string
   sourcePreviewUrl?: string
   sourceFileName?: string
+  /** 多个上游节点连线带过来的图片输入源（图生图多图参考），按连入顺序排列 */
+  imageSourceRefs?: ImageSourceRef[]
   inputUpdated?: boolean
   genPrompt?: string
   genSeed?: number
@@ -60,6 +69,15 @@ export type TextFormatCommand =
   | 'hr'
   | 'copy'
   | 'expand'
+  | 'color'
+  | 'clear-color'
+  | 'fontFamily'
+  | 'fontWeight'
+  | 'fontSize'
+  | 'align'
+  | 'lineHeight'
+  | 'download'
+  | 'delete'
 
 export const TEXT_FORMAT_TOOLBAR: Array<{
   key: TextFormatCommand
@@ -81,7 +99,69 @@ export const TEXT_FORMAT_TOOLBAR: Array<{
   { key: 'expand', label: '⤢', title: '全屏编辑' },
 ]
 
+/** 文本属性工具栏：色板 */
+export const TEXT_COLOR_SWATCHES = [
+  '#111111',
+  '#6b7280',
+  '#ffffff',
+  '#ef4444',
+  '#f59e0b',
+  '#fbbf24',
+  '#10b981',
+  '#3b82f6',
+  '#6366f1',
+  '#a855f7',
+  '#ec4899',
+  '#0ea5e9',
+]
+
+/** 文本属性工具栏：字体 */
+export const TEXT_FONT_FAMILIES: Array<{ label: string; value: string }> = [
+  { label: 'Inter', value: 'Inter, system-ui, sans-serif' },
+  { label: '苹方', value: '"PingFang SC", system-ui, sans-serif' },
+  { label: '思源黑体', value: '"Source Han Sans SC", system-ui, sans-serif' },
+  { label: '宋体', value: 'SimSun, serif' },
+  { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: '等宽', value: '"JetBrains Mono", Menlo, monospace' },
+]
+
+/** 文本属性工具栏：字重 */
+export const TEXT_FONT_WEIGHTS: Array<{ label: string; value: string }> = [
+  { label: 'Light', value: '300' },
+  { label: 'Regular', value: '400' },
+  { label: 'Medium', value: '500' },
+  { label: 'Semibold', value: '600' },
+  { label: 'Bold', value: '700' },
+]
+
+/** 文本属性工具栏：字号 (px) */
+export const TEXT_FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 64, 80, 96]
+
+/** 文本属性工具栏：对齐 */
+export const TEXT_ALIGN_OPTIONS: Array<{ key: string; label: string; title: string }> = [
+  { key: 'left', label: '⬅', title: '左对齐' },
+  { key: 'center', label: '⬌', title: '居中对齐' },
+  { key: 'right', label: '➡', title: '右对齐' },
+  { key: 'justify', label: '☰', title: '两端对齐' },
+]
+
+/** 文本属性工具栏：行距 */
+export const TEXT_LINE_HEIGHTS = ['1', '1.25', '1.5', '1.75', '2']
+
 export const TEXT_PROMPT_MODEL_LABEL = 'GVLM 3.1'
+
+export type TextPromptModelItem = {
+  key: string
+  name: string
+  duration: string
+  desc?: string
+}
+
+export const TEXT_PROMPT_MODEL_MENU: TextPromptModelItem[] = [
+  { key: 'gvlm-3-1', name: '反推提示词', duration: '', desc: '' },
+  { key: 'cvlm-5-5', name: '小红书种草文案', duration: '' },
+]
 
 export const TEXT_PROMPT_PLACEHOLDER =
   '写下你想讲的故事、场景或角色设定。例如：一个来自未来的机器人，在城市屋顶看星星。'

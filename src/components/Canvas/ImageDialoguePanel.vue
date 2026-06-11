@@ -18,31 +18,30 @@
         <span class="image-dialogue__chip-icon" data-icon="mark" aria-hidden="true" />
         标记
       </button>
-      <div
-        class="image-dialogue__thumb"
-        @mouseenter="thumbHover = true"
-        @mouseleave="thumbHover = false"
-      >
-        <img
-          v-if="previewUrl"
-          :src="previewUrl"
-          alt=""
-          class="image-dialogue__thumb-img"
-        />
-        <span v-else class="image-dialogue__thumb-img" aria-hidden="true" />
-        <button
-          v-if="thumbHover && previewUrl"
-          type="button"
-          class="image-dialogue__thumb-remove"
-          title="移除"
-          @click="emit('remove')"
+      <div v-if="previewList.length" class="image-dialogue__thumbs">
+        <div
+          v-for="(item, index) in previewList"
+          :key="item.key"
+          class="image-dialogue__thumb"
+          @mouseenter="hoveredThumb = item.key"
+          @mouseleave="hoveredThumb = null"
         >
-          <span class="image-dialogue__thumb-remove-icon" aria-hidden="true" />
-        </button>
-        <span v-else class="image-dialogue__thumb-badge">1</span>
+          <img :src="item.previewUrl" alt="" class="image-dialogue__thumb-img" />
+          <button
+            v-if="hoveredThumb === item.key"
+            type="button"
+            class="image-dialogue__thumb-remove"
+            title="移除"
+            @mousedown.stop
+            @click.stop="emit('remove', item.nodeId)"
+          >
+            <span class="image-dialogue__thumb-remove-icon" aria-hidden="true" />
+          </button>
+          <span v-else class="image-dialogue__thumb-badge">{{ index + 1 }}</span>
 
-        <div v-if="thumbHover && previewUrl" class="image-dialogue__thumb-preview">
-          <img :src="previewUrl" alt="" />
+          <div v-if="hoveredThumb === item.key" class="image-dialogue__thumb-preview">
+            <img :src="item.previewUrl" alt="" />
+          </div>
         </div>
       </div>
     </div>
@@ -200,22 +199,41 @@ import {
   type ImageDialogueModelItem,
   type ImageGenAspectRatio,
   type ImageGenCount,
+  type ImageSourceRef,
   type ImageStyleCard,
 } from './constants'
 
-defineProps<{
+const props = defineProps<{
   modelValue: string
   previewUrl?: string
+  previews?: ImageSourceRef[]
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
-  remove: []
+  remove: [sourceNodeId?: string]
 }>()
 
 const { isLightTheme } = useCanvasBgTheme()
 
-const thumbHover = ref(false)
+const previewList = computed(() => {
+  const list = Array.isArray(props.previews)
+    ? props.previews.filter((item) => item.previewUrl)
+    : []
+  if (list.length) {
+    return list.map((item, index) => ({
+      key: item.nodeId || `src-${index}`,
+      nodeId: item.nodeId,
+      previewUrl: item.previewUrl,
+    }))
+  }
+  if (props.previewUrl) {
+    return [{ key: 'src-0', nodeId: '', previewUrl: props.previewUrl }]
+  }
+  return []
+})
+
+const hoveredThumb = ref<string | null>(null)
 const showStyleModal = ref(false)
 const showGenSettings = ref(false)
 const showModelMenu = ref(false)
@@ -404,6 +422,13 @@ onBeforeUnmount(() => {
   &[data-icon='mark'] {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 14 14'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.2' d='M7 12.5s4-3.2 4-6.5a4 4 0 1 0-8 0c0 3.3 4 6.5 4 6.5Z'/%3E%3Ccircle cx='7' cy='6' r='1.5' stroke='%236b7280' stroke-width='1.2'/%3E%3C/svg%3E");
   }
+}
+
+.image-dialogue__thumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .image-dialogue__thumb {

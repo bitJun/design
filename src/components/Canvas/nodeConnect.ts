@@ -29,6 +29,19 @@ export function getConnectPreviewStroke(node: Node) {
   return canOpenConnectMenu(node) ? '#6b7cff' : null
 }
 
+/** 图片占位/生成类节点可作为入连线目标，接收上游节点图片作为输入源 */
+export function canImageNodeAcceptIncoming(data: CanvasNodeData) {
+  if (data.kind !== 'image') return false
+  if (
+    data.imageGenTask === 'picker' ||
+    data.imageGenTask === 'img2img' ||
+    data.imageGenTask === 'hd'
+  ) {
+    return true
+  }
+  return data.mode === 'picker'
+}
+
 function buildSourceRef(sourceNode: Node, sourceData: CanvasNodeData): Partial<CanvasNodeData> {
   return {
     sourceNodeId: sourceNode.id,
@@ -63,8 +76,15 @@ export function createNodeFromConnectMenu(
   const sourceData = sourceNode.getData() as CanvasNodeData
 
   switch (menuKey) {
-    case 'text':
-      return spawnLinkedNode(graph, sourceNode, point, 'text', { mode: 'picker' })
+    case 'text': {
+      const overrides: Partial<CanvasNodeData> = { mode: 'picker' }
+      // 由图片节点连线生成的文本节点 → 图生提示词模式，提示栏展示来源图片
+      if (sourceData.kind === 'image' && sourceData.previewUrl) {
+        overrides.textPickerTask = 'img2prompt'
+        overrides.textGenState = 'idle'
+      }
+      return spawnLinkedNode(graph, sourceNode, point, 'text', overrides)
+    }
     case 'image':
       if (sourceData.kind === 'image' && !sourceData.imageGenTask) {
         return spawnImageGenNodeAtPoint(graph, sourceNode, point)
@@ -203,7 +223,7 @@ export function resolveConnectSpawnPoint(
 /** 引用节点生成菜单：左上角对齐松手落点（连线接到菜单左上角） */
 export function getConnectMenuPosition(
   graph: Graph,
-  sourceNode: Node,
+  _sourceNode: Node,
   container: HTMLElement,
   releasePoint: { x: number; y: number },
 ) {

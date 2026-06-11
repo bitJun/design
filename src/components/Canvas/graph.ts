@@ -135,7 +135,7 @@ export type CanvasGraph = Graph & {
   __requestTextExpand?: (nodeId: string) => void
   __onTextPickerAction?: (key: string, nodeId: string) => void
   __onTextNodeEdgeLinked?: (textNodeId: string) => void
-  __onNodeEdgeLinked?: (targetNodeId: string) => void
+  __onNodeEdgeLinked?: (targetNodeId: string, sourceNodeId?: string) => void
   __notifyTextNodeUpdated?: () => void
   __notifyNodeDragMove?: () => void
   __notifyNodeDragEnd?: () => void
@@ -309,7 +309,7 @@ export function getScroller(graph: Graph): Scroller | null {
 const INFINITE_CANVAS_MIN_SIZE = 12000
 
 function getInfiniteCanvasResizeOptions(
-  scroller: Scroller,
+  scroller: { container: HTMLElement },
 ): TransformManager.FitToContentFullOptions {
   const { clientWidth, clientHeight } = scroller.container
   const vw = clientWidth || 800
