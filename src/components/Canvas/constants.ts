@@ -351,6 +351,7 @@ export type ImageToolbarIcon =
   | 'rotate'
   | 'flip'
   | 'subtitle'
+  | 'addToDialog'
 
 export type ImageToolbarAction = {
   key: string
@@ -373,6 +374,7 @@ export const IMAGE_NODE_TOOLBAR = {
     { key: 'crop', label: '裁剪', icon: 'crop' },
     { key: 'inpaint', label: '局部修改', icon: 'edit' },
     { key: 'preview', label: '预览', icon: 'preview' },
+    { key: 'addToDialog', label: '', icon: 'addToDialog' },
     { key: 'more', label: '更多', icon: 'more' },
   ] satisfies ImageToolbarAction[],
 } as const

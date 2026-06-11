@@ -29,6 +29,16 @@
 
     <div ref="graphRef" class="canvas__graph" />
 
+    <div v-if="nodeCount === 0" class="canvas__empty">
+      <p class="canvas__hint">双击画布在此处生成节点</p>
+      <p class="canvas__hint">
+        或在右侧
+        <button type="button" class="canvas__hint-link" @click="emit('focus-chat')">chat</button>
+        直接对话
+      </p>
+      <p class="canvas__hint">按住Space可以拖拽画布</p>
+    </div>
+
     <CanvasElementSelectBar
       v-if="showElementSelectMode"
       @return-node="returnFromElementSelect"
@@ -58,6 +68,7 @@
       @toggle-video-dialogue="toggleVideoDialogue"
       @toggle-video-hd-panel="toggleVideoHdPanel"
       @toggle-video-frames-panel="toggleVideoFramesPanel"
+      @toggle-image-addToDialog-menu="toggleImageAddToDialogMenu"
     />
 
     <CanvasAssetsPanel
@@ -346,6 +357,11 @@ import { createCanvasHistory } from './canvasHistory'
 import { disconnectImageFromVideo, getVideoSourceRefs } from './videoGen'
 import { setSharedCanvasBgTheme } from './useCanvasBgTheme'
 import { useCanvasKeyboard } from './composables/useCanvasKeyboard'
+
+const emit = defineEmits<{
+  'focus-chat': []
+  'add-to-chat': [payload: { previewUrl: string; fileName: string }]
+}>()
 
 const router = useRouter()
 const modalStore = useModalStore()
@@ -783,6 +799,23 @@ function toggleVideoFramesPanel() {
     closeVideoSubPanels('frames')
     updateNodeToolbar()
   }
+}
+
+function toggleImageAddToDialogMenu() {
+  const g = graph.value
+  const id = selectedNodeId.value
+  if (!g || !id) return
+
+  const cell = g.getCellById(id)
+  if (!cell?.isNode()) return
+
+  const data = cell.getData() as CanvasNodeData
+  if (data.kind !== 'image' || !data.previewUrl || data.uploadState === 'uploading') return
+
+  emit('add-to-chat', {
+    previewUrl: data.previewUrl,
+    fileName: data.fileName || data.title || 'image.jpg',
+  })
 }
 
 function resetVideoHdPanel() {
@@ -2833,6 +2866,68 @@ onMounted(() => {
   if (showMinimap.value) {
     nextTick(() => setupMinimap())
   }
+})
+
+function waitForNodeUploadDone(node: Node) {
+  const data = node.getData() as CanvasNodeData
+  if (data.uploadState === 'done' && data.previewUrl) {
+    return Promise.resolve(node)
+  }
+
+  return new Promise<Node>((resolve) => {
+    const handler = () => {
+      const current = node.getData() as CanvasNodeData
+      if (current.uploadState === 'done' && current.previewUrl) {
+        node.off('change:data', handler)
+        resolve(node)
+      }
+    }
+    node.on('change:data', handler)
+  })
+}
+
+function addImageFromFile(file: File, point?: { x: number; y: number }) {
+  const g = graph.value
+  if (!g) return Promise.resolve(null)
+
+  const position = point ?? getGraphCenter()
+  const node = addCanvasNode(g, 'image', position, {
+    mode: 'editor',
+    title: file.name,
+    fileName: file.name,
+  })
+
+  runUploadSimulation(node, file)
+  selectedNodeId.value = node.id
+  selectedKind.value = 'image'
+  syncNodeSelectionHighlight(node.id)
+  updateNodeToolbar()
+  syncNodeCount()
+  scheduleHistoryPush()
+
+  return waitForNodeUploadDone(node)
+}
+
+async function addImagesFromFiles(files: File[]) {
+  const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+  if (!imageFiles.length) return []
+
+  const basePoint = getGraphCenter()
+  const nodes: Node[] = []
+
+  for (let index = 0; index < imageFiles.length; index += 1) {
+    const point = getMultiUploadSpawnPoint(basePoint, index, 'image')
+    const node = await addImageFromFile(imageFiles[index], point)
+    if (node) nodes.push(node)
+  }
+
+  return nodes
+}
+
+defineExpose({
+  addImageFromFile,
+  addImagesFromFiles,
+  getNodeCount: () => nodeCount.value,
 })
 
 onBeforeUnmount(() => {

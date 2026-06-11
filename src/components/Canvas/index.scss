@@ -732,6 +732,26 @@
   color: #9ca3af;
 }
 
+.canvas__hint-link {
+  margin: 0 4px;
+  padding: 2px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: #d1d5db;
+    background: #f9fafb;
+  }
+}
+
 .canvas__hint-icon {
   width: 18px;
   height: 18px;
@@ -2681,4 +2701,7 @@
   .canvas__add-item:hover {
     background: #0000000d;
   }
+}
+.canvas__node-toolbar-addToDialog-img {
+  cursor: pointer;
 }
