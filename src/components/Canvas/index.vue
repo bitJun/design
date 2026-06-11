@@ -2565,11 +2565,19 @@ function toggleShortcutsPanel() {
   closeHistoryPanel()
 }
 
+function setRubberbandEnabled(enabled: boolean) {
+  const g = graph.value
+  if (!g) return
+  if (enabled) g.enableRubberband()
+  else g.disableRubberband()
+}
+
 function togglePanMode() {
   panMode.value = !panMode.value
   const scroller = graph.value ? getScroller(graph.value) : null
   if (!scroller) return
   scroller.togglePanning(panMode.value)
+  setRubberbandEnabled(!panMode.value)
 }
 
 function handleTidyCanvas() {
@@ -3076,6 +3084,7 @@ const { altVoiceTimer, bindKeyboard, unbindKeyboard, endSpacePan } = useCanvasKe
   openImagePreview,
   triggerCanvasUploadShortcut,
   getScroller,
+  setRubberbandEnabled,
 })
 
 function onScrollerScroll() {
@@ -3181,6 +3190,7 @@ onMounted(() => {
 
   const scroller = getScroller(instance)
   scroller?.togglePanning(panMode.value)
+  setRubberbandEnabled(!panMode.value)
 
   syncZoom()
   syncNodeCount()

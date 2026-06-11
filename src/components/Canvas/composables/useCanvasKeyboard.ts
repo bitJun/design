@@ -26,6 +26,7 @@ type CanvasKeyboardDeps = {
   openImagePreview: () => void
   triggerCanvasUploadShortcut: () => void
   getScroller: (graph: Graph) => { togglePanning: (enabled: boolean) => unknown } | null
+  setRubberbandEnabled: (enabled: boolean) => void
 }
 
 function isEditableTarget(target: EventTarget | null) {
@@ -43,6 +44,7 @@ export function useCanvasKeyboard(deps: CanvasKeyboardDeps) {
     const scroller = deps.graph.value ? deps.getScroller(deps.graph.value) : null
     if (!scroller || spacePanActive.value) return
     spacePanActive.value = true
+    deps.setRubberbandEnabled(false)
     if (!deps.panMode.value) scroller.togglePanning(true)
   }
 
@@ -51,6 +53,7 @@ export function useCanvasKeyboard(deps: CanvasKeyboardDeps) {
     if (!scroller || !spacePanActive.value) return
     spacePanActive.value = false
     scroller.togglePanning(deps.panMode.value)
+    deps.setRubberbandEnabled(!deps.panMode.value)
   }
 
   function handleKeydown(event: KeyboardEvent) {
