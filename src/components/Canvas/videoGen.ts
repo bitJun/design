@@ -5,6 +5,7 @@ export type VideoSourceRef = {
   nodeId: string
   previewUrl: string
   fileName: string
+  title: string
   index: number
 }
 
@@ -66,6 +67,7 @@ export function getVideoSourceRefs(graph: Graph, videoNodeId: string): VideoSour
       nodeId: node.id,
       previewUrl: data.previewUrl,
       fileName: data.fileName,
+      title: data.title,
       index: index + 1,
     }
   })

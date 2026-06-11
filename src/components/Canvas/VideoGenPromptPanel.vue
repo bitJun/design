@@ -74,6 +74,9 @@
         :key="ref.nodeId"
         class="video-gen-prompt-panel__ref"
         :class="{ 'video-gen-prompt-panel__ref--invalid': validationError }"
+        :title="`点击插入 @${getRefDisplayName(ref)}`"
+        @mousedown.stop
+        @click.stop="insertRefMention(ref)"
       >
         <img :src="ref.previewUrl" alt="" />
         <button
@@ -89,12 +92,17 @@
       </div>
     </div>
 
-    <textarea
-      :value="prompt"
-      class="video-gen-prompt-panel__input"
-      :placeholder="VIDEO_GEN_PROMPT_PLACEHOLDER"
-      rows="2"
+    <div
+      ref="promptInputRef"
+      class="video-gen-prompt-panel__input video-gen-prompt-panel__input--rich"
+      :class="{ 'video-gen-prompt-panel__input--empty': !prompt.length }"
+      contenteditable="true"
+      role="textbox"
+      aria-multiline="true"
+      :data-placeholder="VIDEO_GEN_PROMPT_PLACEHOLDER"
       @input="onPromptInput"
+      @keydown="onPromptKeydown"
+      @paste="onPromptPaste"
     />
 
     <div class="video-gen-prompt-panel__footer">
@@ -193,9 +201,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useCanvasBgTheme } from './useCanvasBgTheme'
 import VideoGenModelPicker from './VideoGenModelPicker.vue'
+import {
+  createMentionSpan,
+  findMentionAfterCursor,
+  findMentionBeforeCursor,
+  getPlainTextOffset,
+  renderPromptToEl,
+  serializePromptEl,
+  setPlainTextOffset,
+} from './videoGenPromptMention'
 import VideoGenSettingsPopover from './VideoGenSettingsPopover.vue'
 import {
   VIDEO_GEN_MODELS,
@@ -365,9 +382,152 @@ function selectTab(key: string) {
   emit('update:activeTab', key);
 }
 
-function onPromptInput(event: Event) {
-  emit('update:prompt', (event.target as HTMLTextAreaElement).value)
+const promptInputRef = ref<HTMLElement | null>(null)
+let skipPromptWatch = false
+
+function getRefDisplayName(ref: VideoSourceRef) {
+  return `图片${ref.index}`
 }
+
+function emitPrompt(text: string) {
+  skipPromptWatch = true
+  emit('update:prompt', text)
+  nextTick(() => {
+    skipPromptWatch = false
+  })
+}
+
+function syncPromptView(text = props.prompt) {
+  const el = promptInputRef.value
+  if (!el) return
+
+  const sel = window.getSelection()
+  const range = sel?.rangeCount ? sel.getRangeAt(0) : null
+  const offset = range && el.contains(range.startContainer)
+    ? getPlainTextOffset(el, range.startContainer, range.startOffset)
+    : text.length
+
+  renderPromptToEl(el, text)
+  setPlainTextOffset(el, offset)
+}
+
+function needsSpaceBefore(range: Range, root: HTMLElement): boolean {
+  const { startContainer, startOffset } = range
+  let prev: Node | null = null
+
+  if (startContainer === root && startOffset > 0) {
+    prev = root.childNodes[startOffset - 1] ?? null
+  } else if (startContainer.nodeType === Node.TEXT_NODE && startOffset === 0) {
+    prev = startContainer.previousSibling
+  } else if (startContainer instanceof HTMLElement && startOffset > 0) {
+    prev = startContainer.childNodes[startOffset - 1] ?? null
+  }
+
+  if (!prev) return false
+  if (prev instanceof HTMLElement && prev.classList.contains('video-gen-prompt-panel__mention')) {
+    return true
+  }
+  if (prev.nodeType === Node.TEXT_NODE) {
+    const text = prev.textContent ?? ''
+    return text.length > 0 && !/\s$/.test(text)
+  }
+  return false
+}
+
+function insertRefMention(ref: VideoSourceRef) {
+  const token = `@${getRefDisplayName(ref)}`
+  const el = promptInputRef.value
+  if (!el) {
+    const current = props.prompt
+    const needsSpace = current.length > 0 && !/[\s]$/.test(current)
+    emitPrompt(`${current}${needsSpace ? ' ' : ''}${token} `)
+    return
+  }
+
+  el.focus()
+  const sel = window.getSelection()
+  if (!sel?.rangeCount) {
+    emitPrompt(`${props.prompt}${props.prompt && !/[\s]$/.test(props.prompt) ? ' ' : ''}${token} `)
+    nextTick(() => syncPromptView())
+    return
+  }
+
+  const range = sel.getRangeAt(0)
+  if (!el.contains(range.commonAncestorContainer)) {
+    range.selectNodeContents(el)
+    range.collapse(false)
+  }
+
+  range.deleteContents()
+
+  if (needsSpaceBefore(range, el)) {
+    range.insertNode(document.createTextNode(' '))
+    range.collapse(false)
+  }
+
+  const mention = createMentionSpan(token)
+  range.insertNode(mention)
+  const space = document.createTextNode(' ')
+  mention.after(space)
+
+  const nextRange = document.createRange()
+  nextRange.setStartAfter(space)
+  nextRange.collapse(true)
+  sel.removeAllRanges()
+  sel.addRange(nextRange)
+
+  emitPrompt(serializePromptEl(el))
+  nextTick(() => syncPromptView())
+}
+
+function onPromptInput() {
+  const el = promptInputRef.value
+  if (!el) return
+
+  const text = serializePromptEl(el)
+  emitPrompt(text)
+  nextTick(() => syncPromptView(text))
+}
+
+function onPromptKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Backspace' && event.key !== 'Delete') return
+
+  const el = promptInputRef.value
+  if (!el) return
+
+  const mention = event.key === 'Backspace'
+    ? findMentionBeforeCursor()
+    : findMentionAfterCursor()
+
+  if (!mention) return
+
+  event.preventDefault()
+  mention.remove()
+  emitPrompt(serializePromptEl(el))
+  nextTick(() => syncPromptView())
+}
+
+function onPromptPaste(event: ClipboardEvent) {
+  event.preventDefault()
+  const text = event.clipboardData?.getData('text/plain') ?? ''
+  if (!text) return
+  document.execCommand('insertText', false, text)
+  onPromptInput()
+}
+
+watch(
+  () => props.prompt,
+  (value) => {
+    if (skipPromptWatch) return
+    const el = promptInputRef.value
+    if (!el || serializePromptEl(el) === value) return
+    nextTick(() => syncPromptView(value))
+  },
+)
+
+onMounted(() => {
+  nextTick(() => syncPromptView())
+})
 </script>
 
 <style scoped lang="scss">
@@ -601,6 +761,13 @@ function onPromptInput(event: Event) {
   overflow: hidden;
   border: 2px solid transparent;
   background: #2a2a30;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: rgba(107, 124, 255, 0.55);
+    transform: translateY(-1px);
+  }
 
   img {
     width: 100%;
@@ -693,16 +860,31 @@ function onPromptInput(event: Event) {
   outline: none;
   box-sizing: border-box;
   cursor: text;
+  white-space: pre-wrap;
+  word-break: break-word;
 
-  &::placeholder {
+  &--rich.video-gen-prompt-panel__input--empty::before {
+    content: attr(data-placeholder);
     color: #6b7280;
+    pointer-events: none;
+  }
+
+  :deep(.video-gen-prompt-panel__mention) {
+    color: #6b7cff;
+    font-weight: 500;
+    user-select: all;
+    cursor: default;
   }
 
   .video-gen-prompt-panel--light & {
     color: #111827;
 
-    &::placeholder {
+    &--rich.video-gen-prompt-panel__input--empty::before {
       color: #9ca3af;
+    }
+
+    :deep(.video-gen-prompt-panel__mention) {
+      color: #4f46e5;
     }
   }
 }

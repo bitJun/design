@@ -1,11 +1,22 @@
 <template>
   <div class="image-dialogue" :class="{ 'image-dialogue--light': isLightTheme }">
-    <button type="button" class="image-dialogue__expand" title="展开">
-      <span class="image-dialogue__expand-icon" aria-hidden="true" />
-    </button>
+    <div style="display: flex;justify-content: flex-end;padding-right: 20px;">
+      <a-select 
+        v-model="selectedWorkFlow"
+        class="image-dialogue__model-select"
+        placeholder="选择工作流"
+      >
+        <a-select-option value="1">反推提示词</a-select-option>
+        <a-select-option value="2">小红书种草文案</a-select-option>
+        <!-- <a-select-option value="3">3</a-select-option> -->
+      </a-select>
+      <button type="button" class="image-dialogue__expand" title="展开">
+        <span class="image-dialogue__expand-icon" aria-hidden="true" />
+      </button>
+    </div>
 
     <div class="image-dialogue__head">
-      <button
+      <!-- <button
         type="button"
         class="image-dialogue__chip"
         @mousedown.stop
@@ -17,7 +28,7 @@
       <button type="button" class="image-dialogue__chip">
         <span class="image-dialogue__chip-icon" data-icon="mark" aria-hidden="true" />
         标记
-      </button>
+      </button> -->
       <div v-if="previewList.length" class="image-dialogue__thumbs">
         <div
           v-for="(item, index) in previewList"
@@ -131,6 +142,9 @@
           <span class="image-dialogue__tool-icon" data-icon="panorama" aria-hidden="true" />
           全景
         </button> -->
+        <button type="button" class="image-dialogue__icon" title="标记">
+          <span class="image-dialogue__chip-icon" data-icon="mark" aria-hidden="true" />
+        </button>
         <button type="button" class="image-dialogue__icon" title="翻译">
           <span class="image-dialogue__icon-glyph" data-icon="translate" aria-hidden="true" />
         </button>
@@ -242,6 +256,7 @@ const genAspectRatio = ref<ImageGenAspectRatio>('auto')
 const genImageCount = ref<ImageGenCount>(1)
 const selectedCount = ref<number>(IMAGE_DIALOGUE_COUNT_OPTIONS[0])
 const selectedModelKey = ref(IMAGE_DIALOGUE_MODEL_MENU[0].key)
+const selectedWorkFlow = ref('');
 
 const selectedModelName = computed(
   () =>
@@ -376,6 +391,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin-bottom: 12px;
   padding-right: 28px;
+  padding-top: 12px;
 }
 
 .image-dialogue__chip {
