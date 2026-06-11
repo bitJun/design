@@ -36,7 +36,6 @@ function isEditableTarget(target: EventTarget | null) {
 
 export function useCanvasKeyboard(deps: CanvasKeyboardDeps) {
   const spacePanActive = ref(false)
-  const spacePanWasEnabled = ref(false)
   const spaceKeyDownAt = ref(0)
   const altVoiceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
@@ -44,7 +43,6 @@ export function useCanvasKeyboard(deps: CanvasKeyboardDeps) {
     const scroller = deps.graph.value ? deps.getScroller(deps.graph.value) : null
     if (!scroller || spacePanActive.value) return
     spacePanActive.value = true
-    spacePanWasEnabled.value = deps.panMode.value
     if (!deps.panMode.value) scroller.togglePanning(true)
   }
 
@@ -52,7 +50,7 @@ export function useCanvasKeyboard(deps: CanvasKeyboardDeps) {
     const scroller = deps.graph.value ? deps.getScroller(deps.graph.value) : null
     if (!scroller || !spacePanActive.value) return
     spacePanActive.value = false
-    scroller.togglePanning(spacePanWasEnabled.value || deps.panMode.value)
+    scroller.togglePanning(deps.panMode.value)
   }
 
   function handleKeydown(event: KeyboardEvent) {

@@ -513,7 +513,7 @@ export function createGraph(container: HTMLElement): CanvasGraph {
 
   const scroller = new Scroller({
     enabled: true,
-    pannable: true,
+    pannable: false,
     pageVisible: false,
     pageBreak: false,
     autoResize: true,

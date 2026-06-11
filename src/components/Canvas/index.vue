@@ -431,7 +431,7 @@ watch(canvasBgTheme, (theme) => {
   if (g) refreshCanvasNodeViews(g)
 }, { immediate: true })
 
-const panMode = ref(true)
+const panMode = ref(false)
 const showShortcutsPanel = ref(false)
 const imagePreviewUrl = ref('')
 const canUndo = ref(false)
