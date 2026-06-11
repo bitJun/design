@@ -34,6 +34,9 @@
           v-for="(item, index) in previewList"
           :key="item.key"
           class="image-dialogue__thumb"
+          :title="`点击插入 @图片${index + 1}`"
+          @mousedown.stop
+          @click.stop="insertRefMention(index + 1)"
           @mouseenter="hoveredThumb = item.key"
           @mouseleave="hoveredThumb = null"
         >
@@ -57,12 +60,17 @@
       </div>
     </div>
 
-    <textarea
-      :value="modelValue"
-      class="image-dialogue__input"
-      :placeholder="IMAGE_DIALOGUE_PLACEHOLDER"
-      rows="2"
-      @input="onInput"
+    <div
+      ref="promptInputRef"
+      class="image-dialogue__input image-dialogue__input--rich"
+      :class="{ 'image-dialogue__input--empty': !modelValue.length }"
+      contenteditable="true"
+      role="textbox"
+      aria-multiline="true"
+      :data-placeholder="IMAGE_DIALOGUE_PLACEHOLDER"
+      @input="onPromptInput"
+      @keydown="onPromptKeydown"
+      @paste="onPromptPaste"
     />
 
     <div class="image-dialogue__footer">
@@ -200,10 +208,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useCanvasBgTheme } from './useCanvasBgTheme'
 import ImageGenSettingsPopover from './ImageGenSettingsPopover.vue'
 import ImageStylePanel from './ImageStylePanel.vue'
+import { createPromptMentionApi, needsSpaceBeforeMention } from './promptMention'
 import {
   IMAGE_DIALOGUE_PLACEHOLDER,
   IMAGE_DIALOGUE_QUALITY_LABEL,
@@ -229,6 +238,10 @@ const emit = defineEmits<{
 }>()
 
 const { isLightTheme } = useCanvasBgTheme()
+
+const mentionApi = createPromptMentionApi('image-dialogue__mention')
+const promptInputRef = ref<HTMLElement | null>(null)
+let skipPromptWatch = false
 
 const previewList = computed(() => {
   const list = Array.isArray(props.previews)
@@ -264,9 +277,122 @@ const selectedModelName = computed(
     IMAGE_DIALOGUE_MODEL_MENU[0].name,
 )
 
-function onInput(event: Event) {
-  emit('update:modelValue', (event.target as HTMLTextAreaElement).value)
+function emitPrompt(text: string) {
+  skipPromptWatch = true
+  emit('update:modelValue', text)
+  nextTick(() => {
+    skipPromptWatch = false
+  })
 }
+
+function syncPromptView(text = props.modelValue) {
+  const el = promptInputRef.value
+  if (!el) return
+
+  const sel = window.getSelection()
+  const range = sel?.rangeCount ? sel.getRangeAt(0) : null
+  const offset = range && el.contains(range.startContainer)
+    ? mentionApi.getPlainTextOffset(el, range.startContainer, range.startOffset)
+    : text.length
+
+  mentionApi.renderPromptToEl(el, text)
+  mentionApi.setPlainTextOffset(el, offset)
+}
+
+function insertRefMention(index: number) {
+  const token = `@图片${index}`
+  const el = promptInputRef.value
+  if (!el) {
+    const current = props.modelValue
+    const needsSpace = current.length > 0 && !/[\s]$/.test(current)
+    emitPrompt(`${current}${needsSpace ? ' ' : ''}${token} `)
+    return
+  }
+
+  el.focus()
+  const sel = window.getSelection()
+  if (!sel?.rangeCount) {
+    emitPrompt(`${props.modelValue}${props.modelValue && !/[\s]$/.test(props.modelValue) ? ' ' : ''}${token} `)
+    nextTick(() => syncPromptView())
+    return
+  }
+
+  const range = sel.getRangeAt(0)
+  if (!el.contains(range.commonAncestorContainer)) {
+    range.selectNodeContents(el)
+    range.collapse(false)
+  }
+
+  range.deleteContents()
+
+  if (needsSpaceBeforeMention(range, el, mentionApi.isMentionEl)) {
+    range.insertNode(document.createTextNode(' '))
+    range.collapse(false)
+  }
+
+  const mention = mentionApi.createMentionSpan(token)
+  range.insertNode(mention)
+  const space = document.createTextNode(' ')
+  mention.after(space)
+
+  const nextRange = document.createRange()
+  nextRange.setStartAfter(space)
+  nextRange.collapse(true)
+  sel.removeAllRanges()
+  sel.addRange(nextRange)
+
+  emitPrompt(mentionApi.serializePromptEl(el))
+  nextTick(() => syncPromptView())
+}
+
+function onPromptInput() {
+  const el = promptInputRef.value
+  if (!el) return
+
+  const text = mentionApi.serializePromptEl(el)
+  emitPrompt(text)
+  nextTick(() => syncPromptView(text))
+}
+
+function onPromptKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Backspace' && event.key !== 'Delete') return
+
+  const el = promptInputRef.value
+  if (!el) return
+
+  const mention = event.key === 'Backspace'
+    ? mentionApi.findMentionBeforeCursor()
+    : mentionApi.findMentionAfterCursor()
+
+  if (!mention) return
+
+  event.preventDefault()
+  mention.remove()
+  emitPrompt(mentionApi.serializePromptEl(el))
+  nextTick(() => syncPromptView())
+}
+
+function onPromptPaste(event: ClipboardEvent) {
+  event.preventDefault()
+  const text = event.clipboardData?.getData('text/plain') ?? ''
+  if (!text) return
+  document.execCommand('insertText', false, text)
+  onPromptInput()
+}
+
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (skipPromptWatch) return
+    const el = promptInputRef.value
+    if (!el || mentionApi.serializePromptEl(el) === value) return
+    nextTick(() => syncPromptView(value))
+  },
+)
+
+onMounted(() => {
+  nextTick(() => syncPromptView())
+})
 
 function openStyleModal() {
   showStyleModal.value = true
@@ -454,9 +580,20 @@ onBeforeUnmount(() => {
   height: 45px;
   border-radius: 8px;
   border: 1px solid #4b4b55;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: rgba(107, 124, 255, 0.55);
+    transform: translateY(-1px);
+  }
 
   .image-dialogue--light & {
     border-color: #ebedf0;
+
+    &:hover {
+      border-color: rgba(79, 70, 229, 0.45);
+    }
   }
 }
 
@@ -547,16 +684,32 @@ onBeforeUnmount(() => {
   resize: none;
   outline: none;
   box-sizing: border-box;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
 
-  &::placeholder {
+  &--rich.image-dialogue__input--empty::before {
+    content: attr(data-placeholder);
     color: #6b7280;
+    pointer-events: none;
+  }
+
+  :deep(.image-dialogue__mention) {
+    color: #6b7cff;
+    font-weight: 500;
+    user-select: all;
+    cursor: default;
   }
 
   .image-dialogue--light & {
     color: #111827;
 
-    &::placeholder {
+    &.image-dialogue__input--rich.image-dialogue__input--empty::before {
       color: #9ca3af;
+    }
+
+    :deep(.image-dialogue__mention) {
+      color: #4f46e5;
     }
   }
 }

@@ -985,9 +985,21 @@
   resize: none;
   outline: none;
   box-sizing: border-box;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
 
-  &::placeholder {
+  &--rich.canvas__prompt-input--empty::before {
+    content: attr(data-placeholder);
     color: #6b7280;
+    pointer-events: none;
+  }
+
+  .canvas__prompt-mention {
+    color: #6b7cff;
+    font-weight: 500;
+    user-select: all;
+    cursor: default;
   }
 }
 
@@ -1191,6 +1203,13 @@
   height: 40px;
   border-radius: 8px;
   border: 1px solid #3d3d45;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: rgba(107, 124, 255, 0.55);
+    transform: translateY(-1px);
+  }
 
   img {
     display: block;
@@ -1899,13 +1918,21 @@
   .canvas__prompt-input {
     color: #111827;
 
-    &::placeholder {
+    &.canvas__prompt-input--rich.canvas__prompt-input--empty::before {
       color: #9ca3af;
+    }
+
+    .canvas__prompt-mention {
+      color: #4f46e5;
     }
   }
 
   .canvas__prompt-ref {
     border-color: #e5e7eb;
+
+    &:hover {
+      border-color: rgba(79, 70, 229, 0.45);
+    }
   }
 
   .canvas__prompt-icon {

@@ -204,6 +204,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useCanvasBgTheme } from './useCanvasBgTheme'
 import VideoGenModelPicker from './VideoGenModelPicker.vue'
+import { createPromptMentionApi, needsSpaceBeforeMention } from './promptMention'
 import {
   createMentionSpan,
   findMentionAfterCursor,
@@ -212,6 +213,7 @@ import {
   renderPromptToEl,
   serializePromptEl,
   setPlainTextOffset,
+  VIDEO_GEN_MENTION_CLASS,
 } from './videoGenPromptMention'
 import VideoGenSettingsPopover from './VideoGenSettingsPopover.vue'
 import {
@@ -411,27 +413,10 @@ function syncPromptView(text = props.prompt) {
   setPlainTextOffset(el, offset)
 }
 
+const mentionApi = createPromptMentionApi(VIDEO_GEN_MENTION_CLASS)
+
 function needsSpaceBefore(range: Range, root: HTMLElement): boolean {
-  const { startContainer, startOffset } = range
-  let prev: Node | null = null
-
-  if (startContainer === root && startOffset > 0) {
-    prev = root.childNodes[startOffset - 1] ?? null
-  } else if (startContainer.nodeType === Node.TEXT_NODE && startOffset === 0) {
-    prev = startContainer.previousSibling
-  } else if (startContainer instanceof HTMLElement && startOffset > 0) {
-    prev = startContainer.childNodes[startOffset - 1] ?? null
-  }
-
-  if (!prev) return false
-  if (prev instanceof HTMLElement && prev.classList.contains('video-gen-prompt-panel__mention')) {
-    return true
-  }
-  if (prev.nodeType === Node.TEXT_NODE) {
-    const text = prev.textContent ?? ''
-    return text.length > 0 && !/\s$/.test(text)
-  }
-  return false
+  return needsSpaceBeforeMention(range, root, mentionApi.isMentionEl)
 }
 
 function insertRefMention(ref: VideoSourceRef) {

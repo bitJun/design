@@ -26,6 +26,9 @@
             v-for="(item, index) in promptSourcePreviews"
             :key="item.nodeId || index"
             class="canvas__prompt-ref"
+            :title="`点击插入 @图片${index + 1}`"
+            @mousedown.stop
+            @click.stop="insertRefMention(index + 1)"
             @mouseenter="hoveredPromptRef = item.nodeId || String(index)"
             @mouseleave="hoveredPromptRef = null"
           >
@@ -50,17 +53,28 @@
             </div>
           </span>
         </template>
-        <span v-else class="canvas__prompt-ref">
+        <span
+          v-else
+          class="canvas__prompt-ref"
+          title="点击插入 @图片1"
+          @mousedown.stop
+          @click.stop="insertRefMention(1)"
+        >
           <img :src="promptSourcePreviewUrl" alt="" />
           <span class="canvas__prompt-ref-badge">1</span>
         </span>
       </span>
-      <textarea
-        :value="promptText"
-        class="canvas__prompt-input"
-        :placeholder="PROMPT_PLACEHOLDER"
-        rows="3"
+      <div
+        ref="promptInputRef"
+        class="canvas__prompt-input canvas__prompt-input--rich"
+        :class="{ 'canvas__prompt-input--empty': !promptText.length }"
+        contenteditable="true"
+        role="textbox"
+        aria-multiline="true"
+        :data-placeholder="PROMPT_PLACEHOLDER"
         @input="onPromptInput"
+        @keydown="onPromptKeydown"
+        @paste="onPromptPaste"
       />
     </div>
     <div class="canvas__prompt-footer">
@@ -267,45 +281,17 @@ import {
   type VideoHdMagnification,
 } from '../constants'
 import type { CanvasBgTheme } from '../canvasTheme'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { createPromptMentionApi, needsSpaceBeforeMention } from '../promptMention'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { VideoSourceRef } from '../videoGen'
 
 const videoGenPromptPanelRef = ref<InstanceType<typeof VideoGenPromptPanel> | null>(null)
 const hoveredPromptRef = ref<string | null>(null)
+const promptInputRef = ref<HTMLElement | null>(null)
+const mentionApi = createPromptMentionApi('canvas__prompt-mention')
+let skipPromptWatch = false
 
-const showPromptModelMenu = ref(false)
-const selectedPromptModelKey = ref(TEXT_PROMPT_MODEL_MENU[0]?.key ?? '')
-const selectedPromptModelName = computed(
-  () =>
-    TEXT_PROMPT_MODEL_MENU.find((model) => model.key === selectedPromptModelKey.value)?.name ??
-    TEXT_PROMPT_MODEL_LABEL,
-)
-
-function togglePromptModelMenu() {
-  showPromptModelMenu.value = !showPromptModelMenu.value
-}
-
-function selectPromptModel(model: TextPromptModelItem) {
-  selectedPromptModelKey.value = model.key
-  showPromptModelMenu.value = false
-}
-
-function onPromptModelDocMouseDown(event: MouseEvent) {
-  if (!showPromptModelMenu.value) return
-  const target = event.target as HTMLElement | null
-  if (target?.closest('.canvas__prompt-model-wrap')) return
-  showPromptModelMenu.value = false
-}
-
-onMounted(() => {
-  document.addEventListener('mousedown', onPromptModelDocMouseDown, true)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('mousedown', onPromptModelDocMouseDown, true)
-})
-
-defineProps<{
+const props = defineProps<{
   canvasBgTheme: CanvasBgTheme
   showPromptBar: boolean
   showImageGenPromptBar: boolean
@@ -373,10 +359,160 @@ const emit = defineEmits<{
   'remove-video-source-ref': [nodeId: string]
 }>()
 
-function onPromptInput(event: Event) {
-  emit('update:promptText', (event.target as HTMLTextAreaElement).value)
-  emit('persist-prompt-bar-draft')
+const showPromptModelMenu = ref(false)
+const selectedPromptModelKey = ref(TEXT_PROMPT_MODEL_MENU[0]?.key ?? '')
+const selectedPromptModelName = computed(
+  () =>
+    TEXT_PROMPT_MODEL_MENU.find((model) => model.key === selectedPromptModelKey.value)?.name ??
+    TEXT_PROMPT_MODEL_LABEL,
+)
+
+function togglePromptModelMenu() {
+  showPromptModelMenu.value = !showPromptModelMenu.value
 }
+
+function selectPromptModel(model: TextPromptModelItem) {
+  selectedPromptModelKey.value = model.key
+  showPromptModelMenu.value = false
+}
+
+function onPromptModelDocMouseDown(event: MouseEvent) {
+  if (!showPromptModelMenu.value) return
+  const target = event.target as HTMLElement | null
+  if (target?.closest('.canvas__prompt-model-wrap')) return
+  showPromptModelMenu.value = false
+}
+
+function emitPrompt(text: string) {
+  skipPromptWatch = true
+  emit('update:promptText', text)
+  emit('persist-prompt-bar-draft')
+  nextTick(() => {
+    skipPromptWatch = false
+  })
+}
+
+function syncPromptView(text = props.promptText) {
+  const el = promptInputRef.value
+  if (!el) return
+
+  const sel = window.getSelection()
+  const range = sel?.rangeCount ? sel.getRangeAt(0) : null
+  const offset = range && el.contains(range.startContainer)
+    ? mentionApi.getPlainTextOffset(el, range.startContainer, range.startOffset)
+    : text.length
+
+  mentionApi.renderPromptToEl(el, text)
+  mentionApi.setPlainTextOffset(el, offset)
+}
+
+function insertRefMention(index: number) {
+  const token = `@图片${index}`
+  const el = promptInputRef.value
+  if (!el) {
+    const current = props.promptText
+    const needsSpace = current.length > 0 && !/[\s]$/.test(current)
+    emitPrompt(`${current}${needsSpace ? ' ' : ''}${token} `)
+    return
+  }
+
+  el.focus()
+  const sel = window.getSelection()
+  if (!sel?.rangeCount) {
+    emitPrompt(`${props.promptText}${props.promptText && !/[\s]$/.test(props.promptText) ? ' ' : ''}${token} `)
+    nextTick(() => syncPromptView())
+    return
+  }
+
+  const range = sel.getRangeAt(0)
+  if (!el.contains(range.commonAncestorContainer)) {
+    range.selectNodeContents(el)
+    range.collapse(false)
+  }
+
+  range.deleteContents()
+
+  if (needsSpaceBeforeMention(range, el, mentionApi.isMentionEl)) {
+    range.insertNode(document.createTextNode(' '))
+    range.collapse(false)
+  }
+
+  const mention = mentionApi.createMentionSpan(token)
+  range.insertNode(mention)
+  const space = document.createTextNode(' ')
+  mention.after(space)
+
+  const nextRange = document.createRange()
+  nextRange.setStartAfter(space)
+  nextRange.collapse(true)
+  sel.removeAllRanges()
+  sel.addRange(nextRange)
+
+  emitPrompt(mentionApi.serializePromptEl(el))
+  nextTick(() => syncPromptView())
+}
+
+function onPromptInput() {
+  const el = promptInputRef.value
+  if (!el) return
+
+  const text = mentionApi.serializePromptEl(el)
+  emitPrompt(text)
+  nextTick(() => syncPromptView(text))
+}
+
+function onPromptKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Backspace' && event.key !== 'Delete') return
+
+  const el = promptInputRef.value
+  if (!el) return
+
+  const mention = event.key === 'Backspace'
+    ? mentionApi.findMentionBeforeCursor()
+    : mentionApi.findMentionAfterCursor()
+
+  if (!mention) return
+
+  event.preventDefault()
+  mention.remove()
+  emitPrompt(mentionApi.serializePromptEl(el))
+  nextTick(() => syncPromptView())
+}
+
+function onPromptPaste(event: ClipboardEvent) {
+  event.preventDefault()
+  const text = event.clipboardData?.getData('text/plain') ?? ''
+  if (!text) return
+  document.execCommand('insertText', false, text)
+  onPromptInput()
+}
+
+watch(
+  () => props.promptText,
+  (value) => {
+    if (skipPromptWatch) return
+    const el = promptInputRef.value
+    if (!el || mentionApi.serializePromptEl(el) === value) return
+    nextTick(() => syncPromptView(value))
+  },
+)
+
+watch(
+  () => props.showPromptBar,
+  (visible) => {
+    if (!visible) return
+    nextTick(() => syncPromptView())
+  },
+)
+
+onMounted(() => {
+  document.addEventListener('mousedown', onPromptModelDocMouseDown, true)
+  nextTick(() => syncPromptView())
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', onPromptModelDocMouseDown, true)
+})
 
 function dismissVideoGenPromptOverlay() {
   return videoGenPromptPanelRef.value?.dismissTopOverlay() ?? false
