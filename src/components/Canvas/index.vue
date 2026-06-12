@@ -5,6 +5,7 @@
     :class="[
       `canvas--bg-${canvasBgTheme}`,
       { 'canvas--file-dragover': isCanvasFileDragOver },
+      { 'canvas--group-selected': showGroupToolbar },
     ]"
     @dragenter.prevent="onCanvasDragEnter"
     @dragover.prevent="onCanvasDragOver"
@@ -56,8 +57,40 @@
       @exit="exitElementSelectMode"
     />
 
+    <CanvasMultiSelectToolbar
+      v-if="showMultiSelectToolbar"
+      :position="multiSelectToolbarPos"
+      :is-light="canvasBgTheme === 'light'"
+      @layout="handleMultiSelectLayout"
+      @save-to-assets="handleMultiSelectSaveToAssets"
+      @duplicate="duplicateSelectedNodes"
+      @copy="copySelectedNodes"
+      @group="handleMultiSelectGroup"
+      @merge-storyboard="handleMergeStoryboardGroup"
+    />
+
+    <CanvasGroupOverlay
+      v-if="showGroupToolbar && groupOverlayBox"
+      :box="groupOverlayBox"
+      :node-count="activeGroupSelection?.nodeIds.length ?? 0"
+      :is-light="canvasBgTheme === 'light'"
+      @drag-start="onGroupOverlayDragStart"
+    />
+
+    <CanvasGroupToolbar
+      v-if="showGroupToolbar"
+      :position="groupToolbarPos"
+      :is-light="canvasBgTheme === 'light'"
+      @layout="handleGroupLayout"
+      @execute="handleGroupExecute"
+      @add-to-toolbox="handleGroupAddToToolbox"
+      @to-storyboard="handleGroupToStoryboard"
+      @ungroup="handleUngroup"
+      @batch-download="handleGroupBatchDownload"
+    />
+
     <CanvasNodeToolbar
-      v-if="showNodeToolbar && showToolbarFeatureButtons && !showImageCrop"
+      v-if="showNodeToolbar && !showMultiSelectToolbar && !showGroupToolbar && showToolbarFeatureButtons && !showImageCrop"
       :position="toolbarPos"
       :is-light="isLightNodeToolbar"
       :show-feature-buttons="showToolbarFeatureButtons"
@@ -311,6 +344,9 @@ import CanvasConnectMenu from './panels/CanvasConnectMenu.vue'
 import CanvasAddMenu from './panels/CanvasAddMenu.vue'
 import CanvasAssetsPanel from './panels/CanvasAssetsPanel.vue'
 import CanvasNodeToolbar from './panels/CanvasNodeToolbar.vue'
+import CanvasMultiSelectToolbar from './panels/CanvasMultiSelectToolbar.vue'
+import CanvasGroupOverlay from './panels/CanvasGroupOverlay.vue'
+import CanvasGroupToolbar from './panels/CanvasGroupToolbar.vue'
 import CanvasElementSelectBar from './panels/CanvasElementSelectBar.vue'
 import CanvasNodeOverlays from './panels/CanvasNodeOverlays.vue'
 import CanvasBottomControls from './panels/CanvasBottomControls.vue'
@@ -370,6 +406,8 @@ import {
   getNodeSidePanelPosition,
   getNodeTextDownloadPosition,
   getNodeTextFormatToolbarPosition,
+  getGroupScreenBox,
+  getMultiSelectionToolbarPosition,
   getNodeToolbarPosition,
   getNodeSize,
   getScroller,
@@ -383,7 +421,16 @@ import {
   getCanvasBgThemeMeta,
   type CanvasBgTheme,
 } from './canvasTheme'
-import { tidyCanvas } from './layout'
+import { tidyCanvas, tidyNodes } from './layout'
+import {
+  assignGroupId,
+  expandSelectionToGroup,
+  getCompleteGroupSelection,
+  getNodesInGroup,
+  mergeStoryboardGroup,
+  normalizeGroupMembership,
+  ungroupSelection,
+} from './nodeGroup'
 import {
   ensureImageTextEdge,
   findIncomingImageNode,
@@ -448,7 +495,7 @@ const showShortcutsPanel = ref(false)
 const imagePreviewUrl = ref('')
 const canUndo = ref(false)
 const canRedo = ref(false)
-const nodeClipboard = ref<Record<string, unknown> | null>(null)
+const nodeClipboard = ref<Record<string, unknown> | Record<string, unknown>[] | null>(null)
 
 let canvasHistory: ReturnType<typeof createCanvasHistory> | null = null
 let historyPushTimer: ReturnType<typeof setTimeout> | null = null
@@ -494,6 +541,25 @@ const canvasFileDragDepth = ref(0)
 type UploadFilter = 'image' | 'video' | 'any'
 const pendingUploadFilter = ref<UploadFilter>('any')
 const toolbarPos = ref({ left: 0, top: 0 })
+const multiSelectToolbarPos = ref({ left: 0, top: 0 })
+const groupToolbarPos = ref({ left: 0, top: 0 })
+const groupOverlayBox = ref<{
+  left: number
+  top: number
+  width: number
+  height: number
+} | null>(null)
+const groupOverlayDrag = {
+  active: false,
+  lastGraphX: 0,
+  lastGraphY: 0,
+  nodeIds: [] as string[],
+}
+const groupMoveState = {
+  anchorId: '',
+  lastX: 0,
+  lastY: 0,
+}
 const dialoguePos = ref({ left: 0, top: 0, width: 360 })
 const promptPos = ref({ left: 0, top: 0, width: 360 })
 const imageGenPromptPos = ref({ left: 0, top: 0, width: 480 })
@@ -564,16 +630,36 @@ const currentProjectName = computed(
 const canvasBgThemeLabel = computed(
   () => getCanvasBgThemeMeta(canvasBgTheme.value).label,
 )
+const activeGroupSelection = computed(() => {
+  void toolbarRevision.value
+  const g = graph.value
+  if (!g || selectedNodeIds.value.length < 2) return null
+  return getCompleteGroupSelection(g, selectedNodeIds.value)
+})
+
+const showGroupToolbar = computed(() => activeGroupSelection.value != null)
+
 const showPromptBar = computed(() => {
+  if (showMultiSelectToolbar.value || showGroupToolbar.value) return false
   const id = activePickerNodeId.value
   if (!id || nodeCount.value === 0 || showImageCrop.value) return false
   return true
 })
 const showImageGenPromptBar = computed(
-  () => Boolean(activeImageGenPromptNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
+  () =>
+    !showMultiSelectToolbar.value &&
+    !showGroupToolbar.value &&
+    Boolean(activeImageGenPromptNodeId.value) &&
+    nodeCount.value > 0 &&
+    !showImageCrop.value,
 )
 const showVideoGenPromptBar = computed(
-  () => Boolean(activeVideoGenPromptNodeId.value) && nodeCount.value > 0 && !showImageCrop.value,
+  () =>
+    !showMultiSelectToolbar.value &&
+    !showGroupToolbar.value &&
+    Boolean(activeVideoGenPromptNodeId.value) &&
+    nodeCount.value > 0 &&
+    !showImageCrop.value,
 )
 
 const videoGenSourceRefs = computed(() => {
@@ -592,6 +678,7 @@ const showImageCreativeToolbar = computed(() => {
 })
 const showTextFormatToolbar = computed(() => {
   void toolbarRevision.value
+  if (showMultiSelectToolbar.value || showGroupToolbar.value) return false
   if (!selectedNodeId.value || showImageCrop.value || textExpandOpen.value) return false
   const data = getSelectedNodeData()
   return (
@@ -652,7 +739,12 @@ const imageDialoguePreviewUrl = computed(() => {
   return data?.sourcePreviewUrl || data?.previewUrl || ''
 })
 
-const showNodeToolbar = computed(() => Boolean(selectedNodeId.value))
+const showNodeToolbar = computed(
+  () => Boolean(selectedNodeId.value) && !showGroupToolbar.value,
+)
+const showMultiSelectToolbar = computed(
+  () => selectedNodeIds.value.length >= 2 && !showGroupToolbar.value,
+)
 const toolbarRevision = ref(0)
 
 function onGoHome() {
@@ -2079,6 +2171,7 @@ function removeNodeById(nodeId: string) {
   const cell = g.getCellById(nodeId)
   if (!cell?.isNode()) return
 
+  normalizeGroupMembership(g, nodeId)
   detachImageSourceFromDownstream(g, nodeId)
   g.removeCell(cell)
   bumpToolbarRevision()
@@ -2538,6 +2631,35 @@ function onVideoGenPromptDragStart(event: MouseEvent) {
   window.addEventListener('mouseup', onUp)
 }
 
+function updateMultiSelectToolbarPosition() {
+  const g = graph.value
+  const overlayRoot = canvasRef.value
+  const ids = selectedNodeIds.value
+  if (!g || !overlayRoot || ids.length < 2) return
+  multiSelectToolbarPos.value = getMultiSelectionToolbarPosition(g, ids, overlayRoot)
+}
+
+function updateGroupToolbarPosition() {
+  const g = graph.value
+  const overlayRoot = canvasRef.value
+  const group = activeGroupSelection.value
+  if (!g || !overlayRoot || !group) {
+    groupOverlayBox.value = null
+    return
+  }
+  const box = getGroupScreenBox(g, group.nodeIds, overlayRoot)
+  groupOverlayBox.value = {
+    left: box.left,
+    top: box.top,
+    width: box.width,
+    height: box.height,
+  }
+  groupToolbarPos.value = {
+    left: box.centerX,
+    top: box.anchorTop - 10,
+  }
+}
+
 function updateNodeToolbar() {
   updatePromptBarPosition()
   updateTextFormatToolbarPosition()
@@ -2545,6 +2667,8 @@ function updateNodeToolbar() {
   updateVideoGenPromptBarPosition()
   updateAddMenuPosition()
   updateConnectMenuPosition()
+  updateMultiSelectToolbarPosition()
+  updateGroupToolbarPosition()
 
   const g = graph.value
   const overlayRoot = canvasRef.value
@@ -2961,6 +3085,7 @@ function removeSelectedNodes() {
     if (activeVideoGenPromptNodeId.value === id) closeVideoGenPromptBar()
     textEditorApis.delete(id)
     detachImageSourceFromDownstream(g, id)
+    normalizeGroupMembership(g, id)
     const cell = g.getCellById(id)
     if (cell?.isNode()) g.removeCell(cell)
   })
@@ -2996,6 +3121,11 @@ function handleNodeClick({ node, e }: { node: Node; e?: MouseEvent }) {
   clearEdgeSelection()
   selectedNodeId.value = node.id
   selectedKind.value = data.kind
+
+  if (data.groupId && !multiSelect) {
+    syncSelectionFromGraph()
+    return
+  }
 
   if (multiSelect) {
     syncSelectionFromGraph()
@@ -3261,13 +3391,281 @@ function handleRedo() {
   nextTick(() => updateNodeToolbar())
 }
 
+function getActiveSelectedNodeIds() {
+  if (selectedNodeIds.value.length >= 2) return [...selectedNodeIds.value]
+  if (selectedNodeId.value) return [selectedNodeId.value]
+  return []
+}
+
 function copySelectedNode() {
   const g = graph.value
-  const id = selectedNodeId.value
-  if (!g || !id) return
-  const cell = g.getCellById(id)
-  if (!cell?.isNode()) return
-  nodeClipboard.value = (cell as Node).toJSON()
+  const ids = getActiveSelectedNodeIds()
+  if (!g || !ids.length) return
+  if (ids.length === 1) {
+    const cell = g.getCellById(ids[0])
+    if (!cell?.isNode()) return
+    nodeClipboard.value = (cell as Node).toJSON()
+    return
+  }
+  nodeClipboard.value = ids
+    .map((id) => g.getCellById(id))
+    .filter((cell): cell is Node => cell != null && cell.isNode())
+    .map((cell) => (cell as Node).toJSON())
+}
+
+function copySelectedNodes() {
+  copySelectedNode()
+}
+
+function duplicateSelectedNodes() {
+  const g = graph.value
+  const ids = getActiveSelectedNodeIds()
+  if (!g || !ids.length) return
+
+  const idSet = new Set(ids)
+  const idMap = new Map<string, string>()
+  const newNodes: Node[] = []
+
+  ids.forEach((id) => {
+    const cell = g.getCellById(id)
+    if (!cell?.isNode()) return
+    const clone = (cell as Node).clone() as Node
+    const cloneData = clone.getData() as CanvasNodeData
+    const { groupId: _groupId, ...cloneRest } = cloneData
+    clone.setData(cloneRest as CanvasNodeData)
+    const pos = clone.getPosition()
+    clone.position(pos.x + 32, pos.y + 32)
+    g.addCell(clone)
+    idMap.set(id, clone.id)
+    newNodes.push(clone)
+  })
+
+  g.getEdges().forEach((edge) => {
+    const sourceId = edge.getSourceCellId()
+    const targetId = edge.getTargetCellId()
+    if (!sourceId || !targetId || !idSet.has(sourceId) || !idSet.has(targetId)) return
+    const nextSourceId = idMap.get(sourceId)
+    const nextTargetId = idMap.get(targetId)
+    if (!nextSourceId || !nextTargetId) return
+    g.addEdge({
+      source: { cell: nextSourceId, port: 'right' },
+      target: { cell: nextTargetId, port: 'left' },
+      attrs: edge.getAttrs(),
+      zIndex: edge.getZIndex(),
+    })
+  })
+
+  if (!newNodes.length) return
+  selectGraphNodes(newNodes)
+  syncNodeCount()
+  scheduleHistoryPush()
+}
+
+function handleMultiSelectLayout() {
+  const g = graph.value
+  const ids = selectedNodeIds.value
+  if (!g || ids.length < 2) return
+  const nodes = ids
+    .map((id) => g.getCellById(id))
+    .filter((cell): cell is Node => cell != null && cell.isNode())
+  tidyNodes(g, nodes)
+  updateNodeToolbar()
+  scheduleHistoryPush()
+}
+
+function handleMultiSelectSaveToAssets() {
+  showAssetsPanel.value = true
+}
+
+function handleMultiSelectGroup() {
+  const g = graph.value
+  const ids = selectedNodeIds.value
+  if (!g || ids.length < 2) return
+
+  ungroupSelection(g, ids)
+  const groupId = assignGroupId(g, ids)
+  if (!groupId) return
+
+  selectGraphNodes(ids)
+  bumpToolbarRevision()
+  scheduleHistoryPush()
+}
+
+function handleMergeStoryboardGroup() {
+  const g = graph.value
+  const ids = selectedNodeIds.value
+  if (!g || ids.length < 2) return
+
+  const groupId = mergeStoryboardGroup(g, ids)
+  if (!groupId) return
+
+  const memberIds = getNodesInGroup(g, groupId).map((node) => node.id)
+  selectGraphNodes(memberIds)
+  bumpToolbarRevision()
+  scheduleHistoryPush()
+}
+
+function handleUngroup() {
+  const g = graph.value
+  const group = activeGroupSelection.value
+  if (!g || !group) return
+
+  const memberIds = [...group.nodeIds]
+  ungroupSelection(g, memberIds)
+  selectGraphNodes(memberIds)
+  bumpToolbarRevision()
+  scheduleHistoryPush()
+}
+
+function handleGroupLayout() {
+  const g = graph.value
+  const group = activeGroupSelection.value
+  if (!g || !group) return
+
+  const nodes = group.nodeIds
+    .map((id) => g.getCellById(id))
+    .filter((cell): cell is Node => cell != null && cell.isNode())
+  tidyNodes(g, nodes)
+  updateNodeToolbar()
+  scheduleHistoryPush()
+}
+
+function handleGroupExecute() {
+  // 整组执行：后续可接入流水线批量运行
+}
+
+function handleGroupAddToToolbox() {
+  showAssetsPanel.value = true
+}
+
+function handleGroupToStoryboard() {
+  const g = graph.value
+  const group = activeGroupSelection.value
+  if (!g || !group) return
+
+  mergeStoryboardGroup(g, group.nodeIds)
+  selectGraphNodes(group.nodeIds)
+  bumpToolbarRevision()
+  scheduleHistoryPush()
+}
+
+function handleGroupBatchDownload() {
+  const g = graph.value
+  const group = activeGroupSelection.value
+  if (!g || !group) return
+
+  group.nodeIds.forEach((id, index) => {
+    const node = g.getCellById(id)
+    if (!node?.isNode()) return
+    const data = node.getData() as CanvasNodeData
+    if (!data.previewUrl) return
+    const link = document.createElement('a')
+    link.href = data.previewUrl
+    link.download = data.fileName || `group-image-${index + 1}.png`
+    link.rel = 'noopener'
+    link.click()
+  })
+}
+
+function syncGroupedNodeMove(node: Node) {
+  const g = graph.value
+  if (!g) return
+
+  const data = node.getData() as CanvasNodeData
+  if (!data.groupId) {
+    groupMoveState.anchorId = ''
+    return
+  }
+
+  const members = getNodesInGroup(g, data.groupId)
+  if (members.length < 2) return
+
+  const pos = node.getPosition()
+  if (groupMoveState.anchorId !== node.id) {
+    groupMoveState.anchorId = node.id
+    groupMoveState.lastX = pos.x
+    groupMoveState.lastY = pos.y
+    return
+  }
+
+  const dx = pos.x - groupMoveState.lastX
+  const dy = pos.y - groupMoveState.lastY
+  if (!dx && !dy) return
+
+  members.forEach((member) => {
+    if (member.id === node.id) return
+    const memberPos = member.getPosition()
+    member.position(memberPos.x + dx, memberPos.y + dy)
+  })
+  groupMoveState.lastX = pos.x
+  groupMoveState.lastY = pos.y
+}
+
+function onGroupOverlayDragStart(event: MouseEvent) {
+  const g = graph.value
+  const root = canvasRef.value
+  const group = activeGroupSelection.value
+  if (!g || !root || !group) return
+
+  groupOverlayDrag.active = true
+  groupOverlayDrag.nodeIds = [...group.nodeIds]
+  const local = clientPointToGraphLocal(g, event.clientX, event.clientY)
+  groupOverlayDrag.lastGraphX = local.x
+  groupOverlayDrag.lastGraphY = local.y
+
+  const onMove = (moveEvent: MouseEvent) => {
+    if (!groupOverlayDrag.active) return
+    const current = clientPointToGraphLocal(g, moveEvent.clientX, moveEvent.clientY)
+    const dx = current.x - groupOverlayDrag.lastGraphX
+    const dy = current.y - groupOverlayDrag.lastGraphY
+    if (!dx && !dy) return
+
+    groupOverlayDrag.nodeIds.forEach((id) => {
+      const node = g.getCellById(id)
+      if (!node?.isNode()) return
+      const pos = node.getPosition()
+      node.position(pos.x + dx, pos.y + dy)
+    })
+    groupOverlayDrag.lastGraphX = current.x
+    groupOverlayDrag.lastGraphY = current.y
+    updateNodeToolbar()
+  }
+
+  const onUp = () => {
+    groupOverlayDrag.active = false
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+    scheduleHistoryPush()
+  }
+
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+}
+
+function pasteNodePayload(payload: Record<string, unknown>, offsetIndex = 0) {
+  const g = graph.value
+  if (!g) return null
+
+  const source = g.getCellById(String(payload.id ?? ''))
+  let node: Node
+  if (source?.isNode()) {
+    node = (source as Node).clone() as Node
+    const clonedData = node.getData() as CanvasNodeData
+    const { groupId: _groupId, ...clonedRest } = clonedData
+    node.setData(clonedRest as CanvasNodeData)
+    const pos = node.getPosition()
+    node.position(pos.x + 32 + offsetIndex * 16, pos.y + 32 + offsetIndex * 16)
+    g.addCell(node)
+  } else {
+    const { id: _removed, x, y, ...rest } = payload
+    node = g.addNode({
+      ...rest,
+      x: (typeof x === 'number' ? x : 0) + 32 + offsetIndex * 16,
+      y: (typeof y === 'number' ? y : 0) + 32 + offsetIndex * 16,
+    })
+  }
+
+  return node
 }
 
 function pasteNode() {
@@ -3275,21 +3673,19 @@ function pasteNode() {
   const payload = nodeClipboard.value
   if (!g || !payload) return
 
-  const source = g.getCellById(String(payload.id ?? ''))
-  let node: Node
-  if (source?.isNode()) {
-    node = (source as Node).clone() as Node
-    const pos = node.getPosition()
-    node.position(pos.x + 32, pos.y + 32)
-    g.addCell(node)
-  } else {
-    const { id: _removed, x, y, ...rest } = payload
-    node = g.addNode({
-      ...rest,
-      x: (typeof x === 'number' ? x : 0) + 32,
-      y: (typeof y === 'number' ? y : 0) + 32,
-    })
+  if (Array.isArray(payload)) {
+    const newNodes = payload
+      .map((item, index) => pasteNodePayload(item, index))
+      .filter((node): node is Node => node != null)
+    if (!newNodes.length) return
+    selectGraphNodes(newNodes)
+    syncNodeCount()
+    scheduleHistoryPush()
+    return
   }
+
+  const node = pasteNodePayload(payload)
+  if (!node) return
 
   const data = node.getData() as CanvasNodeData
   node.setData({ ...data, isSelected: true })
@@ -3448,8 +3844,15 @@ onMounted(() => {
     updateNodeToolbar()
     syncViewportNodeVisibility()
   })
-  instance.on('node:moving', updateNodeToolbar)
+  instance.on('node:moving', ({ node }) => {
+    syncGroupedNodeMove(node)
+    if (activeGroupSelection.value) {
+      updateGroupToolbarPosition()
+    }
+    updateNodeToolbar()
+  })
   instance.on('node:moved', () => {
+    groupMoveState.anchorId = ''
     updateNodeToolbar()
     syncViewportNodeVisibility()
     scheduleHistoryPush()
@@ -3459,7 +3862,30 @@ onMounted(() => {
   instance.on('node:click', handleNodeClick)
   instance.on('edge:click', handleEdgeClick)
   instance.on('selection:changed', () => {
+    const g = graph.value
+    if (!g) {
+      syncSelectionFromGraph()
+      return
+    }
+
+    const ids = getGraphSelectedNodeIds()
+    const expanded = expandSelectionToGroup(g, ids)
+    if (
+      expanded.length > 1 &&
+      (expanded.length !== ids.length || expanded.some((id, index) => id !== ids[index]))
+    ) {
+      selectGraphNodes(expanded)
+      return
+    }
+
     syncSelectionFromGraph()
+    nextTick(() => {
+      if (showGroupToolbar.value) {
+        updateGroupToolbarPosition()
+      } else if (showMultiSelectToolbar.value) {
+        updateMultiSelectToolbarPosition()
+      }
+    })
   })
   instance.on('node:dblclick', ({ node }) => {
     const data = node.getData() as CanvasNodeData

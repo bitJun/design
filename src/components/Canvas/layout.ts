@@ -100,17 +100,30 @@ function layoutByEdges(nodes: Node[], edges: ReturnType<Graph['getEdges']>) {
   })
 }
 
-/** 整理画布：按连线关系分层排列，无连线时网格排列 */
-export function tidyCanvas(graph: Graph) {
-  const nodes = graph.getNodes()
+/** 整理指定节点：仅处理选中子集内的连线关系 */
+export function tidyNodes(graph: Graph, nodes: Node[]) {
   if (nodes.length === 0) return
 
-  const edges = graph.getEdges()
+  const idSet = new Set(nodes.map((node) => node.id))
+  const edges = graph.getEdges().filter((edge) => {
+    const sourceId = edge.getSourceCellId()
+    const targetId = edge.getTargetCellId()
+    return Boolean(sourceId && targetId && idSet.has(sourceId) && idSet.has(targetId))
+  })
+
   if (edges.length > 0) {
     layoutByEdges(nodes, edges)
   } else {
     layoutGrid(nodes)
   }
+}
+
+/** 整理画布：按连线关系分层排列，无连线时网格排列 */
+export function tidyCanvas(graph: Graph) {
+  const nodes = graph.getNodes()
+  if (nodes.length === 0) return
+
+  tidyNodes(graph, nodes)
 
   const scroller = getScroller(graph)
   scroller?.resize()

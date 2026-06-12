@@ -28,6 +28,8 @@ export interface CanvasNodeData {
   previewUrl: string
   fileName: string
   isSelected?: boolean
+  /** 节点所属分组 ID，同组节点可整组移动与解组 */
+  groupId?: string
   imageGenTask?: ImageGenTask
   sourceNodeId?: string
   sourcePreviewUrl?: string

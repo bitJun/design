@@ -535,7 +535,7 @@ export function createGraph(container: HTMLElement): CanvasGraph {
       rubberEdge: false,
       modifiers: null,
       multipleSelectionModifiers: ['ctrl', 'meta'],
-      showNodeSelectionBox: false,
+      showNodeSelectionBox: true,
       pointerEvents: 'none',
     }),
   )
@@ -609,6 +609,79 @@ function getNodeToolbarAnchorY(node: Node) {
     return bbox.y + IMAGE_NODE_META_HEIGHT
   }
   return bbox.y
+}
+
+export function getGroupScreenBox(
+  graph: Graph,
+  nodeIds: string[],
+  container: HTMLElement,
+  padding = 20,
+) {
+  const cells = nodeIds
+    .map((id) => graph.getCellById(id))
+    .filter((cell): cell is Node => cell != null && cell.isNode())
+
+  if (!cells.length) {
+    return { left: 0, top: 0, width: 0, height: 0, centerX: 0, anchorTop: 0 }
+  }
+
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+
+  cells.forEach((node) => {
+    const bbox = node.getBBox()
+    minX = Math.min(minX, bbox.x)
+    minY = Math.min(minY, bbox.y)
+    maxX = Math.max(maxX, bbox.x + bbox.width)
+    maxY = Math.max(maxY, bbox.y + bbox.height)
+  })
+
+  const topLeft = graphLocalToContainerOffset(graph, minX - padding, minY - padding, container)
+  const bottomRight = graphLocalToContainerOffset(graph, maxX + padding, maxY + padding, container)
+
+  return {
+    left: topLeft.left,
+    top: topLeft.top,
+    width: Math.max(0, bottomRight.left - topLeft.left),
+    height: Math.max(0, bottomRight.top - topLeft.top),
+    centerX: (topLeft.left + bottomRight.left) / 2,
+    anchorTop: topLeft.top,
+  }
+}
+
+export function getMultiSelectionToolbarPosition(
+  graph: Graph,
+  nodeIds: string[],
+  container: HTMLElement,
+) {
+  const cells = nodeIds
+    .map((id) => graph.getCellById(id))
+    .filter((cell): cell is Node => cell != null && cell.isNode())
+
+  if (!cells.length) {
+    return { left: 0, top: 0 }
+  }
+
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+
+  cells.forEach((node) => {
+    const bbox = node.getBBox()
+    minX = Math.min(minX, bbox.x)
+    minY = Math.min(minY, bbox.y)
+    maxX = Math.max(maxX, bbox.x + bbox.width)
+  })
+
+  const centerX = (minX + maxX) / 2
+  const anchorOffset = graphLocalToContainerOffset(graph, centerX, minY, container)
+
+  return {
+    left: anchorOffset.left,
+    top: anchorOffset.top - 10,
+  }
 }
 
 export function getNodeToolbarPosition(graph: Graph, node: Node, container: HTMLElement) {
