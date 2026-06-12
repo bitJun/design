@@ -1,9 +1,22 @@
 <template>
   <div
     class="video-gen-prompt-panel"
-    :class="{ 'video-gen-prompt-panel--light': isLightTheme }"
+    :class="{
+      'video-gen-prompt-panel--light': isLightTheme,
+      'video-gen-prompt-panel--dragover': isDragOver,
+    }"
     @mousedown="onPanelMouseDown"
+    @dragenter.prevent="onPanelDragEnter"
+    @dragover.prevent="onPanelDragOver"
+    @dragleave="onPanelDragLeave"
+    @drop.prevent.stop="onPanelDrop"
   >
+    <div v-if="isDragOver && showSourceRefs" class="video-gen-prompt-panel__drop-overlay" @mousedown.stop>
+      <div class="video-gen-prompt-panel__drop-zone">
+        <img src="@assets/images/add.png" alt="" class="video-gen-prompt-panel__drop-icon" />
+        <p class="video-gen-prompt-panel__drop-text">点击或拖拽图片到此处上传</p>
+      </div>
+    </div>
     <!-- <p
       v-if="validationHint"
       class="video-gen-prompt-panel__hint"
@@ -90,6 +103,23 @@
         <span v-if="ref.badge" class="video-gen-prompt-panel__ref-badge">{{ ref.badge }}</span>
         <span v-else class="video-gen-prompt-panel__ref-index">{{ ref.index }}</span>
       </div>
+      <button
+        type="button"
+        class="image-dialogue__upload"
+        title="添加图片"
+        @mousedown.stop
+        @click.stop="openFilePicker"
+      >
+        <img src="@assets/images/add.png" alt="" class="image-dialogue__upload_icon" />
+      </button>
+      <input
+        ref="fileInputRef"
+        type="file"
+        class="video-gen-prompt-panel__file-input"
+        accept="image/*"
+        multiple
+        @change="onFileInputChange"
+      />
     </div>
 
     <div
@@ -217,6 +247,7 @@ import {
 } from './videoGenPromptMention'
 import VideoGenSettingsPopover from './VideoGenSettingsPopover.vue'
 import {
+  CANVAS_IMAGE_NODE_DRAG_TYPE,
   VIDEO_GEN_MODELS,
   VIDEO_GEN_PROMPT_PLACEHOLDER,
   VIDEO_GEN_TABS,
@@ -254,6 +285,8 @@ const emit = defineEmits<{
   'drag-start': [event: MouseEvent]
   'quick-action': [key: string]
   'remove-source-ref': [nodeId: string]
+  'upload-images': [files: File[]]
+  'add-canvas-node': [nodeId: string]
 }>()
 
 const DRAG_IGNORE_SELECTOR =
@@ -359,10 +392,10 @@ const validationError = computed(() => {
   return sourceCount.value > 0
 })
 
-const showSourceRefs = computed(() => {
-  if (props.activeTab === 'text2video') return false
-  return (props.sourceRefs?.length ?? 0) > 0
-})
+const showSourceRefs = computed(() => props.activeTab !== 'text2video')
+
+const isDragOver = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const displayRefs = computed(() => {
   const refs = props.sourceRefs ?? []
@@ -500,6 +533,56 @@ function onPromptPaste(event: ClipboardEvent) {
   onPromptInput()
 }
 
+function hasPanelDropContent(event: DragEvent) {
+  const types = Array.from(event.dataTransfer?.types ?? [])
+  return types.includes('Files') || types.includes(CANVAS_IMAGE_NODE_DRAG_TYPE)
+}
+
+function onPanelDragEnter(event: DragEvent) {
+  if (!showSourceRefs.value || !hasPanelDropContent(event)) return
+  isDragOver.value = true
+}
+
+function onPanelDragOver(event: DragEvent) {
+  if (!showSourceRefs.value || !hasPanelDropContent(event)) return
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+  isDragOver.value = true
+}
+
+function onPanelDragLeave(event: DragEvent) {
+  const related = event.relatedTarget as Node | null
+  const current = event.currentTarget as HTMLElement | null
+  if (related && current?.contains(related)) return
+  isDragOver.value = false
+}
+
+function onPanelDrop(event: DragEvent) {
+  isDragOver.value = false
+  if (!showSourceRefs.value) return
+
+  const nodeId = event.dataTransfer?.getData(CANVAS_IMAGE_NODE_DRAG_TYPE)
+  if (nodeId) {
+    emit('add-canvas-node', nodeId)
+    return
+  }
+
+  const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
+    file.type.startsWith('image/'),
+  )
+  if (files.length) emit('upload-images', files)
+}
+
+function openFilePicker() {
+  fileInputRef.value?.click()
+}
+
+function onFileInputChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? []).filter((file) => file.type.startsWith('image/'))
+  if (files.length) emit('upload-images', files)
+  input.value = ''
+}
+
 watch(
   () => props.prompt,
   (value) => {
@@ -517,6 +600,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .video-gen-prompt-panel {
+  position: relative;
   box-sizing: border-box;
   padding: 12px 14px;
   border: 1px solid #3d3d45;
@@ -1004,5 +1088,98 @@ onMounted(() => {
   .video-gen-prompt-panel--light & {
     background: #111827;
   }
+}
+
+.image-dialogue__upload {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1px dashed #4b4b55;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: rgba(107, 124, 255, 0.55);
+    background: rgba(107, 124, 255, 0.08);
+  }
+
+  .image-dialogue--light & {
+    border-color: #d1d5db;
+
+    &:hover {
+      border-color: rgba(79, 70, 229, 0.45);
+      background: rgba(79, 70, 229, 0.06);
+    }
+  }
+}
+
+.image-dialogue__upload_icon {
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+
+.video-gen-prompt-panel__file-input {
+  display: none;
+}
+
+.video-gen-prompt-panel__drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(20, 20, 24, 0.72);
+  backdrop-filter: blur(4px);
+  cursor: copy;
+
+  .video-gen-prompt-panel--light & {
+    background: rgba(255, 255, 255, 0.88);
+  }
+}
+
+.video-gen-prompt-panel__drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 120px;
+  padding: 20px 12px;
+  border: 1px dashed #6b7280;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+
+  .video-gen-prompt-panel--light & {
+    border-color: #d1d5db;
+    background: #f9fafb;
+  }
+}
+
+.video-gen-prompt-panel__drop-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.video-gen-prompt-panel__drop-text {
+  margin: 0;
+  color: #d1d5db;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+
+  .video-gen-prompt-panel--light & {
+    color: #6b7280;
+  }
+}
+
+.video-gen-prompt-panel--dragover {
+  border-color: rgba(107, 124, 255, 0.55);
 }
 </style>

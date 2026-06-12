@@ -154,6 +154,8 @@
       @video-gen-drag-start="onVideoGenPromptDragStart"
       @video-gen-quick-action="onVideoGenQuickAction"
       @remove-video-source-ref="onRemoveVideoSourceRef"
+      @upload-video-gen-images="onVideoGenUploadFiles"
+      @add-video-gen-canvas-node="onVideoGenAddCanvasNode"
     />
 
     <input
@@ -398,7 +400,12 @@ import {
   type CanvasSnapshot,
 } from './canvasSnapshot'
 import { createCanvasHistory } from './canvasHistory'
-import { disconnectImageFromVideo, getVideoSourceRefs } from './videoGen'
+import {
+  disconnectImageFromVideo,
+  findImageToVideoEdge,
+  getVideoSourceRefs,
+  VIDEO_GEN_TAB_IMAGE_RULES,
+} from './videoGen'
 import { setSharedCanvasBgTheme } from './useCanvasBgTheme'
 import { useCanvasKeyboard } from './composables/useCanvasKeyboard'
 
@@ -1966,6 +1973,78 @@ function onRemoveVideoSourceRef(imageNodeId: string) {
   bumpToolbarRevision()
   updateNodeToolbar()
   scheduleHistoryPush()
+}
+
+function getVideoGenSourceLimit() {
+  const rule = VIDEO_GEN_TAB_IMAGE_RULES[videoGenActiveTab.value]
+  return rule?.max ?? 9
+}
+
+async function linkImageNodeToVideoGen(imageNodeId: string) {
+  const g = graph.value
+  const videoNodeId = activeVideoGenPromptNodeId.value
+  if (!g || !videoNodeId || !imageNodeId || imageNodeId === videoNodeId) return false
+
+  const source = g.getCellById(imageNodeId)
+  if (!source?.isNode()) return false
+
+  const sourceData = source.getData() as CanvasNodeData
+  if (
+    sourceData.kind !== 'image' ||
+    !sourceData.previewUrl ||
+    sourceData.uploadState === 'uploading' ||
+    sourceData.imageGenTask === 'picker'
+  ) {
+    return false
+  }
+
+  if (findImageToVideoEdge(g, imageNodeId, videoNodeId)) return false
+
+  const currentCount = getVideoSourceRefs(g, videoNodeId).length
+  if (currentCount >= getVideoGenSourceLimit()) return false
+
+  connectGenEdge(g, imageNodeId, videoNodeId)
+  bumpToolbarRevision()
+  scheduleHistoryPush()
+  return true
+}
+
+async function onVideoGenUploadFiles(files: File[]) {
+  const g = graph.value
+  const videoNodeId = activeVideoGenPromptNodeId.value
+  if (!g || !videoNodeId) return
+
+  const videoCell = g.getCellById(videoNodeId)
+  if (!videoCell?.isNode()) return
+
+  const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+  if (!imageFiles.length) return
+
+  let currentCount = getVideoSourceRefs(g, videoNodeId).length
+  const limit = getVideoGenSourceLimit()
+  const bbox = videoCell.getBBox()
+
+  for (let index = 0; index < imageFiles.length; index += 1) {
+    if (currentCount >= limit) break
+
+    const point = {
+      x: bbox.x - 200 - index * 48,
+      y: bbox.y + index * 36,
+    }
+    const node = await addImageFromFile(imageFiles[index], point)
+    if (!node) continue
+
+    const linked = await linkImageNodeToVideoGen(node.id)
+    if (linked) currentCount += 1
+  }
+
+  updateNodeToolbar()
+}
+
+function onVideoGenAddCanvasNode(sourceNodeId: string) {
+  void linkImageNodeToVideoGen(sourceNodeId).then((linked) => {
+    if (linked) updateNodeToolbar()
+  })
 }
 
 /** 节点被删除时，清理所有下游图片节点中引用它的输入源（对话框缩略图随之移除） */

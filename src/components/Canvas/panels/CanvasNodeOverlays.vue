@@ -218,6 +218,8 @@
       @drag-start="emit('video-gen-drag-start', $event)"
       @quick-action="emit('video-gen-quick-action', $event)"
       @remove-source-ref="emit('remove-video-source-ref', $event)"
+      @upload-images="emit('upload-video-gen-images', $event)"
+      @add-canvas-node="emit('add-video-gen-canvas-node', $event)"
     />
   </div>
 
@@ -414,6 +416,8 @@ const emit = defineEmits<{
   'video-gen-drag-start': [event: MouseEvent]
   'video-gen-quick-action': [key: string]
   'remove-video-source-ref': [nodeId: string]
+  'upload-video-gen-images': [files: File[]]
+  'add-video-gen-canvas-node': [nodeId: string]
 }>()
 
 const showPromptModelMenu = ref(false)
