@@ -3512,8 +3512,10 @@ function handleUngroup() {
 
   const memberIds = [...group.nodeIds]
   ungroupSelection(g, memberIds)
+  groupOverlayBox.value = null
   selectGraphNodes(memberIds)
   bumpToolbarRevision()
+  updateNodeToolbar()
   scheduleHistoryPush()
 }
 

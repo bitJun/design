@@ -47,7 +47,7 @@ export function clearGroupId(graph: Graph, groupId: string) {
     const data = node.getData() as CanvasNodeData
     if (!data.groupId) return
     const { groupId: _removed, ...rest } = data
-    node.setData(rest as CanvasNodeData)
+    node.setData(rest as CanvasNodeData, { overwrite: true })
   })
 }
 
