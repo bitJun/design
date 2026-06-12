@@ -1053,30 +1053,94 @@ function addImageDialogueSourceRef(payload: {
   scheduleHistoryPush()
 }
 
-function onImageDialogueUploadFiles(files: File[]) {
-  const imageFiles = files.filter((file) => file.type.startsWith('image/'))
-  imageFiles.forEach((file) => {
+function hasImageToTargetEdge(g: Graph, sourceId: string, targetId: string) {
+  return g
+    .getEdges()
+    .some((edge) => edge.getSourceCellId() === sourceId && edge.getTargetCellId() === targetId)
+}
+
+async function linkImageNodeToImageDialogue(
+  imageNodeId: string,
+  targetNodeId = selectedNodeId.value,
+) {
+  const g = graph.value
+  if (!g || !targetNodeId || !imageNodeId || imageNodeId === targetNodeId) return false
+
+  const source = g.getCellById(imageNodeId)
+  const target = g.getCellById(targetNodeId)
+  if (!source?.isNode() || !target?.isNode()) return false
+
+  const sourceData = source.getData() as CanvasNodeData
+  const targetData = target.getData() as CanvasNodeData
+  if (
+    sourceData.kind !== 'image' ||
+    !sourceData.previewUrl ||
+    sourceData.uploadState === 'uploading'
+  ) {
+    return false
+  }
+
+  if (!canImageNodeAcceptIncoming(targetData)) {
     addImageDialogueSourceRef({
-      previewUrl: URL.createObjectURL(file),
-      fileName: file.name,
+      nodeId: imageNodeId,
+      previewUrl: sourceData.previewUrl,
+      fileName: sourceData.fileName || sourceData.title || '',
     })
-  })
+    return true
+  }
+
+  if (!hasImageToTargetEdge(g, imageNodeId, targetNodeId)) {
+    connectGenEdge(g, imageNodeId, targetNodeId)
+  }
+
+  applyIncomingImageSource(target as Node, source as Node)
+  bumpToolbarRevision()
+  scheduleHistoryPush()
+  return true
+}
+
+async function onImageDialogueUploadFiles(files: File[]) {
+  const g = graph.value
+  const targetNodeId = selectedNodeId.value
+  if (!g || !targetNodeId) return
+
+  const targetCell = g.getCellById(targetNodeId)
+  if (!targetCell?.isNode()) return
+
+  const targetData = targetCell.getData() as CanvasNodeData
+  const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+  if (!imageFiles.length) return
+
+  const shouldSpawnNodes = canImageNodeAcceptIncoming(targetData)
+  const bbox = targetCell.getBBox()
+
+  for (let index = 0; index < imageFiles.length; index += 1) {
+    const file = imageFiles[index]
+    if (shouldSpawnNodes) {
+      const point = {
+        x: bbox.x - 200 - index * 48,
+        y: bbox.y + index * 36,
+      }
+      const node = await addImageFromFile(file, point)
+      if (!node) continue
+      await linkImageNodeToImageDialogue(node.id, targetNodeId)
+    } else {
+      addImageDialogueSourceRef({
+        previewUrl: URL.createObjectURL(file),
+        fileName: file.name,
+      })
+    }
+  }
+
+  if (shouldSpawnNodes) {
+    selectGraphNodes(targetNodeId)
+  }
+  updateNodeToolbar()
 }
 
 function onImageDialogueAddCanvasNode(sourceNodeId: string) {
-  const g = graph.value
-  if (!g || !sourceNodeId) return
-  const source = g.getCellById(sourceNodeId)
-  if (!source?.isNode()) return
-  const sourceData = source.getData() as CanvasNodeData
-  if (sourceData.kind !== 'image' || !sourceData.previewUrl || sourceData.uploadState === 'uploading') {
-    return
-  }
-
-  addImageDialogueSourceRef({
-    nodeId: sourceNodeId,
-    previewUrl: sourceData.previewUrl,
-    fileName: sourceData.fileName || sourceData.title || '',
+  void linkImageNodeToImageDialogue(sourceNodeId).then((linked) => {
+    if (linked) updateNodeToolbar()
   })
 }
 
