@@ -3,6 +3,7 @@
     <Canvas
       ref="canvasRef"
       @focus-chat="focusChatPanel"
+      @add-to-chat="onAddToChat"
     />
     <ChatSidePanel
       ref="chatPanelRef"
@@ -32,6 +33,11 @@ const chatPanelRef = ref<InstanceType<typeof ChatSidePanel> | null>(null)
 function focusChatPanel() {
   chatPanelCollapsed.value = false
   chatPanelRef.value?.focusInput()
+}
+
+function onAddToChat(payload: { previewUrl: string; fileName: string }) {
+  chatPanelCollapsed.value = false
+  chatPanelRef.value?.addAttachmentFromCanvas(payload)
 }
 
 async function onChatSend(payload: ChatSendPayload) {
