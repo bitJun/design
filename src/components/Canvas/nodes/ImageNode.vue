@@ -80,7 +80,12 @@
           </div>
         </template>
         <template v-else-if="data.previewUrl">
-          <img :src="data.previewUrl" :alt="data.fileName" />
+          <img
+            :src="data.previewUrl"
+            :alt="data.fileName"
+            draggable="true"
+            @dragstart.stop="onPreviewDragStart"
+          />
           <!-- <span v-if="showUploadSuccess" class="image-node__success">上传成功</span> -->
         </template>
         <template v-else>
@@ -95,7 +100,7 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, reactive, ref } from 'vue'
 import type { Node } from '@antv/x6'
-import { formatDimensions, isPortrait } from '../constants'
+import { CANVAS_IMAGE_NODE_DRAG_TYPE, formatDimensions, isPortrait } from '../constants'
 import type { CanvasNodeData } from '../constants'
 import type { CanvasGraph } from '../graph'
 import { createEmptyNodeData } from '../constants'
@@ -142,6 +147,12 @@ function onDragOver(event: DragEvent) {
 
 function onDragLeave() {
   isDragOver.value = false
+}
+
+function onPreviewDragStart(event: DragEvent) {
+  if (!data.previewUrl || data.uploadState === 'uploading') return
+  event.dataTransfer?.setData(CANVAS_IMAGE_NODE_DRAG_TYPE, getNode().id)
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy'
 }
 
 function onDrop(event: DragEvent) {

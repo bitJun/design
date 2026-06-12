@@ -6,6 +6,9 @@ export type UploadState = 'idle' | 'uploading' | 'done'
 
 export type ImageGenTask = 'picker' | 'img2img' | 'hd'
 
+/** 画布图片节点拖入对话框时 dataTransfer 的 MIME 类型 */
+export const CANVAS_IMAGE_NODE_DRAG_TYPE = 'application/x-canvas-image-node-id'
+
 /** 由上游节点连线带过来的图片输入源 */
 export interface ImageSourceRef {
   nodeId: string

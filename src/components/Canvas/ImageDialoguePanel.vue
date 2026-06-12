@@ -1,5 +1,21 @@
 <template>
-  <div class="image-dialogue" :class="{ 'image-dialogue--light': isLightTheme }">
+  <div
+    class="image-dialogue"
+    :class="{
+      'image-dialogue--light': isLightTheme,
+      'image-dialogue--dragover': isDragOver,
+    }"
+    @dragenter.prevent="onDialogueDragEnter"
+    @dragover.prevent="onDialogueDragOver"
+    @dragleave="onDialogueDragLeave"
+    @drop.prevent.stop="onDialogueDrop"
+  >
+    <div v-if="isDragOver" class="image-dialogue__drop-overlay" @mousedown.stop>
+      <div class="image-dialogue__drop-zone">
+        <img src="@assets/images/add.png" alt="" class="image-dialogue__drop-icon" />
+        <p class="image-dialogue__drop-text">点击或拖拽图片到此处上传</p>
+      </div>
+    </div>
     <div style="display: flex;justify-content: flex-end;padding-right: 20px;">
       <a-select 
         v-model="selectedWorkFlow"
@@ -29,7 +45,7 @@
         <span class="image-dialogue__chip-icon" data-icon="mark" aria-hidden="true" />
         标记
       </button> -->
-      <div v-if="previewList.length" class="image-dialogue__thumbs">
+      <div class="image-dialogue__thumbs">
         <div
           v-for="(item, index) in previewList"
           :key="item.key"
@@ -57,6 +73,23 @@
             <img :src="item.previewUrl" alt="" />
           </div>
         </div>
+        <button
+          type="button"
+          class="image-dialogue__upload"
+          title="添加图片"
+          @mousedown.stop
+          @click.stop="openFilePicker"
+        >
+          <img src="@assets/images/add.png" alt="" class="image-dialogue__upload_icon" />
+        </button>
+        <input
+          ref="fileInputRef"
+          type="file"
+          class="image-dialogue__file-input"
+          accept="image/*"
+          multiple
+          @change="onFileInputChange"
+        />
       </div>
     </div>
 
@@ -214,6 +247,7 @@ import ImageGenSettingsPopover from './ImageGenSettingsPopover.vue'
 import ImageStylePanel from './ImageStylePanel.vue'
 import { createPromptMentionApi, needsSpaceBeforeMention } from './promptMention'
 import {
+  CANVAS_IMAGE_NODE_DRAG_TYPE,
   IMAGE_DIALOGUE_PLACEHOLDER,
   IMAGE_DIALOGUE_QUALITY_LABEL,
   IMAGE_DIALOGUE_CREDITS,
@@ -235,6 +269,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   remove: [sourceNodeId?: string]
+  'upload-images': [files: File[]]
+  'add-canvas-node': [nodeId: string]
 }>()
 
 const { isLightTheme } = useCanvasBgTheme()
@@ -261,6 +297,8 @@ const previewList = computed(() => {
 })
 
 const hoveredThumb = ref<string | null>(null)
+const isDragOver = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 const showStyleModal = ref(false)
 const showGenSettings = ref(false)
 const showModelMenu = ref(false)
@@ -440,6 +478,54 @@ function selectCount(count: number) {
   showCountMenu.value = false
 }
 
+function hasDialogueDropContent(event: DragEvent) {
+  const types = Array.from(event.dataTransfer?.types ?? [])
+  return types.includes('Files') || types.includes(CANVAS_IMAGE_NODE_DRAG_TYPE)
+}
+
+function onDialogueDragEnter(event: DragEvent) {
+  if (!hasDialogueDropContent(event)) return
+  isDragOver.value = true
+}
+
+function onDialogueDragOver(event: DragEvent) {
+  if (!hasDialogueDropContent(event)) return
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+  isDragOver.value = true
+}
+
+function onDialogueDragLeave(event: DragEvent) {
+  const related = event.relatedTarget as Node | null
+  const current = event.currentTarget as HTMLElement | null
+  if (related && current?.contains(related)) return
+  isDragOver.value = false
+}
+
+function onDialogueDrop(event: DragEvent) {
+  isDragOver.value = false
+  const nodeId = event.dataTransfer?.getData(CANVAS_IMAGE_NODE_DRAG_TYPE)
+  if (nodeId) {
+    emit('add-canvas-node', nodeId)
+    return
+  }
+
+  const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
+    file.type.startsWith('image/'),
+  )
+  if (files.length) emit('upload-images', files)
+}
+
+function openFilePicker() {
+  fileInputRef.value?.click()
+}
+
+function onFileInputChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? []).filter((file) => file.type.startsWith('image/'))
+  if (files.length) emit('upload-images', files)
+  input.value = ''
+}
+
 function onDocumentMouseDown(event: MouseEvent) {
   const target = event.target as HTMLElement | null
   if (!target) return
@@ -595,6 +681,97 @@ onBeforeUnmount(() => {
       border-color: rgba(79, 70, 229, 0.45);
     }
   }
+}
+.image-dialogue__upload {
+  width: 45px;
+  height: 45px;
+  padding: 0;
+  border: 1px dashed #4b4b55;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: rgba(107, 124, 255, 0.55);
+    background: rgba(107, 124, 255, 0.08);
+  }
+
+  .image-dialogue--light & {
+    border-color: #d1d5db;
+
+    &:hover {
+      border-color: rgba(79, 70, 229, 0.45);
+      background: rgba(79, 70, 229, 0.06);
+    }
+  }
+}
+
+.image-dialogue__upload_icon {
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+
+.image-dialogue__file-input {
+  display: none;
+}
+
+.image-dialogue__drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: rgba(20, 20, 24, 0.72);
+  backdrop-filter: blur(4px);
+
+  .image-dialogue--light & {
+    background: rgba(255, 255, 255, 0.88);
+  }
+}
+
+.image-dialogue__drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 120px;
+  padding: 20px 12px;
+  border: 1px dashed #6b7280;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+
+  .image-dialogue--light & {
+    border-color: #d1d5db;
+    background: #f9fafb;
+  }
+}
+
+.image-dialogue__drop-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.image-dialogue__drop-text {
+  margin: 0;
+  color: #d1d5db;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+
+  .image-dialogue--light & {
+    color: #6b7280;
+  }
+}
+
+.image-dialogue--dragover {
+  border-color: rgba(107, 124, 255, 0.55);
 }
 
 .image-dialogue__thumb-img {

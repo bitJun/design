@@ -247,6 +247,8 @@
       :previews="imageDialoguePreviews"
       @update:model-value="emit('update:imageDialogueText', $event)"
       @remove="emit('remove-image-dialogue-preview', $event)"
+      @upload-images="emit('upload-image-dialogue-images', $event)"
+      @add-canvas-node="emit('add-image-dialogue-canvas-node', $event)"
     />
   </div>
 
@@ -382,6 +384,8 @@ const emit = defineEmits<{
   'remove-prompt-source': [sourceNodeId?: string]
   'update:imageDialogueText': [value: string]
   'remove-image-dialogue-preview': [sourceNodeId?: string]
+  'upload-image-dialogue-images': [files: File[]]
+  'add-image-dialogue-canvas-node': [nodeId: string]
   'update:videoDialogueText': [value: string]
   'update:videoHdMagnification': [value: VideoHdMagnification]
   'persist-prompt-bar-draft': []

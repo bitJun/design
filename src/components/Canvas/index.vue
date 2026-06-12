@@ -141,6 +141,8 @@
       @update:video-gen-active-tab="videoGenActiveTab = $event; persistVideoGenPrompt()"
       @update:image-dialogue-text="imageDialogueText = $event"
       @remove-image-dialogue-preview="clearImageDialoguePreview"
+      @upload-image-dialogue-images="onImageDialogueUploadFiles"
+      @add-image-dialogue-canvas-node="onImageDialogueAddCanvasNode"
       @update:video-dialogue-text="videoDialogueText = $event"
       @update:video-hd-magnification="videoHdMagnification = $event"
       @close-image-crop="closeImageCrop"
@@ -879,6 +881,103 @@ function resetImageDialogue() {
   showImageDialogue.value = false
 }
 
+function seedImageDialogueRefs(data: CanvasNodeData, targetNodeId: string): ImageSourceRef[] {
+  const refs = Array.isArray(data.imageSourceRefs) ? [...data.imageSourceRefs] : []
+  if (refs.length) return refs
+
+  if (data.sourceNodeId && data.sourcePreviewUrl) {
+    refs.push({
+      nodeId: data.sourceNodeId,
+      previewUrl: data.sourcePreviewUrl,
+      fileName: data.sourceFileName ?? '',
+    })
+    return refs
+  }
+
+  if (data.previewUrl) {
+    refs.push({
+      nodeId: targetNodeId,
+      previewUrl: data.previewUrl,
+      fileName: data.fileName || data.title || '',
+    })
+  }
+
+  return refs
+}
+
+function addImageDialogueSourceRef(payload: {
+  nodeId?: string
+  previewUrl: string
+  fileName?: string
+}) {
+  const g = graph.value
+  const id = selectedNodeId.value
+  if (!g || !id || !payload.previewUrl) return
+
+  const cell = g.getCellById(id)
+  if (!cell?.isNode()) return
+
+  const data = { ...(cell.getData() as CanvasNodeData) }
+  if (data.kind !== 'image') return
+  if (payload.nodeId && payload.nodeId === id) return
+
+  const ref: ImageSourceRef = {
+    nodeId: payload.nodeId || `upload-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    previewUrl: payload.previewUrl,
+    fileName: payload.fileName ?? '',
+  }
+
+  let refs = seedImageDialogueRefs(data, id)
+  const existingIdx = payload.nodeId
+    ? refs.findIndex((item) => item.nodeId === payload.nodeId)
+    : refs.findIndex((item) => item.previewUrl === payload.previewUrl)
+
+  if (existingIdx >= 0) {
+    refs.splice(existingIdx, 1, ref)
+  } else if (!refs.some((item) => item.previewUrl === payload.previewUrl)) {
+    refs.push(ref)
+  } else {
+    return
+  }
+
+  data.imageSourceRefs = refs
+  const latest = refs[refs.length - 1]
+  data.sourceNodeId = latest?.nodeId ?? ''
+  data.sourcePreviewUrl = latest?.previewUrl ?? ''
+  data.sourceFileName = latest?.fileName ?? ''
+  data.inputUpdated = refs.some((item) => Boolean(item.previewUrl))
+  cell.setData(data, { overwrite: true })
+  bumpToolbarRevision()
+  scheduleHistoryPush()
+}
+
+function onImageDialogueUploadFiles(files: File[]) {
+  const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+  imageFiles.forEach((file) => {
+    addImageDialogueSourceRef({
+      previewUrl: URL.createObjectURL(file),
+      fileName: file.name,
+    })
+  })
+}
+
+function onImageDialogueAddCanvasNode(sourceNodeId: string) {
+  const g = graph.value
+  if (!g || !sourceNodeId) return
+  const source = g.getCellById(sourceNodeId)
+  if (!source?.isNode()) return
+  const sourceData = source.getData() as CanvasNodeData
+  if (sourceData.kind !== 'image' || !sourceData.previewUrl || sourceData.uploadState === 'uploading') {
+    return
+  }
+
+  addImageDialogueSourceRef({
+    nodeId: sourceNodeId,
+    previewUrl: sourceData.previewUrl,
+    fileName: sourceData.fileName || sourceData.title || '',
+  })
+}
+
 function clearImageDialoguePreview(sourceNodeId?: string) {
   const g = graph.value
   const id = selectedNodeId.value
@@ -889,6 +988,10 @@ function clearImageDialoguePreview(sourceNodeId?: string) {
 
   let refs = Array.isArray(data.imageSourceRefs) ? [...data.imageSourceRefs] : []
   if (sourceNodeId) {
+    const removed = refs.filter((item) => item.nodeId === sourceNodeId)
+    removed.forEach((item) => {
+      if (item.previewUrl.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl)
+    })
     refs = refs.filter((item) => item.nodeId !== sourceNodeId)
     // 同步删除该来源连入的连线
     g.getEdges().forEach((edge) => {
@@ -897,6 +1000,9 @@ function clearImageDialoguePreview(sourceNodeId?: string) {
       }
     })
   } else {
+    refs.forEach((item) => {
+      if (item.previewUrl.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl)
+    })
     refs = []
   }
   data.imageSourceRefs = refs
