@@ -134,6 +134,8 @@
       @persist-prompt-bar-draft="persistPromptBarDraft"
       @submit-text-prompt="submitTextPrompt"
       @remove-prompt-source="removePromptImageSource"
+      @upload-prompt-images="onPromptUploadFiles"
+      @add-prompt-canvas-node="onPromptAddCanvasNode"
       @update:image-gen-prompt-text="imageGenPromptText = $event; persistImageGenPrompt()"
       @update:image-gen-seed="imageGenSeed = $event; persistImageGenPrompt()"
       @generate-image="generateImageFromPrompt"
@@ -381,6 +383,7 @@ import {
 } from './canvasTheme'
 import { tidyCanvas } from './layout'
 import {
+  ensureImageTextEdge,
   findIncomingImageNode,
   IMG2PROMPT_DEFAULT_INSTRUCTION,
   mockImg2Prompt,
@@ -1123,29 +1126,63 @@ function persistVideoGenPrompt() {
   cell.setData(data)
 }
 
-/** 文本提示栏：删除某张来源图片 —— 移除其连线、从来源数组移除、刷新提示栏 */
-function removePromptImageSource(sourceNodeId?: string) {
+function seedPromptImageRefs(data: CanvasNodeData): ImageSourceRef[] {
+  const refs = Array.isArray(data.imageSourceRefs) ? [...data.imageSourceRefs] : []
+  if (refs.length) return refs
+
+  if (data.sourcePreviewUrl) {
+    refs.push({
+      nodeId: data.linkedImageNodeId || data.sourceNodeId || '',
+      previewUrl: data.sourcePreviewUrl,
+      fileName: data.sourceFileName ?? '',
+    })
+  }
+
+  return refs
+}
+
+function refreshPromptSourcePreviews(data: CanvasNodeData) {
+  promptSourcePreviewUrl.value = data.sourcePreviewUrl ?? ''
+  promptSourceFileName.value = data.sourceFileName ?? ''
+  promptSourcePreviews.value = Array.isArray(data.imageSourceRefs)
+    ? data.imageSourceRefs.filter((item) => item.previewUrl)
+    : []
+}
+
+function addPromptImageSourceRef(payload: {
+  nodeId?: string
+  previewUrl: string
+  fileName?: string
+}) {
   const g = graph.value
   const textNodeId = activePickerNodeId.value
-  if (!g || !textNodeId || !sourceNodeId) return
+  if (!g || !textNodeId || !payload.previewUrl) return
+
   const cell = g.getCellById(textNodeId)
   if (!cell?.isNode()) return
 
-  g.getEdges().forEach((edge) => {
-    const s = edge.getSourceCellId()
-    const t = edge.getTargetCellId()
-    if (
-      (s === sourceNodeId && t === textNodeId) ||
-      (s === textNodeId && t === sourceNodeId)
-    ) {
-      g.removeEdge(edge.id)
-    }
-  })
-
   const data = { ...(cell.getData() as CanvasNodeData) }
-  const refs = (Array.isArray(data.imageSourceRefs) ? data.imageSourceRefs : []).filter(
-    (item) => item.nodeId !== sourceNodeId,
-  )
+  if (data.kind !== 'text') return
+
+  const ref: ImageSourceRef = {
+    nodeId: payload.nodeId || `upload-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    previewUrl: payload.previewUrl,
+    fileName: payload.fileName ?? '',
+  }
+
+  let refs = seedPromptImageRefs(data)
+  const existingIdx = payload.nodeId
+    ? refs.findIndex((item) => item.nodeId === payload.nodeId)
+    : refs.findIndex((item) => item.previewUrl === payload.previewUrl)
+
+  if (existingIdx >= 0) {
+    refs.splice(existingIdx, 1, ref)
+  } else if (!refs.some((item) => item.previewUrl === payload.previewUrl)) {
+    refs.push(ref)
+  } else {
+    return
+  }
+
   data.imageSourceRefs = refs
   const latest = refs[refs.length - 1]
   data.sourceNodeId = latest?.nodeId ?? ''
@@ -1153,10 +1190,83 @@ function removePromptImageSource(sourceNodeId?: string) {
   data.sourceFileName = latest?.fileName ?? ''
   data.linkedImageNodeId = latest?.nodeId ?? ''
   cell.setData(data, { overwrite: true })
+  refreshPromptSourcePreviews(data)
+  scheduleHistoryPush()
+}
 
-  promptSourcePreviewUrl.value = data.sourcePreviewUrl ?? ''
-  promptSourceFileName.value = data.sourceFileName ?? ''
-  promptSourcePreviews.value = refs.filter((item) => item.previewUrl)
+function onPromptUploadFiles(files: File[]) {
+  const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+  imageFiles.forEach((file) => {
+    addPromptImageSourceRef({
+      previewUrl: URL.createObjectURL(file),
+      fileName: file.name,
+    })
+  })
+}
+
+function onPromptAddCanvasNode(sourceNodeId: string) {
+  const g = graph.value
+  const textNodeId = activePickerNodeId.value
+  if (!g || !textNodeId || !sourceNodeId || sourceNodeId === textNodeId) return
+
+  const source = g.getCellById(sourceNodeId)
+  const textCell = g.getCellById(textNodeId)
+  if (!source?.isNode() || !textCell?.isNode()) return
+
+  const sourceData = source.getData() as CanvasNodeData
+  if (sourceData.kind !== 'image' || !sourceData.previewUrl || sourceData.uploadState === 'uploading') {
+    return
+  }
+
+  ensureImageTextEdge(g, sourceNodeId, textNodeId)
+  const synced = syncTextNodeImageSource(g, textCell as Node, source as Node)
+  refreshPromptSourcePreviews(synced)
+  scheduleHistoryPush()
+}
+
+/** 文本提示栏：删除某张来源图片 —— 移除其连线、从来源数组移除、刷新提示栏 */
+function removePromptImageSource(sourceNodeId?: string) {
+  const g = graph.value
+  const textNodeId = activePickerNodeId.value
+  if (!g || !textNodeId) return
+  const cell = g.getCellById(textNodeId)
+  if (!cell?.isNode()) return
+
+  const data = { ...(cell.getData() as CanvasNodeData) }
+  let refs = seedPromptImageRefs(data)
+
+  if (!sourceNodeId) {
+    refs.forEach((item) => {
+      if (item.previewUrl.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl)
+    })
+    refs = []
+  } else {
+    const removed = refs.filter((item) => item.nodeId === sourceNodeId)
+    removed.forEach((item) => {
+      if (item.previewUrl.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl)
+    })
+    refs = refs.filter((item) => item.nodeId !== sourceNodeId)
+
+    g.getEdges().forEach((edge) => {
+      const s = edge.getSourceCellId()
+      const t = edge.getTargetCellId()
+      if (
+        (s === sourceNodeId && t === textNodeId) ||
+        (s === textNodeId && t === sourceNodeId)
+      ) {
+        g.removeEdge(edge.id)
+      }
+    })
+  }
+
+  data.imageSourceRefs = refs
+  const latest = refs[refs.length - 1]
+  data.sourceNodeId = latest?.nodeId ?? ''
+  data.sourcePreviewUrl = latest?.previewUrl ?? ''
+  data.sourceFileName = latest?.fileName ?? ''
+  data.linkedImageNodeId = latest?.nodeId ?? ''
+  cell.setData(data, { overwrite: true })
+  refreshPromptSourcePreviews(data)
   scheduleHistoryPush()
 }
 

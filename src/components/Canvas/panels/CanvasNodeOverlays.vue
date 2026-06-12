@@ -2,14 +2,27 @@
   <div
     v-if="showPromptBar"
     class="canvas__prompt"
-    :class="{ 'canvas__prompt--light': canvasBgTheme === 'light' }"
+    :class="{
+      'canvas__prompt--light': canvasBgTheme === 'light',
+      'canvas__prompt--dragover': isPromptDragOver,
+    }"
     :style="{
       left: `${promptPos.left}px`,
       top: `${promptPos.top}px`,
       width: `${promptPos.width}px`,
     }"
     @mousedown.stop
+    @dragenter.prevent="onPromptDragEnter"
+    @dragover.prevent="onPromptDragOver"
+    @dragleave="onPromptDragLeave"
+    @drop.prevent.stop="onPromptDrop"
   >
+    <div v-if="isPromptDragOver && isImg2PromptTask" class="canvas__prompt-drop-overlay" @mousedown.stop>
+      <div class="canvas__prompt-drop-zone">
+        <img src="@assets/images/add.png" alt="" class="canvas__prompt-drop-icon" />
+        <p class="canvas__prompt-drop-text">点击或拖拽图片到此处上传</p>
+      </div>
+    </div>
     <div style="display: flex;justify-content: flex-end;padding-right: 20px;margin-bottom: 12px;">
       <div class="canvas__prompt-model-wrap">
         <button
@@ -49,56 +62,54 @@
     <div
       class="canvas__prompt-body"
       :class="{
-        'canvas__prompt-body--img2prompt':
-          isImg2PromptTask && (promptSourcePreviews.length || promptSourcePreviewUrl),
+        'canvas__prompt-body--img2prompt': isImg2PromptTask,
       }"
     >
-      <span
-        v-if="isImg2PromptTask && (promptSourcePreviews.length || promptSourcePreviewUrl)"
-        class="canvas__prompt-refs"
-      >
-        <template v-if="promptSourcePreviews.length">
-          <span
-            v-for="(item, index) in promptSourcePreviews"
-            :key="item.nodeId || index"
-            class="canvas__prompt-ref"
-            :title="`点击插入 @图片${index + 1}`"
-            @mousedown.stop
-            @click.stop="insertRefMention(index + 1)"
-            @mouseenter="hoveredPromptRef = item.nodeId || String(index)"
-            @mouseleave="hoveredPromptRef = null"
-          >
-            <img :src="item.previewUrl" alt="" />
-            <button
-              v-if="hoveredPromptRef === (item.nodeId || String(index))"
-              type="button"
-              class="canvas__prompt-ref-remove"
-              title="移除"
-              @mousedown.stop
-              @click.stop="emit('remove-prompt-source', item.nodeId)"
-            >
-              <span class="canvas__prompt-ref-remove-icon" aria-hidden="true" />
-            </button>
-            <span v-else class="canvas__prompt-ref-badge">{{ index + 1 }}</span>
-
-            <div
-              v-if="hoveredPromptRef === (item.nodeId || String(index))"
-              class="canvas__prompt-ref-preview"
-            >
-              <img :src="item.previewUrl" alt="" />
-            </div>
-          </span>
-        </template>
+      <span v-if="isImg2PromptTask" class="canvas__prompt-refs">
         <span
-          v-else
+          v-for="(item, index) in promptRefList"
+          :key="item.key"
           class="canvas__prompt-ref"
-          title="点击插入 @图片1"
+          :title="`点击插入 @图片${index + 1}`"
           @mousedown.stop
-          @click.stop="insertRefMention(1)"
+          @click.stop="insertRefMention(index + 1)"
+          @mouseenter="hoveredPromptRef = item.key"
+          @mouseleave="hoveredPromptRef = null"
         >
-          <img :src="promptSourcePreviewUrl" alt="" />
-          <span class="canvas__prompt-ref-badge">1</span>
+          <img :src="item.previewUrl" alt="" />
+          <button
+            v-if="hoveredPromptRef === item.key"
+            type="button"
+            class="canvas__prompt-ref-remove"
+            title="移除"
+            @mousedown.stop
+            @click.stop="emit('remove-prompt-source', item.nodeId)"
+          >
+            <span class="canvas__prompt-ref-remove-icon" aria-hidden="true" />
+          </button>
+          <span v-else class="canvas__prompt-ref-badge">{{ index + 1 }}</span>
+
+          <div v-if="hoveredPromptRef === item.key" class="canvas__prompt-ref-preview">
+            <img :src="item.previewUrl" alt="" />
+          </div>
         </span>
+        <button
+          type="button"
+          class="image-dialogue__upload"
+          title="添加图片"
+          @mousedown.stop
+          @click.stop="openPromptFilePicker"
+        >
+          <img src="@assets/images/add.png" alt="" class="image-dialogue__upload_icon" />
+        </button>
+        <input
+          ref="promptFileInputRef"
+          type="file"
+          class="canvas__prompt-file-input"
+          accept="image/*"
+          multiple
+          @change="onPromptFileInputChange"
+        />
       </span>
       <div
         ref="promptInputRef"
@@ -310,6 +321,7 @@ import VideoDialoguePanel from '../VideoDialoguePanel.vue'
 import VideoHdPanel from '../VideoHdPanel.vue'
 import VideoFramesPanel from '../VideoFramesPanel.vue'
 import {
+  CANVAS_IMAGE_NODE_DRAG_TYPE,
   IMAGE_DIALOGUE_MODEL_MENU,
   PROMPT_PLACEHOLDER,
   TEXT_PROMPT_MODEL_LABEL,
@@ -326,6 +338,8 @@ import type { VideoSourceRef } from '../videoGen'
 
 const videoGenPromptPanelRef = ref<InstanceType<typeof VideoGenPromptPanel> | null>(null)
 const hoveredPromptRef = ref<string | null>(null)
+const isPromptDragOver = ref(false)
+const promptFileInputRef = ref<HTMLInputElement | null>(null)
 const promptInputRef = ref<HTMLElement | null>(null)
 const mentionApi = createPromptMentionApi('canvas__prompt-mention')
 let skipPromptWatch = false
@@ -382,6 +396,8 @@ const emit = defineEmits<{
   'update:videoGenPromptText': [value: string]
   'update:videoGenActiveTab': [value: string]
   'remove-prompt-source': [sourceNodeId?: string]
+  'upload-prompt-images': [files: File[]]
+  'add-prompt-canvas-node': [nodeId: string]
   'update:imageDialogueText': [value: string]
   'remove-image-dialogue-preview': [sourceNodeId?: string]
   'upload-image-dialogue-images': [files: File[]]
@@ -414,6 +430,20 @@ const selectedPromptModelName = computed(
   IMAGE_DIALOGUE_MODEL_MENU.find((model) => model.key === selectedPromptModelKey.value)?.name ??
     TEXT_PROMPT_MODEL_LABEL,
 )
+
+const promptRefList = computed(() => {
+  if (props.promptSourcePreviews.length) {
+    return props.promptSourcePreviews.map((item, index) => ({
+      key: item.nodeId || `src-${index}`,
+      nodeId: item.nodeId,
+      previewUrl: item.previewUrl,
+    }))
+  }
+  if (props.promptSourcePreviewUrl) {
+    return [{ key: 'src-0', nodeId: '', previewUrl: props.promptSourcePreviewUrl }]
+  }
+  return []
+})
 
 function togglePromptModelMenu() {
   showPromptWorkFlow.value = false;
@@ -548,6 +578,56 @@ function onPromptPaste(event: ClipboardEvent) {
   onPromptInput()
 }
 
+function hasPromptDropContent(event: DragEvent) {
+  const types = Array.from(event.dataTransfer?.types ?? [])
+  return types.includes('Files') || types.includes(CANVAS_IMAGE_NODE_DRAG_TYPE)
+}
+
+function onPromptDragEnter(event: DragEvent) {
+  if (!props.isImg2PromptTask || !hasPromptDropContent(event)) return
+  isPromptDragOver.value = true
+}
+
+function onPromptDragOver(event: DragEvent) {
+  if (!props.isImg2PromptTask || !hasPromptDropContent(event)) return
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+  isPromptDragOver.value = true
+}
+
+function onPromptDragLeave(event: DragEvent) {
+  const related = event.relatedTarget as Node | null
+  const current = event.currentTarget as HTMLElement | null
+  if (related && current?.contains(related)) return
+  isPromptDragOver.value = false
+}
+
+function onPromptDrop(event: DragEvent) {
+  isPromptDragOver.value = false
+  if (!props.isImg2PromptTask) return
+
+  const nodeId = event.dataTransfer?.getData(CANVAS_IMAGE_NODE_DRAG_TYPE)
+  if (nodeId) {
+    emit('add-prompt-canvas-node', nodeId)
+    return
+  }
+
+  const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
+    file.type.startsWith('image/'),
+  )
+  if (files.length) emit('upload-prompt-images', files)
+}
+
+function openPromptFilePicker() {
+  promptFileInputRef.value?.click()
+}
+
+function onPromptFileInputChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? []).filter((file) => file.type.startsWith('image/'))
+  if (files.length) emit('upload-prompt-images', files)
+  input.value = ''
+}
+
 watch(
   () => props.promptText,
   (value) => {
@@ -583,3 +663,97 @@ defineExpose({
   dismissVideoGenPromptOverlay,
 })
 </script>
+<style scoped>
+
+.image-dialogue__upload {
+  width: 45px;
+  height: 45px;
+  padding: 0;
+  border: 1px dashed #4b4b55;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: rgba(107, 124, 255, 0.55);
+    background: rgba(107, 124, 255, 0.08);
+  }
+
+  .canvas__prompt--light & {
+    border-color: #d1d5db;
+
+    &:hover {
+      border-color: rgba(79, 70, 229, 0.45);
+      background: rgba(79, 70, 229, 0.06);
+    }
+  }
+}
+
+.image-dialogue__upload_icon {
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+
+.canvas__prompt-file-input {
+  display: none;
+}
+
+.canvas__prompt-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: rgba(20, 20, 24, 0.72);
+  backdrop-filter: blur(4px);
+
+  .canvas__prompt--light & {
+    background: rgba(255, 255, 255, 0.88);
+  }
+}
+
+.canvas__prompt-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 120px;
+  padding: 20px 12px;
+  border: 1px dashed #6b7280;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+
+  .canvas__prompt--light & {
+    border-color: #d1d5db;
+    background: #f9fafb;
+  }
+}
+
+.canvas__prompt-drop-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.canvas__prompt-drop-text {
+  margin: 0;
+  color: #d1d5db;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+
+  .canvas__prompt--light & {
+    color: #6b7280;
+  }
+}
+
+.canvas__prompt--dragover {
+  border-color: rgba(107, 124, 255, 0.55);
+}
+</style>
