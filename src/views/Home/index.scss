@@ -495,3 +495,9 @@
     column-count: 1;
   }
 }
+
+.flexBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

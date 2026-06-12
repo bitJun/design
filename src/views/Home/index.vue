@@ -30,7 +30,24 @@
             @click="openProject(project.id)"
           >
             <span class="home__project-cover" aria-hidden="true" />
-            <span class="home__project-name">{{ project.name }}</span>
+            <div class="flexBox">
+              <span class="home__project-name">{{ project.name }}</span>
+              <a-dropdown>
+                <a-button type="default" @click.prevent>
+                  <MoreOutlined />
+                </a-button>
+                <template #overlay>
+                  <a-menu>
+                    <a-menu-item>
+                      <a href="javascript:;">重命名</a>
+                    </a-menu-item>
+                    <a-menu-item>
+                      <a href="javascript:;">删除</a>
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </div>
             <span class="home__project-meta">更新于 {{ project.updatedAt }}</span>
           </button>
         </div>
@@ -92,6 +109,7 @@
 </template>
 
 <script setup lang="ts">
+import { MoreOutlined } from '@ant-design/icons-vue'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
